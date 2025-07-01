@@ -1,11 +1,10 @@
-// File: internal/employerprofile/service.go
-
 package employerprofile
 
 type EmployerProfileService interface {
 	GetProfile(userID string) (*EmployerProfile, error)
 	UpdateProfile(profile *EmployerProfile) error
 	CreateProfile(profile *EmployerProfile) error
+	DeleteProfile(userID string) error
 }
 
 type employerProfileService struct {
@@ -26,4 +25,8 @@ func (s *employerProfileService) UpdateProfile(profile *EmployerProfile) error {
 
 func (s *employerProfileService) CreateProfile(profile *EmployerProfile) error {
 	return s.repo.Create(profile)
+}
+
+func (s *employerProfileService) DeleteProfile(userID string) error {
+	return s.repo.DeleteByUserID(userID)
 }

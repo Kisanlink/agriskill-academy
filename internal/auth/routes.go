@@ -1,5 +1,3 @@
-// File: internal/auth/routes.go
-
 package auth
 
 import (
@@ -11,6 +9,9 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *AuthHandler) {
 	{
 		auth.POST("/login", handler.Login)
 		auth.POST("/signup", handler.Signup)
-		// Add additional endpoints: verify, reset-password, etc
+		auth.GET("/verify", handler.Verify)
+		auth.POST("/forgot-password", handler.ForgotPassword)
+		auth.POST("/reset-password", handler.ResetPassword)
+		auth.PUT("/profile", handler.UpdateProfile)
 	}
 }

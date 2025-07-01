@@ -1,5 +1,3 @@
-// File: internal/jobpost/service.go
-
 package jobpost
 
 type JobPostService interface {

@@ -3,6 +3,9 @@
 package main
 
 import (
+	"log"
+	"os"
+
 	"AGRIJOBS/config"
 	"AGRIJOBS/internal/application"
 	"AGRIJOBS/internal/auth"
@@ -21,7 +24,10 @@ import (
 
 func main() {
 	// Initialize config and DB
-	db := config.InitDB()
+	db, err := config.InitDB()
+	if err != nil {
+		log.Fatalf("Failed to initialize DB: %v", err)
+	}
 	defer config.CloseDB(db)
 
 	router := gin.Default()
@@ -50,7 +56,8 @@ func main() {
 	employerAppHandler := employerapplication.NewEmployerApplicationHandler(employerAppService)
 
 	bookmarkRepo := bookmark.NewBookmarkRepository(db)
-	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo)
+	jobRepo := jobpost.NewJobPostRepository(db)
+	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo, jobRepo)
 	bookmarkHandler := bookmark.NewBookmarkHandler(bookmarkService)
 
 	userProfileRepo := userprofile.NewUserProfileRepository(db)
@@ -69,7 +76,7 @@ func main() {
 	// API routes
 	api := router.Group("/api")
 
-	// Auth routes
+	// Auth routes (no auth middleware)
 	auth.RegisterRoutes(api, authHandler)
 
 	// Middleware for authenticated routes
@@ -103,5 +110,10 @@ func main() {
 	// Workers (background job queue)
 	worker.RegisterRoutes(authGroup, workerHandler)
 
-	router.Run(":3000")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3000"
+	}
+
+	router.Run(":" + port)
 }

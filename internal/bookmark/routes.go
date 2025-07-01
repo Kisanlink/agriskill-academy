@@ -1,5 +1,3 @@
-// File: internal/bookmark/routes.go
-
 package bookmark
 
 import (
@@ -7,8 +5,6 @@ import (
 )
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *BookmarkHandler) {
-	// These will NOT conflict with /jobs/:id or other job routes
 	rg.POST("/bookmarks/:jobId", handler.Save)
 	rg.DELETE("/bookmarks/:jobId", handler.Remove)
-	rg.GET("/jobs/saved", handler.GetSaved)
 }

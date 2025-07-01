@@ -1,5 +1,3 @@
-// File: internal/employerapplication/model.go
-
 package employerapplication
 
 import (
@@ -7,19 +5,34 @@ import (
 )
 
 type JobApplicationWithApplicant struct {
-	ID          string           `json:"id"`
-	JobID       string           `json:"jobId"`
-	StudentID   string           `json:"studentId"`
-	AppliedAt   time.Time        `json:"appliedAt"`
-	Status      string           `json:"status"`
-	CoverLetter string           `json:"coverLetter"`
-	ResumeFile  string           `json:"resumeFile"`
-	JobTitle    string           `json:"jobTitle"`
-	Company     string           `json:"company"`
-	Location    string           `json:"location"`
-	JobType     string           `json:"jobType"`
-	Experience  string           `json:"experience"`
-	Applicant   ApplicantProfile `json:"applicant"`
+	ApplicationID     string    `json:"application_id"`
+	JobID             string    `json:"job_id"`
+	StudentID         string    `json:"student_id"`
+	AppliedAt         time.Time `json:"applied_at"`
+	ApplicationStatus string    `json:"status"`
+	CoverLetter       string    `json:"cover_letter"`
+	StudentResumeFile string    `json:"resume_file"`
+
+	JobTitle    string `json:"job_title"`
+	Company     string `json:"company"`
+	JobLocation string `json:"location"`
+	JobType     string `json:"job_type"`
+
+	Applicant struct {
+		UserID      string   `json:"user_id"`
+		Name        string   `json:"name"`
+		Email       string   `json:"email"`
+		Avatar      string   `json:"avatar"`
+		ResumeURL   string   `json:"resume_url"`
+		Skills      []string `json:"skills"` // You may need to unmarshal JSON
+		Location    string   `json:"location"`
+		Experience  string   `json:"experience"`
+		Education   string   `json:"education"`
+		Portfolio   string   `json:"portfolio"`
+		LinkedIn    string   `json:"linkedin"`
+		Github      string   `json:"github"`
+		ProfileName string   `json:"profile_name"`
+	} `json:"applicant"`
 }
 
 type ApplicantProfile struct {

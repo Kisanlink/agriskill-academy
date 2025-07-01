@@ -6,6 +6,7 @@ type UserProfileService interface {
 	GetProfile(userID string) (*UserProfile, error)
 	UpdateProfile(profile *UserProfile) error
 	CreateProfile(profile *UserProfile) error
+	AddCertificate(cert *Certificate) error
 }
 
 type userProfileService struct {
@@ -26,4 +27,8 @@ func (s *userProfileService) UpdateProfile(profile *UserProfile) error {
 
 func (s *userProfileService) CreateProfile(profile *UserProfile) error {
 	return s.repo.Create(profile)
+}
+
+func (s *userProfileService) AddCertificate(cert *Certificate) error {
+	return s.repo.AddCertificate(cert)
 }

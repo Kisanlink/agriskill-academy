@@ -1,8 +1,8 @@
-// File: internal/employerapplication/handler.go
-
 package employerapplication
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -16,18 +16,19 @@ func NewEmployerApplicationHandler(s EmployerApplicationService) *EmployerApplic
 	return &EmployerApplicationHandler{s}
 }
 
-// GET /employer/jobs/:jobId/applications
 func (h *EmployerApplicationHandler) GetApplicationsForJob(c *gin.Context) {
 	jobID := c.Param("jobId")
-	apps, err := h.service.GetApplicationsForJob(jobID)
+	status := c.Query("status")
+	fmt.Println("Status passed to repo:", status)
+	apps, err := h.service.GetApplicationsForJob(jobID, status)
 	if err != nil {
+		log.Println("GetApplicationsForJob error:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch applications"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "applications": apps})
 }
 
-// PUT /employer/applications/:applicationId/status
 func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 	applicationID := c.Param("applicationId")
 	var req struct {
@@ -44,7 +45,6 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Status updated"})
 }
 
-// GET /employer/applicants/:studentId/profile
 func (h *EmployerApplicationHandler) GetApplicantProfile(c *gin.Context) {
 	studentID := c.Param("studentId")
 	profile, err := h.service.GetApplicantProfile(studentID)
@@ -55,10 +55,9 @@ func (h *EmployerApplicationHandler) GetApplicantProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "profile": profile})
 }
 
-// POST /employer/applications/:applicationId/message
 func (h *EmployerApplicationHandler) SendMessage(c *gin.Context) {
 	applicationID := c.Param("applicationId")
-	senderID := c.GetString("user_id") // From JWT middleware
+	senderID := c.GetString("user_id")
 	var req struct {
 		Message string `json:"message"`
 	}
@@ -70,11 +69,30 @@ func (h *EmployerApplicationHandler) SendMessage(c *gin.Context) {
 		ApplicationID: applicationID,
 		SenderID:      senderID,
 		Message:       req.Message,
-		// SentAt will be set by DB or in service layer if needed
 	}
 	if err := h.service.SendMessage(msg); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to send message"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Message sent"})
+}
+
+func (h *EmployerApplicationHandler) GetMessages(c *gin.Context) {
+	applicationID := c.Param("applicationId")
+	messages, err := h.service.GetMessages(applicationID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Could not fetch messages"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "messages": messages})
+}
+
+func (h *EmployerApplicationHandler) GetApplicationsByStudent(c *gin.Context) {
+	studentID := c.GetString("user_id")
+	apps, err := h.service.GetApplicationsByStudent(studentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch applications"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "applications": apps})
 }

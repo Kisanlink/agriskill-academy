@@ -1,0 +1,837 @@
+openapi: 3.0.3
+info:
+  title: AgriJobs Platform API
+  version: 1.0.0
+  description: API for authentication, job posting, employer/student profiles, applications.
+servers:
+  - url: http://localhost:3000/api
+
+tags:
+  - name: Auth
+  - name: Employer Profile
+  - name: Job Posts
+  - name: Job Discovery
+  - name: Applications
+  - name: Bookmarks
+  - name: Employer Apps
+  - name: User Profile
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        role: { type: string, enum: [student, employer, admin] }
+        avatar: { type: string, nullable: true }
+    AuthResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        user: { $ref: "#/components/schemas/User" }
+        token: { type: string }
+    LoginCredentials:
+      type: object
+      required: [email, password, role]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+        role: { type: string, enum: [student, employer, admin] }
+    SignupCredentials:
+      type: object
+      required: [name, email, password, confirmPassword, role]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string }
+        confirmPassword: { type: string }
+        role: { type: string, enum: [student, employer] }
+        companyName: { type: string }
+        gstinNumber: { type: string }
+        companyAddress: { type: string }
+        city: { type: string }
+        state: { type: string }
+        pincode: { type: string }
+        industryType: { type: string }
+        companySize: { type: string }
+        website: { type: string }
+    EmployerProfile:
+      type: object
+      properties:
+        id: { type: string }
+        companyName: { type: string }
+        logo: { type: string }
+        websiteUrl: { type: string }
+        industry: { type: string }
+        companySize: { type: string }
+        companyDescription: { type: string }
+        recruiterName: { type: string }
+        designation: { type: string }
+        officialEmail: { type: string, format: email }
+        phoneNumber: { type: string }
+        linkedinProfile: { type: string }
+        jobCategories: { type: array, items: { type: string } }
+        hiringLocations: { type: array, items: { type: string } }
+        hiringTypes: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    EmployerProfileResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data: { $ref: "#/components/schemas/EmployerProfile" }
+    UpdateEmployerProfileData:
+      type: object
+      properties:
+        companyName: { type: string }
+        logo: { type: string }
+        websiteUrl: { type: string }
+        industry: { type: string }
+        companySize: { type: string }
+        companyDescription: { type: string }
+        recruiterName: { type: string }
+        designation: { type: string }
+        officialEmail: { type: string }
+        phoneNumber: { type: string }
+        linkedinProfile: { type: string }
+        jobCategories: { type: array, items: { type: string } }
+        hiringLocations: { type: array, items: { type: string } }
+        hiringTypes: { type: array, items: { type: string } }
+    JobPost:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        roleOverview: { type: string }
+        requirements: { type: string }
+        location: { type: string }
+        requiredSkills: { type: array, items: { type: string } }
+        employerId: { type: string }
+        employerName: { type: string }
+        employerEmail: { type: string }
+        status: { type: string, enum: [draft, published, closed, completed] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        applicationDeadline: { type: string }
+        jobType: { type: string, enum: [full-time, part-time, contract, internship] }
+        experience: { type: string, enum: [entry, mid, senior] }
+        salary:
+          type: object
+          properties:
+            min: { type: number }
+            max: { type: number }
+            currency: { type: string }
+        completedAt: { type: string }
+        hiredCandidateName: { type: string }
+    JobPostResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        jobPost: { $ref: "#/components/schemas/JobPost" }
+        jobPosts:
+          type: array
+          items: { $ref: "#/components/schemas/JobPost" }
+    CreateJobPostData:
+      type: object
+      required: [title, roleOverview, requirements, location, requiredSkills, jobType, experience]
+      properties:
+        title: { type: string }
+        roleOverview: { type: string }
+        requirements: { type: string }
+        location: { type: string }
+        requiredSkills: { type: array, items: { type: string } }
+        jobType: { type: string }
+        experience: { type: string }
+        applicationDeadline: { type: string }
+        salary:
+          type: object
+          properties:
+            min: { type: number }
+            max: { type: number }
+            currency: { type: string }
+    JobFilters:
+      type: object
+      properties:
+        roleType: { type: array, items: { type: string } }
+        location: { type: string }
+        experience: { type: array, items: { type: string } }
+        jobType: { type: array, items: { type: string } }
+        postedWithin: { type: string, enum: [all, 24h, 7d, 30d] }
+        salaryRange:
+          type: object
+          properties:
+            min: { type: number }
+            max: { type: number }
+        isRemote: { type: boolean }
+        skills: { type: array, items: { type: string } }
+    Job:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        company: { type: string }
+        location: { type: string }
+        jobType: { type: string }
+        experience: { type: string }
+        description: { type: string }
+        requirements: { type: array, items: { type: string } }
+        skills: { type: array, items: { type: string } }
+        postedAt: { type: string }
+        applicationDeadline: { type: string }
+        salary:
+          type: object
+          properties:
+            min: { type: number }
+            max: { type: number }
+            currency: { type: string }
+        recruiter:
+          type: object
+          properties:
+            name: { type: string }
+            email: { type: string }
+            phone: { type: string }
+            company: { type: string }
+            avatar: { type: string }
+        benefits: { type: array, items: { type: string } }
+        isRemote: { type: boolean }
+        applicationsCount: { type: integer }
+        status: { type: string }
+    JobApplication:
+      type: object
+      properties:
+        id: { type: string }
+        jobId: { type: string }
+        studentId: { type: string }
+        appliedAt: { type: string }
+        status: { type: string }
+        coverLetter: { type: string }
+        resumeFile: { type: string }
+        jobTitle: { type: string }
+        company: { type: string }
+        location: { type: string }
+        jobType: { type: string }
+        experience: { type: string }
+    JobApplicationWithApplicant:
+      allOf:
+        - $ref: "#/components/schemas/JobApplication"
+        - type: object
+          properties:
+            applicant: 
+              $ref: "#/components/schemas/ApplicantProfile"
+    ApplicantProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        location: { type: string }
+        skills: { type: array, items: { type: string } }
+        experience: { type: string }
+        education: { type: string }
+        avatar: { type: string }
+        resumeUrl: { type: string }
+        portfolio: { type: string }
+        linkedIn: { type: string }
+        github: { type: string }
+        summary: { type: string }
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        location: { type: string }
+        profilePhoto: { type: string }
+        resume: { type: string }
+        certificates:
+          type: array
+          items:
+            $ref: "#/components/schemas/Certificate"
+        skills: { type: array, items: { type: string } }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+    Certificate:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        file: { type: string }
+        issueDate: { type: string }
+    ProfileResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data: { $ref: "#/components/schemas/UserProfile" }
+    UpdateProfileData:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string }
+        location: { type: string }
+        profilePhoto: { type: string }
+        resume: { type: string }
+        certificates: 
+          type: array
+          items: { $ref: "#/components/schemas/Certificate" }
+        skills: { type: array, items: { type: string } }
+security:
+  - BearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginCredentials" }
+      responses:
+        200:
+          description: Login response
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Signup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SignupCredentials" }
+      responses:
+        200:
+          description: Signup response
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+
+  /auth/verify:
+    get:
+      tags: [Auth]
+      summary: Verify token
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: OK
+
+  /auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Reset password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        200:
+          description: Reset password response
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+
+  /auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Forgot password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        200:
+          description: Forgot password response
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+
+  /auth/profile:
+    put:
+      tags: [Auth]
+      summary: Update profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Partial User object
+      responses:
+        200:
+          description: Update profile response
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+
+  /employers/{employerId}/profile:
+    get:
+      tags: [Employer Profile]
+      summary: Get employer profile
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: employerId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Employer profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmployerProfileResponse" }
+    put:
+      tags: [Employer Profile]
+      summary: Update employer profile
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: employerId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateEmployerProfileData" }
+      responses:
+        200:
+          description: Update employer profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EmployerProfileResponse" }
+
+  /jobs:
+    post:
+      tags: [Job Posts]
+      summary: Create job post
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateJobPostData" }
+      responses:
+        200:
+          description: Job post created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobPostResponse" }
+
+  /jobs/draft:
+    post:
+      tags: [Job Posts]
+      summary: Save job post as draft
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateJobPostData" }
+      responses:
+        200:
+          description: Draft saved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobPostResponse" }
+
+  /jobs/publish:
+    post:
+      tags: [Job Posts]
+      summary: Publish job post
+      security: [{ BearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateJobPostData" }
+      responses:
+        200:
+          description: Published
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobPostResponse" }
+
+  /jobs/my-posts:
+    get:
+      tags: [Job Posts]
+      summary: Get my job posts
+      security: [{ BearerAuth: [] }]
+      responses:
+        200:
+          description: My job posts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobPostResponse" }
+
+  /jobs/{id}:
+    get:
+      tags: [Job Posts]
+      summary: Get specific job post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Job post
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobPostResponse" }
+    put:
+      tags: [Job Posts]
+      summary: Update job post
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Partial job post fields
+      responses:
+        200:
+          description: Job post updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobPostResponse" }
+    delete:
+      tags: [Job Posts]
+      summary: Delete job post
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Job post deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobPostResponse" }
+
+  /jobs/search:
+    post:
+      tags: [Job Discovery]
+      summary: Search jobs
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JobFilters" }
+      responses:
+        200:
+          description: Jobs found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  jobs:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+
+  /jobs/{jobId}/apply:
+    post:
+      tags: [Applications]
+      summary: Apply for job
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                coverLetter: { type: string }
+                resume: { type: string, format: binary }
+      responses:
+        200:
+          description: Application submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /applications/my:
+    get:
+      tags: [Applications]
+      summary: Get my applications
+      security: [{ BearerAuth: [] }]
+      responses:
+        200:
+          description: My applications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  applications:
+                    type: array
+                    items: { $ref: "#/components/schemas/JobApplication" }
+
+  /applications/{applicationId}:
+    delete:
+      tags: [Applications]
+      summary: Remove application
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Application removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /jobs/{jobId}/save:
+    post:
+      tags: [Bookmarks]
+      summary: Save job (bookmark)
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Job saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /jobs/{jobId}/unsave:
+    delete:
+      tags: [Bookmarks]
+      summary: Remove saved job
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Removed from bookmarks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /jobs/saved:
+    get:
+      tags: [Bookmarks]
+      summary: Get saved jobs
+      security: [{ BearerAuth: [] }]
+      responses:
+        200:
+          description: Saved jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  jobs:
+                    type: array
+                    items: { $ref: "#/components/schemas/Job" }
+
+  /employer/jobs/{jobId}/applications:
+    get:
+      tags: [Employer Apps]
+      summary: Get all applications for job
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Job applications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  applications:
+                    type: array
+                    items: { $ref: "#/components/schemas/JobApplicationWithApplicant" }
+
+  /employer/applications/{applicationId}/status:
+    put:
+      tags: [Employer Apps]
+      summary: Update application status
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string }
+      responses:
+        200:
+          description: Status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /employer/applicants/{studentId}/profile:
+    get:
+      tags: [Employer Apps]
+      summary: Get applicant profile
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Applicant profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  profile: { $ref: "#/components/schemas/ApplicantProfile" }
+
+  /employer/applications/{applicationId}/message:
+    post:
+      tags: [Employer Apps]
+      summary: Send message to applicant
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message: { type: string }
+      responses:
+        200:
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+
+  /users/{userId}/profile:
+    get:
+      tags: [User Profile]
+      summary: Get user profile
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: User profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProfileResponse" }
+    put:
+      tags: [User Profile]
+      summary: Update user profile
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateProfileData" }
+      responses:
+        200:
+          description: Updated profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProfileResponse" }

@@ -17,7 +17,7 @@ func Load() {
 	_ = godotenv.Load()
 }
 
-func InitDB() *gorm.DB {
+func InitDB() (*gorm.DB, error) {
 	Load()
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
@@ -28,7 +28,7 @@ func InitDB() *gorm.DB {
 		log.Fatalf("failed to connect database: %v", err)
 	}
 	DB = db
-	return db
+	return db, nil
 }
 
 func CloseDB(db *gorm.DB) {

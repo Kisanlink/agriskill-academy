@@ -1,5 +1,3 @@
-// File: internal/jobpost/repository.go
-
 package jobpost
 
 import (
@@ -13,6 +11,7 @@ type JobPostRepository interface {
 	GetByID(id string) (*JobPost, error)
 	GetByEmployer(employerID string) ([]JobPost, error)
 	Search(filter *JobPostFilter) ([]JobPost, error)
+	GetJobsByIDs(ids []string) ([]JobPost, error)
 }
 
 type jobPostRepository struct {
@@ -47,12 +46,10 @@ func (r *jobPostRepository) GetByEmployer(employerID string) ([]JobPost, error) 
 	return jobs, err
 }
 
-// For demo, filtering is minimal; real implementation should parse all filter fields.
 type JobPostFilter struct {
 	Location   string
 	JobType    string
 	Experience string
-	// add more as needed
 }
 
 func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
@@ -68,5 +65,11 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 		query = query.Where("experience = ?", filter.Experience)
 	}
 	err := query.Find(&jobs).Error
+	return jobs, err
+}
+
+func (r *jobPostRepository) GetJobsByIDs(ids []string) ([]JobPost, error) {
+	var jobs []JobPost
+	err := r.db.Where("id IN ?", ids).Find(&jobs).Error
 	return jobs, err
 }

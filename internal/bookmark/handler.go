@@ -1,5 +1,3 @@
-// File: internal/bookmark/handler.go
-
 package bookmark
 
 import (
@@ -41,10 +39,10 @@ func (h *BookmarkHandler) Remove(c *gin.Context) {
 // GET /jobs/saved
 func (h *BookmarkHandler) GetSaved(c *gin.Context) {
 	userID := c.GetString("user_id")
-	bookmarks, err := h.service.GetByUser(userID)
+	jobs, err := h.service.GetByUser(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Could not fetch saved jobs"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "jobs": bookmarks})
+	c.JSON(http.StatusOK, gin.H{"success": true, "jobs": jobs})
 }

@@ -1,15 +1,12 @@
-// File: internal/employerprofile/repository.go
-
 package employerprofile
 
-import (
-	"gorm.io/gorm"
-)
+import "gorm.io/gorm"
 
 type EmployerProfileRepository interface {
 	GetByUserID(userID string) (*EmployerProfile, error)
 	Update(profile *EmployerProfile) error
 	Create(profile *EmployerProfile) error
+	DeleteByUserID(userID string) error
 }
 
 type employerProfileRepository struct {
@@ -32,4 +29,8 @@ func (r *employerProfileRepository) Update(profile *EmployerProfile) error {
 
 func (r *employerProfileRepository) Create(profile *EmployerProfile) error {
 	return r.db.Create(profile).Error
+}
+
+func (r *employerProfileRepository) DeleteByUserID(userID string) error {
+	return r.db.Where("user_id = ?", userID).Delete(&EmployerProfile{}).Error
 }

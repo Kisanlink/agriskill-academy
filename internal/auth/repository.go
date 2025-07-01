@@ -1,13 +1,14 @@
-// File: internal/auth/repository.go
-
 package auth
 
 import (
+	"errors"
+
 	"gorm.io/gorm"
 )
 
 type UserRepository interface {
 	FindByEmail(email string) (*User, error)
+	FindByID(id string) (*User, error)
 	Create(user *User) error
 	Update(user *User) error
 }
@@ -23,6 +24,18 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 func (r *userRepository) FindByEmail(email string) (*User, error) {
 	var user User
 	err := r.db.Where("email = ?", email).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("user not found")
+	}
+	return &user, err
+}
+
+func (r *userRepository) FindByID(id string) (*User, error) {
+	var user User
+	err := r.db.First(&user, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, errors.New("user not found")
+	}
 	return &user, err
 }
 

@@ -10,6 +10,7 @@ type UserProfileRepository interface {
 	GetByUserID(userID string) (*UserProfile, error)
 	Update(profile *UserProfile) error
 	Create(profile *UserProfile) error
+	AddCertificate(cert *Certificate) error
 }
 
 type userProfileRepository struct {
@@ -32,4 +33,8 @@ func (r *userProfileRepository) Update(profile *UserProfile) error {
 
 func (r *userProfileRepository) Create(profile *UserProfile) error {
 	return r.db.Create(profile).Error
+}
+
+func (r *userProfileRepository) AddCertificate(cert *Certificate) error {
+	return r.db.Create(cert).Error
 }

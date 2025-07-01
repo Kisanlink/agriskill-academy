@@ -1,5 +1,3 @@
-// File: internal/employerprofile/model.go
-
 package employerprofile
 
 import (
@@ -10,7 +8,7 @@ import (
 
 type EmployerProfile struct {
 	ID                 string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID             string         `gorm:"type:uuid;not null" json:"user_id"` // FK to users
+	UserID             string         `gorm:"type:uuid;not null;uniqueIndex" json:"user_id"`
 	CompanyName        string         `json:"companyName"`
 	Logo               string         `json:"logo"`
 	WebsiteUrl         string         `json:"websiteUrl"`

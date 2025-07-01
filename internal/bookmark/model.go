@@ -1,5 +1,3 @@
-// File: internal/bookmark/model.go
-
 package bookmark
 
 import (

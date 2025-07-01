@@ -1,5 +1,3 @@
-// File: internal/jobpost/model.go
-
 package jobpost
 
 import (
@@ -21,13 +19,13 @@ type JobPost struct {
 	Requirements        string         `json:"requirements"`
 	Location            string         `json:"location"`
 	RequiredSkills      pq.StringArray `gorm:"type:text[]" json:"requiredSkills"`
-	EmployerID          string         `json:"employerId"` // FK to employer_profiles.id
+	EmployerID          string         `json:"employerId"`
 	EmployerName        string         `json:"employerName"`
 	EmployerEmail       string         `json:"employerEmail"`
 	Status              string         `json:"status"` // draft, published, closed, completed
 	CreatedAt           time.Time      `json:"createdAt"`
 	UpdatedAt           time.Time      `json:"updatedAt"`
-	ApplicationDeadline string         `json:"applicationDeadline"`
+	ApplicationDeadline time.Time      `json:"applicationDeadline"`
 	JobType             string         `json:"jobType"`    // full-time, part-time, contract, internship
 	Experience          string         `json:"experience"` // entry, mid, senior
 	SalaryMin           float64        `json:"salaryMin"`

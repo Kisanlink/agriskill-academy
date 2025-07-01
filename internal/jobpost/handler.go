@@ -1,5 +1,3 @@
-// File: internal/jobpost/handler.go
-
 package jobpost
 
 import (
@@ -17,33 +15,69 @@ func NewJobPostHandler(s JobPostService) *JobPostHandler {
 }
 
 // POST /jobs
-// POST /jobs
 func (h *JobPostHandler) Create(c *gin.Context) {
 	var req JobPost
-	// Bind JSON from request body
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
 		return
 	}
-
-	// Get the employer's user_id (from token in context)
 	employerID := c.GetString("user_id")
 	if employerID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Missing employer ID"})
 		return
 	}
-
-	// Set the employer ID in the job post
 	req.EmployerID = employerID
+	req.Status = "published" // default to published on Create
 
-	// Create the job post
 	if err := h.service.Create(&req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create job"})
 		return
 	}
-
-	// Respond with the created job post
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Job created", "jobPost": req})
+}
+
+// POST /jobs/draft
+func (h *JobPostHandler) CreateDraft(c *gin.Context) {
+	var req JobPost
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
+		return
+	}
+	employerID := c.GetString("user_id")
+	if employerID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Missing employer ID"})
+		return
+	}
+	req.EmployerID = employerID
+	req.Status = "draft"
+
+	if err := h.service.Create(&req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to save draft"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Draft saved", "jobPost": req})
+}
+
+// POST /jobs/publish
+func (h *JobPostHandler) Publish(c *gin.Context) {
+	var req JobPost
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
+		return
+	}
+	employerID := c.GetString("user_id")
+	if employerID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Missing employer ID"})
+		return
+	}
+	req.EmployerID = employerID
+	req.Status = "published"
+
+	if err := h.service.Create(&req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to publish job"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Job published", "jobPost": req})
 }
 
 // PUT /jobs/:id
@@ -85,7 +119,7 @@ func (h *JobPostHandler) GetByID(c *gin.Context) {
 
 // GET /jobs/my-posts
 func (h *JobPostHandler) GetByEmployer(c *gin.Context) {
-	employerID := c.GetString("user_id") // Assume set by JWT middleware
+	employerID := c.GetString("user_id")
 	jobs, err := h.service.GetByEmployer(employerID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch jobs"})

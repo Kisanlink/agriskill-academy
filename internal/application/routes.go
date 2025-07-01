@@ -11,4 +11,5 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *ApplicationHandler) {
 	rg.POST("/jobs/:jobId/apply", handler.Apply)
 	rg.GET("/applications/my", handler.GetMyApplications)
 	rg.DELETE("/applications/:applicationId", handler.Remove)
+	rg.PUT("/applications/:applicationId/status", handler.UpdateStatus)
 }

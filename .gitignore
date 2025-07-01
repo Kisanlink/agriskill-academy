@@ -1,0 +1,85 @@
+# .gitignore for Go project
+
+# Ignore Go binary files (compiled executables)
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Ignore Go test binaries
+*_test.go
+*.test
+*.out
+
+# Go workspace settings
+go.work
+go.work.sum
+
+# Ignore Go mod and vendor directories (for projects using Go modules)
+vendor/
+
+# Dependency directories and Go modules cache
+/.vscode
+/.idea
+/.sublime*
+/.idea
+/go/pkg/
+/go/bin/
+/go/bin/*
+
+# Ignore environment files
+.env
+.env.local
+.env.production
+.env.test
+
+# Ignore IDE configurations and temporary files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Ignore build, coverage, and log files
+*.log
+*.coverage
+*.test-coverage
+
+# Ignore local configuration for local IDEs
+# JetBrains IDE (like GoLand, IntelliJ IDEA)
+.idea/
+
+# macOS specific files
+.DS_Store
+
+# Windows specific files
+Thumbs.db
+
+# Archive files (e.g., tarballs, zip files)
+*.tar.gz
+*.tgz
+*.zip
+*.tar.bz2
+*.tar.xz
+
+# GoLand IDE files
+.idea/
+
+# Ignore cache and build files for Go tools
+.go_cache
+.go_build
+
+# Test coverage files
+*.coverprofile
+
+# Ignore binaries for generated files
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Ignore vim swap files
+*~
+
+# Ignore personal editor settings
+*.swp

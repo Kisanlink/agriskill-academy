@@ -47,17 +47,24 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		// Retrieve the claims and set the user context
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			// Debug logging
+			fmt.Printf("Token claims: %+v\n", claims)
+
 			// Ensure correct type casting
 			userID, ok := claims["user_id"].(string)
 			if !ok {
+				fmt.Printf("Failed to extract user_id from claims: %+v\n", claims)
 				c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid user ID"})
 				c.Abort()
 				return
 			}
 
+			fmt.Printf("Extracted user_id: %s\n", userID)
+
 			// Set values in the context
 			c.Set("user_id", userID)
-			c.Set("email", claims["email"])
+			c.Set("user_email", claims["email"])
+			c.Set("user_name", claims["name"])
 			c.Set("role", claims["role"])
 
 			// Optionally, log the claims (useful for debugging)

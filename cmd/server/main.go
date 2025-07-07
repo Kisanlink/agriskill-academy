@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"AGRIJOBS/config"
+	"AGRIJOBS/internal/admin"
 	"AGRIJOBS/internal/application"
 	"AGRIJOBS/internal/auth"
 	"AGRIJOBS/internal/bookmark"
@@ -36,15 +37,16 @@ func main() {
 
 	// Instantiate repositories, services, handlers for each module
 	authRepo := auth.NewUserRepository(db)
-	authService := auth.NewAuthService(authRepo)
+	employerProfileRepo := employerprofile.NewEmployerProfileRepository(db)
+	userProfileRepo := userprofile.NewUserProfileRepository(db)
+	authService := auth.NewAuthService(authRepo, employerProfileRepo, userProfileRepo)
 	authHandler := auth.NewAuthHandler(authService)
 
-	employerProfileRepo := employerprofile.NewEmployerProfileRepository(db)
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
 	employerProfileHandler := employerprofile.NewEmployerProfileHandler(employerProfileService)
 
 	jobPostRepo := jobpost.NewJobPostRepository(db)
-	jobPostService := jobpost.NewJobPostService(jobPostRepo)
+	jobPostService := jobpost.NewJobPostService(jobPostRepo, employerProfileRepo)
 	jobPostHandler := jobpost.NewJobPostHandler(jobPostService)
 
 	applicationRepo := application.NewApplicationRepository(db)
@@ -60,18 +62,24 @@ func main() {
 	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo, jobRepo)
 	bookmarkHandler := bookmark.NewBookmarkHandler(bookmarkService)
 
-	userProfileRepo := userprofile.NewUserProfileRepository(db)
 	userProfileService := userprofile.NewUserProfileService(userProfileRepo)
 	userProfileHandler := userprofile.NewUserProfileHandler(userProfileService)
 
-	storageService := storage.NewLocalStorageService("uploads")
+	storageService := storage.NewLocalStorageService("uploads", "http://localhost:3000/api/files")
 	storageHandler := storage.NewStorageHandler(storageService)
 
-	notificationService := notification.NewMailService()
+	// Notification module with preferences
+	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
+	notificationService := notification.NewNotificationService(notificationPrefsRepo)
 	notificationHandler := notification.NewNotificationHandler(notificationService)
 
 	jobService := worker.NewInMemoryJobService(100)
 	workerHandler := worker.NewWorkerHandler(jobService)
+
+	// Admin module
+	adminRepo := admin.NewAdminRepository(db)
+	adminService := admin.NewAdminService(adminRepo)
+	adminHandler := admin.NewAdminHandler(adminService)
 
 	// API routes
 	api := router.Group("/api")
@@ -79,15 +87,24 @@ func main() {
 	// Auth routes (no auth middleware)
 	auth.RegisterRoutes(api, authHandler)
 
+	// Public job routes (no auth required)
+	jobpost.RegisterPublicRoutes(api, jobPostHandler)
+
+	// Public file serving routes (no auth required for file access)
+	storage.RegisterPublicRoutes(api, storageHandler)
+
 	// Middleware for authenticated routes
 	authGroup := api.Group("/")
 	authGroup.Use(middleware.AuthMiddleware())
 
+	// Admin routes (require admin role)
+	admin.RegisterRoutes(authGroup, adminHandler)
+
 	// Employer profile
 	employerprofile.RegisterRoutes(authGroup, employerProfileHandler)
 
-	// Job post
-	jobpost.RegisterRoutes(authGroup, jobPostHandler)
+	// Job post (authenticated routes)
+	jobpost.RegisterAuthenticatedRoutes(authGroup, jobPostHandler)
 
 	// Applications (student)
 	application.RegisterRoutes(authGroup, applicationHandler)
@@ -101,8 +118,8 @@ func main() {
 	// User profile
 	userprofile.RegisterRoutes(authGroup, userProfileHandler)
 
-	// File storage
-	storage.RegisterRoutes(authGroup, storageHandler)
+	// File upload routes (require auth)
+	storage.RegisterAuthenticatedRoutes(authGroup, storageHandler)
 
 	// Notifications
 	notification.RegisterRoutes(authGroup, notificationHandler)

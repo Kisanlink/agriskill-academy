@@ -7,10 +7,22 @@
 *.so
 *.dylib
 
-# Ignore Go test binaries
+# Ignore specific build artifacts
+main.exe
+server.exe
+agrijobs
+server
+
+# Ignore Go test binaries and test files
 *_test.go
 *.test
 *.out
+test_*.sql
+test_*.js
+test_*.ps1
+test_*.sh
+debug_*.sql
+fix_*.sql
 
 # Go workspace settings
 go.work
@@ -83,3 +95,19 @@ Thumbs.db
 
 # Ignore personal editor settings
 *.swp
+
+# Ignore temporary and debug files
+*.tmp
+*.temp
+debug_*
+temp_*
+tmp_*
+
+# Ignore sample data and test data files
+sample_*
+seed_*
+test_data/
+debug_data/
+
+# Ignore PowerShell execution policy bypass files
+*.ps1.bak

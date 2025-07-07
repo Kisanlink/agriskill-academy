@@ -5,57 +5,101 @@ import (
 )
 
 type JobApplicationWithApplicant struct {
-	ApplicationID     string    `json:"application_id"`
-	JobID             string    `json:"job_id"`
-	StudentID         string    `json:"student_id"`
-	AppliedAt         time.Time `json:"applied_at"`
-	ApplicationStatus string    `json:"status"`
-	CoverLetter       string    `json:"cover_letter"`
-	StudentResumeFile string    `json:"resume_file"`
+	ApplicationID     string    `json:"application_id" gorm:"column:application_id"`
+	JobID             string    `json:"job_id" gorm:"column:job_id"`
+	StudentID         string    `json:"student_id" gorm:"column:student_id"`
+	AppliedAt         time.Time `json:"applied_at" gorm:"column:applied_at"`
+	ApplicationStatus string    `json:"status" gorm:"column:application_status"`
+	CoverLetter       string    `json:"cover_letter" gorm:"column:cover_letter"`
+	StudentResumeFile string    `json:"resume_file" gorm:"column:student_resume_file"`
 
-	JobTitle    string `json:"job_title"`
-	Company     string `json:"company"`
-	JobLocation string `json:"location"`
-	JobType     string `json:"job_type"`
+	JobTitle    string `json:"job_title" gorm:"column:job_title"`
+	Company     string `json:"company" gorm:"column:company"`
+	JobLocation string `json:"location" gorm:"column:job_location"`
+	JobType     string `json:"job_type" gorm:"column:job_type"`
 
-	Applicant struct {
-		UserID      string   `json:"user_id"`
-		Name        string   `json:"name"`
-		Email       string   `json:"email"`
-		Avatar      string   `json:"avatar"`
-		ResumeURL   string   `json:"resume_url"`
-		Skills      []string `json:"skills"` // You may need to unmarshal JSON
-		Location    string   `json:"location"`
-		Experience  string   `json:"experience"`
-		Education   string   `json:"education"`
-		Portfolio   string   `json:"portfolio"`
-		LinkedIn    string   `json:"linkedin"`
-		Github      string   `json:"github"`
-		ProfileName string   `json:"profile_name"`
-	} `json:"applicant"`
+	// Applicant fields with proper column mapping
+	UserID      string `json:"user_id" gorm:"column:user_id"`
+	Name        string `json:"name" gorm:"column:user_name"`
+	Email       string `json:"email" gorm:"column:user_email"`
+	Avatar      string `json:"avatar" gorm:"column:avatar"`
+	ResumeURL   string `json:"resume_url" gorm:"column:resume_url"`
+	Skills      string `json:"skills" gorm:"column:skills"` // Changed from []string to string
+	Location    string `json:"location" gorm:"column:user_location"`
+	Experience  string `json:"experience" gorm:"column:user_experience"`
+	Education   string `json:"education" gorm:"column:education"`
+	Portfolio   string `json:"portfolio" gorm:"column:portfolio"`
+	LinkedIn    string `json:"linkedin" gorm:"column:linkedin"`
+	Github      string `json:"github" gorm:"column:github"`
+	ProfileName string `json:"profile_name" gorm:"column:profile_name"`
+}
+
+// New response structure for frontend
+type JobApplicationResponse struct {
+	ApplicationID string    `json:"application_id"`
+	JobID         string    `json:"job_id"`
+	StudentID     string    `json:"student_id"`
+	AppliedAt     time.Time `json:"applied_at"`
+	Status        string    `json:"status"`
+	CoverLetter   string    `json:"cover_letter"`
+	ResumeFile    string    `json:"resume_file"`
+	JobTitle      string    `json:"job_title"`
+	Company       string    `json:"company"`
+	JobType       string    `json:"job_type"`
+	UserID        string    `json:"user_id"`
+	ID            string    `json:"id"` // Optional, for consistency
+
+	Applicant ApplicantInfo `json:"applicant"`
+}
+
+type ApplicantInfo struct {
+	Name        string   `json:"name"`
+	Email       string   `json:"email"`
+	Avatar      string   `json:"avatar"`
+	ResumeURL   string   `json:"resumeUrl"`
+	Skills      []string `json:"skills"` // Array, not string
+	Experience  string   `json:"experience"`
+	Education   string   `json:"education"`
+	Portfolio   string   `json:"portfolio"`
+	LinkedIn    string   `json:"linkedin"`
+	Github      string   `json:"github"`
+	ProfileName string   `json:"profile_name"`
+	Location    string   `json:"location"`
+	Summary     string   `json:"summary"`
+	Phone       string   `json:"phone"`
 }
 
 type ApplicantProfile struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	Email      string   `json:"email"`
-	Phone      string   `json:"phone"`
-	Location   string   `json:"location"`
-	Skills     []string `json:"skills"`
-	Experience string   `json:"experience"`
-	Education  string   `json:"education"`
-	Avatar     string   `json:"avatar"`
-	ResumeUrl  string   `json:"resumeUrl"`
-	Portfolio  string   `json:"portfolio"`
-	LinkedIn   string   `json:"linkedIn"`
-	Github     string   `json:"github"`
-	Summary    string   `json:"summary"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Email      string `json:"email"`
+	Phone      string `json:"phone"`
+	Location   string `json:"location"`
+	Skills     string `json:"skills"` // Changed from []string to string
+	Experience string `json:"experience"`
+	Education  string `json:"education"`
+	Avatar     string `json:"avatar"`
+	ResumeUrl  string `json:"resumeUrl"`
+	Portfolio  string `json:"portfolio"`
+	LinkedIn   string `json:"linkedIn"`
+	Github     string `json:"github"`
+	Summary    string `json:"summary"`
 }
 
 type Message struct {
-	ID            string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	ApplicationID string    `json:"applicationId"`
-	SenderID      string    `json:"senderId"`
-	Message       string    `json:"message"`
-	SentAt        time.Time `json:"sentAt"`
+	ID            string     `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	ApplicationID string     `json:"applicationId" gorm:"column:application_id"`
+	SenderID      string     `json:"senderId" gorm:"column:sender_id"`
+	Message       string     `json:"message" gorm:"column:message"`
+	SentAt        *time.Time `json:"sentAt" gorm:"column:sent_at;autoCreateTime"`
+}
+
+type MessageWithSender struct {
+	ID            string     `json:"id"`
+	ApplicationID string     `json:"applicationId" gorm:"column:application_id"`
+	SenderID      string     `json:"senderId" gorm:"column:sender_id"`
+	SenderName    string     `json:"senderName"`
+	SenderType    string     `json:"senderType"` // "student" or "employer"
+	Message       string     `json:"message" gorm:"column:message"`
+	SentAt        *time.Time `json:"sentAt" gorm:"column:sent_at"`
 }

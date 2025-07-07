@@ -7,5 +7,10 @@ import (
 )
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *NotificationHandler) {
-	rg.POST("/notify/email", handler.SendEmail)
+	notifications := rg.Group("/notifications")
+	{
+		notifications.POST("/email", handler.SendEmail)
+		notifications.GET("/preferences", handler.GetPreferences)
+		notifications.PUT("/preferences", handler.UpdatePreferences)
+	}
 }

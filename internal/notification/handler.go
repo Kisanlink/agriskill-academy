@@ -33,3 +33,51 @@ func (h *NotificationHandler) SendEmail(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Email sent"})
 }
+
+// GET /notifications/preferences
+func (h *NotificationHandler) GetPreferences(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	preferences, err := h.service.GetPreferences(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to get preferences"})
+		return
+	}
+
+	c.JSON(http.StatusOK, PreferencesResponse{
+		Success: true,
+		Message: "Preferences retrieved successfully",
+		Data:    preferences,
+	})
+}
+
+// PUT /notifications/preferences
+func (h *NotificationHandler) UpdatePreferences(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	var req UpdatePreferencesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request body"})
+		return
+	}
+
+	preferences, err := h.service.UpdatePreferences(userID, &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to update preferences"})
+		return
+	}
+
+	c.JSON(http.StatusOK, PreferencesResponse{
+		Success: true,
+		Message: "Preferences updated successfully",
+		Data:    preferences,
+	})
+}

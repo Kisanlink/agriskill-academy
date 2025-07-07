@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -36,12 +37,28 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid signup request"})
 		return
 	}
+
 	user, token, err := h.service.Signup(&req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Signup successful", "user": user, "token": token})
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Signup successful",
+		"user": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+			"role":  user.Role,
+		},
+		"token": token,
+	})
+
+	fmt.Println("Role:", req.Role)
+	fmt.Println("Employer profile creation triggered")
+
 }
 
 // GET /auth/verify
@@ -95,17 +112,51 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 // PUT /auth/profile
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	userID := c.GetString("user_id")
-	var req struct {
-		Name string `json:"name" binding:"required"`
-	}
+	var req UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
 		return
 	}
-	user, err := h.service.UpdateProfile(userID, req.Name)
+
+	// Validate that at least one field is provided
+	if req.Name == "" && req.Email == "" && req.PhoneNumber == "" && req.Location == "" &&
+		req.ProfilePhoto == "" && req.Bio == "" && req.LinkedinProfile == "" && req.Website == "" &&
+		len(req.Skills) == 0 && req.CompanyName == "" && req.CompanyDescription == "" &&
+		req.Industry == "" && req.CompanySize == "" && req.RecruiterName == "" &&
+		req.Designation == "" && req.OfficialEmail == "" && req.GstinNumber == "" &&
+		req.CompanyAddress == "" && req.City == "" && req.State == "" && req.Pincode == "" &&
+		len(req.JobCategories) == 0 && len(req.HiringLocations) == 0 && len(req.HiringTypes) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "At least one field must be provided for update"})
+		return
+	}
+
+	user, err := h.service.UpdateProfile(userID, &req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile updated", "user": user})
+
+	// Get updated profile information based on user role
+	var profile interface{}
+	switch user.Role {
+	case "employer":
+		employerProfile, err := h.service.(*authService).employerRepo.GetByUserID(userID)
+		if err == nil {
+			profile = employerProfile
+		}
+	case "student":
+		studentProfile, err := h.service.(*authService).userProfileRepo.GetByUserID(userID)
+		if err == nil {
+			profile = studentProfile
+		}
+	}
+
+	response := ProfileResponse{
+		Success: true,
+		Message: "Profile updated successfully",
+		User:    user,
+		Profile: profile,
+	}
+
+	c.JSON(http.StatusOK, response)
 }

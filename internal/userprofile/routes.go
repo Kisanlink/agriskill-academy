@@ -7,11 +7,13 @@ import (
 )
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *UserProfileHandler) {
-	users := rg.Group("/users")
+	students := rg.Group("/students")
 	{
-		users.GET("/:userId/profile", handler.GetProfile)
-		users.PUT("/:userId/profile", handler.UpdateProfile)
-		users.GET("/me/profile", handler.GetMyProfile)
-		users.POST("/:userId/certificates", handler.AddCertificate)
+		students.GET("/:studentId/profile", handler.GetProfile)
+		students.PUT("/:studentId/profile", handler.UpdateProfile)
+		students.GET("/me/profile", handler.GetMyProfile)
+		students.PUT("/me/profile", handler.UpdateMyProfile)
+		students.POST("/:studentId/certificates", handler.AddCertificate)
+		students.POST("/me/certificates", handler.AddMyCertificate)
 	}
 }

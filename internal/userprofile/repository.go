@@ -28,7 +28,37 @@ func (r *userProfileRepository) GetByUserID(userID string) (*UserProfile, error)
 }
 
 func (r *userProfileRepository) Update(profile *UserProfile) error {
-	return r.db.Session(&gorm.Session{FullSaveAssociations: true}).Save(profile).Error
+	// Start a transaction
+	tx := r.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	// Delete existing certificates for this profile
+	if err := tx.Where("user_profile_id = ?", profile.ID).Delete(&Certificate{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Update the profile
+	if err := tx.Save(profile).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Create new certificates
+	for i := range profile.Certificates {
+		profile.Certificates[i].UserProfileID = profile.ID
+		// Ensure ID is empty so database generates proper UUID
+		profile.Certificates[i].ID = ""
+		if err := tx.Create(&profile.Certificates[i]).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	// Commit the transaction
+	return tx.Commit().Error
 }
 
 func (r *userProfileRepository) Create(profile *UserProfile) error {
@@ -36,5 +66,7 @@ func (r *userProfileRepository) Create(profile *UserProfile) error {
 }
 
 func (r *userProfileRepository) AddCertificate(cert *Certificate) error {
+	// Ensure ID is empty so database generates proper UUID
+	cert.ID = ""
 	return r.db.Create(cert).Error
 }

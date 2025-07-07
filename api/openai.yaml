@@ -15,6 +15,8 @@ tags:
   - name: Bookmarks
   - name: Employer Apps
   - name: User Profile
+  - name: Student Profile
+  - name: File Upload
 
 components:
   securitySchemes:
@@ -799,28 +801,28 @@ paths:
                   success: { type: boolean }
                   message: { type: string }
 
-  /users/{userId}/profile:
+  /students/{studentId}/profile:
     get:
-      tags: [User Profile]
-      summary: Get user profile
+      tags: [Student Profile]
+      summary: Get student profile
       security: [{ BearerAuth: [] }]
       parameters:
-        - name: userId
+        - name: studentId
           in: path
           required: true
           schema: { type: string }
       responses:
         200:
-          description: User profile
+          description: Student profile
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProfileResponse" }
     put:
-      tags: [User Profile]
-      summary: Update user profile
+      tags: [Student Profile]
+      summary: Update student profile
       security: [{ BearerAuth: [] }]
       parameters:
-        - name: userId
+        - name: studentId
           in: path
           required: true
           schema: { type: string }
@@ -835,3 +837,269 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ProfileResponse" }
+
+  /students/me/profile:
+    get:
+      tags: [Student Profile]
+      summary: Get current student's profile
+      security: [{ BearerAuth: [] }]
+      responses:
+        200:
+          description: Current student profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProfileResponse" }
+
+  /students/{studentId}/certificates:
+    post:
+      tags: [Student Profile]
+      summary: Add certificate to student profile
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: studentId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                file: { type: string }
+                issueDate: { type: string }
+      responses:
+        200:
+          description: Certificate added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProfileResponse" }
+
+  /upload/{folder}:
+    post:
+      tags: [File Upload]
+      summary: Upload any file type
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: folder
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  filePath: { type: string }
+                  fileName: { type: string }
+                  fileSize: { type: integer }
+                  fileType: { type: string }
+                  fileUrl: { type: string }
+
+  /upload/image/{folder}:
+    post:
+      tags: [File Upload]
+      summary: Upload image files
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: folder
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  filePath: { type: string }
+                  fileName: { type: string }
+                  fileSize: { type: integer }
+                  fileType: { type: string }
+                  fileUrl: { type: string }
+
+  /upload/document/{folder}:
+    post:
+      tags: [File Upload]
+      summary: Upload document files
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: folder
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  filePath: { type: string }
+                  fileName: { type: string }
+                  fileSize: { type: integer }
+                  fileType: { type: string }
+                  fileUrl: { type: string }
+
+  /upload/resume/{folder}:
+    post:
+      tags: [File Upload]
+      summary: Upload resume files
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: folder
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: Resume uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  filePath: { type: string }
+                  fileName: { type: string }
+                  fileSize: { type: integer }
+                  fileType: { type: string }
+                  fileUrl: { type: string }
+
+  /files/{folder}:
+    get:
+      tags: [File Upload]
+      summary: List files in folder
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: folder
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: Files listed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name: { type: string }
+                        size: { type: integer }
+                        type: { type: string }
+                        path: { type: string }
+                        url: { type: string }
+                        uploaded: { type: string }
+
+  /files/info/{filePath}:
+    get:
+      tags: [File Upload]
+      summary: Get file information
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: File info retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  file:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      size: { type: integer }
+                      type: { type: string }
+                      path: { type: string }
+                      url: { type: string }
+                      uploaded: { type: string }
+
+  /files/{filePath}:
+    delete:
+      tags: [File Upload]
+      summary: Delete file
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        200:
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }

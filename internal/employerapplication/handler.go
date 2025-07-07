@@ -17,16 +17,67 @@ func NewEmployerApplicationHandler(s EmployerApplicationService) *EmployerApplic
 }
 
 func (h *EmployerApplicationHandler) GetApplicationsForJob(c *gin.Context) {
+	fmt.Printf("DEBUG: ===== GetApplicationsForJob HANDLER CALLED =====\n")
+
 	jobID := c.Param("jobId")
 	status := c.Query("status")
-	fmt.Println("Status passed to repo:", status)
-	apps, err := h.service.GetApplicationsForJob(jobID, status)
+	employerID := c.GetString("user_id")
+
+	fmt.Printf("DEBUG: GetApplicationsForJob - JobID: %s, Status: '%s', EmployerID: %s\n", jobID, status, employerID)
+
+	// Verify that the job belongs to the employer
+	jobEmployerID, err := h.service.GetJobEmployerID(jobID)
 	if err != nil {
-		log.Println("GetApplicationsForJob error:", err)
+		fmt.Printf("DEBUG: Error getting job employer ID: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch applications"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "applications": apps})
+
+	fmt.Printf("DEBUG: Job employer ID: %s, Requesting employer ID: %s\n", jobEmployerID, employerID)
+
+	if jobEmployerID != employerID {
+		fmt.Printf("DEBUG: Authorization failed - job belongs to %s, requesting user is %s\n", jobEmployerID, employerID)
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Not authorized to view applications for this job"})
+		return
+	}
+
+	apps, err := h.service.GetApplicationsForJob(jobID, status)
+	if err != nil {
+		log.Printf("DEBUG: GetApplicationsForJob error: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch applications"})
+		return
+	}
+
+	fmt.Printf("DEBUG: GetApplicationsForJob success - Found %d applications\n", len(apps))
+	fmt.Printf("DEBUG: Handler returning applications: %+v\n", apps)
+
+	response := gin.H{"success": true, "applications": apps}
+	fmt.Printf("DEBUG: Handler final response: %+v\n", response)
+	c.JSON(http.StatusOK, response)
+}
+
+// Debug endpoint to test database queries
+func (h *EmployerApplicationHandler) DebugApplications(c *gin.Context) {
+	fmt.Printf("DEBUG: ===== DebugApplications HANDLER CALLED =====\n")
+
+	jobID := c.Param("jobId")
+
+	// Test simple query first
+	var count int64
+	err := h.service.(*employerApplicationService).repo.(*employerApplicationRepository).db.Table("applications").
+		Where("job_id = ?", jobID).
+		Count(&count).Error
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"job_id":             jobID,
+		"total_applications": count,
+		"message":            "Debug query executed successfully",
+	})
 }
 
 func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
@@ -65,11 +116,26 @@ func (h *EmployerApplicationHandler) SendMessage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid message"})
 		return
 	}
+
+	// Verify user is authorized to send message for this application
+	authorized, err := h.service.IsUserAuthorizedForApplication(applicationID, senderID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to verify authorization"})
+		return
+	}
+	if !authorized {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Not authorized to send message for this application"})
+		return
+	}
+
 	msg := &Message{
 		ApplicationID: applicationID,
 		SenderID:      senderID,
 		Message:       req.Message,
 	}
+
+	fmt.Printf("DEBUG: Creating message - database will set timestamp automatically\n")
+
 	if err := h.service.SendMessage(msg); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to send message"})
 		return
@@ -79,7 +145,20 @@ func (h *EmployerApplicationHandler) SendMessage(c *gin.Context) {
 
 func (h *EmployerApplicationHandler) GetMessages(c *gin.Context) {
 	applicationID := c.Param("applicationId")
-	messages, err := h.service.GetMessages(applicationID)
+	userID := c.GetString("user_id")
+
+	// Verify user is authorized to view messages for this application
+	authorized, err := h.service.IsUserAuthorizedForApplication(applicationID, userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to verify authorization"})
+		return
+	}
+	if !authorized {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Not authorized to view messages for this application"})
+		return
+	}
+
+	messages, err := h.service.GetMessagesWithSenderInfo(applicationID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Could not fetch messages"})
 		return

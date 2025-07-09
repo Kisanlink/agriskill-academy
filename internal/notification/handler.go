@@ -26,46 +26,14 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
-// POST /notify/email
-func (h *NotificationHandler) SendEmail(c *gin.Context) {
-	// Typically, email notification sending is system/admin only, but you could check permission:
-	username := c.GetString("username")
-	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_notification_preferences", "create", "", jwtToken)
-	if err != nil || !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
-		return
-	}
-
-	var req struct {
-		To      string `json:"to" binding:"required,email"`
-		Subject string `json:"subject" binding:"required"`
-		Body    string `json:"body" binding:"required"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
-		return
-	}
-	if err := h.service.SendEmail(req.To, req.Subject, req.Body); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to send email"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Email sent"})
-}
-
 // GET /notifications/preferences
 func (h *NotificationHandler) GetPreferences(c *gin.Context) {
-	username := c.GetString("username")
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_notification_preferences", "read", "", jwtToken)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_notifications", "read", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
-		return
-	}
-
-	userID := c.GetString("user_id")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
 		return
 	}
 
@@ -75,7 +43,7 @@ func (h *NotificationHandler) GetPreferences(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, PreferencesResponse{
+	c.JSON(http.StatusOK, NotificationPreferencesResponse{
 		Success: true,
 		Message: "Preferences retrieved successfully",
 		Data:    preferences,
@@ -84,21 +52,16 @@ func (h *NotificationHandler) GetPreferences(c *gin.Context) {
 
 // PUT /notifications/preferences
 func (h *NotificationHandler) UpdatePreferences(c *gin.Context) {
-	username := c.GetString("username")
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_notification_preferences", "update", "", jwtToken)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_notifications", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
 	}
 
-	userID := c.GetString("user_id")
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
-		return
-	}
-
-	var req UpdatePreferencesRequest
+	var req UpdateNotificationPreferencesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request body"})
 		return
@@ -110,9 +73,39 @@ func (h *NotificationHandler) UpdatePreferences(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, PreferencesResponse{
+	c.JSON(http.StatusOK, NotificationPreferencesResponse{
 		Success: true,
 		Message: "Preferences updated successfully",
 		Data:    preferences,
 	})
+}
+
+// POST /notifications/send-email
+func (h *NotificationHandler) SendEmail(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_notifications", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	var req struct {
+		To      string `json:"to" binding:"required,email"`
+		Subject string `json:"subject" binding:"required"`
+		Body    string `json:"body" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request body"})
+		return
+	}
+
+	err = h.service.SendEmail(req.To, req.Subject, req.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to send email"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Email sent successfully"})
 }

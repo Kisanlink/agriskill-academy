@@ -7,39 +7,39 @@ import (
 // Notification Preferences Models
 type NotificationPreferences struct {
 	ID                 string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID             string    `gorm:"type:uuid;not null;uniqueIndex" json:"userId"`
-	EmailNotifications bool      `json:"emailNotifications" gorm:"default:true"`
-	PushNotifications  bool      `json:"pushNotifications" gorm:"default:true"`
-	JobAlerts          bool      `json:"jobAlerts" gorm:"default:true"`
-	ApplicationUpdates bool      `json:"applicationUpdates" gorm:"default:true"`
-	CompanyNews        bool      `json:"companyNews" gorm:"default:false"`
-	MarketingEmails    bool      `json:"marketingEmails" gorm:"default:false"`
-	WeeklyDigest       bool      `json:"weeklyDigest" gorm:"default:true"`
-	DailyJobMatches    bool      `json:"dailyJobMatches" gorm:"default:false"`
-	CreatedAt          time.Time `json:"createdAt"`
-	UpdatedAt          time.Time `json:"updatedAt"`
+	UserID             string    `gorm:"type:uuid;not null;uniqueIndex" json:"user_id"`
+	EmailNotifications bool      `json:"email_notifications" gorm:"default:true"`
+	PushNotifications  bool      `json:"push_notifications" gorm:"default:true"`
+	JobAlerts          bool      `json:"job_alerts" gorm:"default:true"`
+	ApplicationUpdates bool      `json:"application_updates" gorm:"default:true"`
+	CompanyNews        bool      `json:"company_news" gorm:"default:false"`
+	MarketingEmails    bool      `json:"marketing_emails" gorm:"default:false"`
+	WeeklyDigest       bool      `json:"weekly_digest" gorm:"default:true"`
+	DailyJobMatches    bool      `json:"daily_job_matches" gorm:"default:false"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // Request/Response Models
-type UpdatePreferencesRequest struct {
-	EmailNotifications *bool `json:"emailNotifications"`
-	PushNotifications  *bool `json:"pushNotifications"`
-	JobAlerts          *bool `json:"jobAlerts"`
-	ApplicationUpdates *bool `json:"applicationUpdates"`
-	CompanyNews        *bool `json:"companyNews"`
-	MarketingEmails    *bool `json:"marketingEmails"`
-	WeeklyDigest       *bool `json:"weeklyDigest"`
-	DailyJobMatches    *bool `json:"dailyJobMatches"`
+type UpdateNotificationPreferencesRequest struct {
+	EmailNotifications *bool `json:"email_notifications"`
+	PushNotifications  *bool `json:"push_notifications"`
+	JobAlerts          *bool `json:"job_alerts"`
+	ApplicationUpdates *bool `json:"application_updates"`
+	CompanyNews        *bool `json:"company_news"`
+	MarketingEmails    *bool `json:"marketing_emails"`
+	WeeklyDigest       *bool `json:"weekly_digest"`
+	DailyJobMatches    *bool `json:"daily_job_matches"`
 }
 
-type PreferencesResponse struct {
+type NotificationPreferencesResponse struct {
 	Success bool                     `json:"success"`
 	Message string                   `json:"message"`
 	Data    *NotificationPreferences `json:"data,omitempty"`
 }
 
 // Email Templates
-type EmailTemplate struct {
+type EmailNotification struct {
 	Subject string `json:"subject"`
 	Body    string `json:"body"`
 }

@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"asa/internal/employerprofile"
 	"errors"
 	"time"
 
@@ -206,26 +205,26 @@ func (r *adminRepository) GetApplicationAnalytics() (*ApplicationAnalytics, erro
 	analytics.TotalApplications = int(totalApplications)
 
 	// Get applications by status
-	var pendingApps, acceptedApps, rejectedApps, withdrawnApps int64
-	r.db.Model(&Application{}).Where("status = ?", "applied").Count(&pendingApps)
-	r.db.Model(&Application{}).Where("status = ?", "accepted").Count(&acceptedApps)
-	r.db.Model(&Application{}).Where("status = ?", "rejected").Count(&rejectedApps)
-	r.db.Model(&Application{}).Where("status = ?", "withdrawn").Count(&withdrawnApps)
-	analytics.PendingApplications = int(pendingApps)
-	analytics.AcceptedApplications = int(acceptedApps)
-	analytics.RejectedApplications = int(rejectedApps)
-	analytics.WithdrawnApplications = int(withdrawnApps)
+	var pendingApplications, acceptedApplications, rejectedApplications, withdrawnApplications int64
+	r.db.Model(&Application{}).Where("status = ?", "applied").Count(&pendingApplications)
+	r.db.Model(&Application{}).Where("status = ?", "accepted").Count(&acceptedApplications)
+	r.db.Model(&Application{}).Where("status = ?", "rejected").Count(&rejectedApplications)
+	r.db.Model(&Application{}).Where("status = ?", "withdrawn").Count(&withdrawnApplications)
+	analytics.PendingApplications = int(pendingApplications)
+	analytics.AcceptedApplications = int(acceptedApplications)
+	analytics.RejectedApplications = int(rejectedApplications)
+	analytics.WithdrawnApplications = int(withdrawnApplications)
 
 	// Get applications this month and last month
 	now := time.Now()
 	thisMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	lastMonth := thisMonth.AddDate(0, -1, 0)
 
-	var appsThisMonth, appsLastMonth int64
-	r.db.Model(&Application{}).Where("applied_at >= ?", thisMonth).Count(&appsThisMonth)
-	r.db.Model(&Application{}).Where("applied_at >= ? AND applied_at < ?", lastMonth, thisMonth).Count(&appsLastMonth)
-	analytics.ApplicationsThisMonth = int(appsThisMonth)
-	analytics.ApplicationsLastMonth = int(appsLastMonth)
+	var applicationsThisMonth, applicationsLastMonth int64
+	r.db.Model(&Application{}).Where("applied_at >= ?", thisMonth).Count(&applicationsThisMonth)
+	r.db.Model(&Application{}).Where("applied_at >= ? AND applied_at < ?", lastMonth, thisMonth).Count(&applicationsLastMonth)
+	analytics.ApplicationsThisMonth = int(applicationsThisMonth)
+	analytics.ApplicationsLastMonth = int(applicationsLastMonth)
 
 	// Calculate growth rate
 	if analytics.ApplicationsLastMonth > 0 {
@@ -267,32 +266,30 @@ func (r *adminRepository) GetDashboardAnalytics() (*DashboardAnalytics, error) {
 		return nil, err
 	}
 
-	dashboard := &DashboardAnalytics{
+	return &DashboardAnalytics{
 		Jobs:         *jobAnalytics,
 		Users:        *userAnalytics,
 		Applications: *applicationAnalytics,
 		LastUpdated:  time.Now(),
-	}
-
-	return dashboard, nil
+	}, nil
 }
 
-// Model structs for database queries
+// Local struct definitions for database queries
 type JobPost struct {
 	ID                string    `gorm:"primaryKey;type:uuid"`
 	Title             string    `json:"title"`
 	Status            string    `json:"status"`
 	Location          string    `json:"location"`
-	JobType           string    `json:"jobType"`
-	ApplicationsCount int       `json:"applicationsCount"`
-	CreatedAt         time.Time `json:"createdAt"`
+	JobType           string    `json:"job_type"`
+	ApplicationsCount int       `json:"applications_count"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type Application struct {
 	ID        string    `gorm:"primaryKey;type:uuid"`
 	Status    string    `json:"status"`
-	AppliedAt time.Time `json:"appliedAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	AppliedAt time.Time `json:"applied_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type User struct {
@@ -301,20 +298,21 @@ type User struct {
 	Email     string    `json:"email"`
 	Role      string    `json:"role"`
 	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type EmployerProfile struct {
 	ID          string `gorm:"primaryKey;type:uuid"`
-	CompanyName string `json:"companyName"`
+	UserID      string `gorm:"column:user_id"`
+	CompanyName string `json:"company_name"`
 	Industry    string `json:"industry"`
 	Location    string `json:"location"`
 }
 
 type Bookmark struct {
 	ID     string `gorm:"primaryKey;type:uuid"`
-	UserID string `json:"userId"`
+	UserID string `json:"user_id"`
 }
 
 type StudentProfile struct {
@@ -328,12 +326,10 @@ func (StudentProfile) TableName() string {
 	return "student_profiles"
 }
 
-// User Management Methods
 func (r *adminRepository) GetUsers(req *UserListRequest) (*UserListResponse, error) {
 	var users []UserListItem
 	var total int64
 
-	// Build query
 	query := r.db.Model(&User{})
 
 	// Apply filters
@@ -356,8 +352,6 @@ func (r *adminRepository) GetUsers(req *UserListRequest) (*UserListResponse, err
 		order := req.SortBy
 		if req.SortOrder == "desc" {
 			order += " DESC"
-		} else {
-			order += " ASC"
 		}
 		query = query.Order(order)
 	} else {
@@ -369,12 +363,11 @@ func (r *adminRepository) GetUsers(req *UserListRequest) (*UserListResponse, err
 	query = query.Offset(offset).Limit(req.Limit)
 
 	// Execute query
-	err := query.Select("id, name, email, role, status, created_at, updated_at").Scan(&users).Error
+	err := query.Find(&users).Error
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate pagination info
 	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
 
 	return &UserListResponse{
@@ -391,41 +384,27 @@ func (r *adminRepository) GetUsers(req *UserListRequest) (*UserListResponse, err
 func (r *adminRepository) GetUserByID(userID string) (*UserDetailResponse, error) {
 	var user UserDetailResponse
 
-	// Get basic user info
 	err := r.db.Model(&User{}).
 		Select("id, name, email, role, status, created_at, updated_at").
 		Where("id = ?", userID).
 		First(&user).Error
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Get role-specific profile based on profile existence
-	// Try employer profile first, then student profile
-	var employerProfile struct {
-		CompanyName string `json:"companyName"`
-		Industry    string `json:"industry"`
-		Location    string `json:"location"`
-	}
-	err = r.db.Model(&EmployerProfile{}).
-		Select("company_name, industry, location").
-		Where("user_id = ?", userID).
-		First(&employerProfile).Error
-
-	if err == nil {
-		user.Profile = employerProfile
-	} else {
-		// Try student profile if employer profile doesn't exist
-		var studentProfile struct {
-			Location string `json:"location"`
-			Skills   string `json:"skills"`
-		}
-		err = r.db.Model(&StudentProfile{}).
-			Select("location, skills").
-			Where("user_id = ?", userID).
-			First(&studentProfile).Error
+	// Get user profile based on role
+	if user.Role == "student" {
+		var profile StudentProfile
+		err = r.db.Where("user_id = ?", userID).First(&profile).Error
 		if err == nil {
-			user.Profile = studentProfile
+			user.Profile = profile
+		}
+	} else if user.Role == "employer" {
+		var profile EmployerProfile
+		err = r.db.Where("user_id = ?", userID).First(&profile).Error
+		if err == nil {
+			user.Profile = profile
 		}
 	}
 
@@ -433,66 +412,64 @@ func (r *adminRepository) GetUserByID(userID string) (*UserDetailResponse, error
 }
 
 func (r *adminRepository) UpdateUser(userID string, req *UpdateUserRequest) error {
-	// Get existing user
-	var user User
-	err := r.db.First(&user, "id = ?", userID).Error
-	if err != nil {
-		return err
-	}
+	updates := make(map[string]interface{})
 
-	// Update fields if provided
 	if req.Name != "" {
-		user.Name = req.Name
+		updates["name"] = req.Name
 	}
 	if req.Email != "" {
-		// Check if email is already taken by another user
-		var existingUser User
-		err := r.db.Where("email = ? AND id != ?", req.Email, userID).First(&existingUser).Error
-		if err == nil {
-			return errors.New("email already taken by another user")
-		}
-		user.Email = req.Email
+		updates["email"] = req.Email
 	}
-	// Role updates are now handled by AAA service
-	// We don't store roles in local DB anymore
 	if req.Status != "" {
-		user.Status = req.Status
+		updates["status"] = req.Status
 	}
 
-	// Save changes
-	return r.db.Save(&user).Error
+	if len(updates) == 0 {
+		return errors.New("no fields to update")
+	}
+
+	updates["updated_at"] = time.Now()
+
+	return r.db.Model(&User{}).Where("id = ?", userID).Updates(updates).Error
 }
 
 func (r *adminRepository) DeleteUser(userID string) error {
 	// Start a transaction
 	tx := r.db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+	if tx.Error != nil {
+		return tx.Error
+	}
 
-	// Delete user's profile based on role
-	var user User
-	err := tx.First(&user, "id = ?", userID).Error
-	if err != nil {
+	// Delete user's bookmarks
+	if err := tx.Where("user_id = ?", userID).Delete(&Bookmark{}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	// Delete role-specific profile based on profile existence
-	// Delete both profile types to ensure cleanup
-	tx.Where("user_id = ?", userID).Delete(&EmployerProfile{})
-	tx.Where("user_id = ?", userID).Delete(&StudentProfile{})
+	// Delete user's applications
+	if err := tx.Where("student_id = ?", userID).Delete(&Application{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	// Delete related data
-	tx.Where("student_id = ? OR employer_id = ?", userID, userID).Delete(&Application{})
-	tx.Where("user_id = ?", userID).Delete(&Bookmark{})
-	tx.Where("employer_id = ?", userID).Delete(&JobPost{})
+	// Delete user's job posts (if employer)
+	if err := tx.Where("employer_id = ?", userID).Delete(&JobPost{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete user's profile
+	if err := tx.Where("user_id = ?", userID).Delete(&StudentProfile{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := tx.Where("user_id = ?", userID).Delete(&EmployerProfile{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	// Finally delete the user
-	err = tx.Delete(&user).Error
-	if err != nil {
+	if err := tx.Where("id = ?", userID).Delete(&User{}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -500,35 +477,22 @@ func (r *adminRepository) DeleteUser(userID string) error {
 	return tx.Commit().Error
 }
 
-// Company Management Methods
 func (r *adminRepository) GetCompanies(req *CompanyListRequest) (*CompanyListResponse, error) {
 	var companies []CompanyListItem
 	var total int64
 
-	// Build query with joins to get job and application counts
-	query := r.db.Table("employer_profiles").
-		Select(`
-			employer_profiles.id,
-			employer_profiles.company_name,
-			employer_profiles.industry,
-			employer_profiles.city || ', ' || employer_profiles.state as location,
-			employer_profiles.company_size,
-			'active' as status,
-			employer_profiles.created_at,
-			employer_profiles.updated_at,
-			COALESCE(job_counts.jobs_count, 0) as jobs_count,
-			COALESCE(app_counts.applications_count, 0) as applications_count
-		`).
-		Joins("LEFT JOIN (SELECT employer_id, COUNT(*) as jobs_count FROM job_posts GROUP BY employer_id) job_counts ON employer_profiles.id = job_counts.employer_id").
-		Joins("LEFT JOIN (SELECT j.employer_id, COUNT(a.id) as applications_count FROM job_posts j LEFT JOIN applications a ON j.id = a.job_id GROUP BY j.employer_id) app_counts ON employer_profiles.id = app_counts.employer_id")
+	query := r.db.Model(&EmployerProfile{})
 
 	// Apply filters
 	if req.Industry != "" {
-		query = query.Where("employer_profiles.industry = ?", req.Industry)
+		query = query.Where("industry = ?", req.Industry)
+	}
+	if req.Status != "" {
+		query = query.Where("status = ?", req.Status)
 	}
 	if req.Search != "" {
 		searchTerm := "%" + req.Search + "%"
-		query = query.Where("employer_profiles.company_name ILIKE ? OR employer_profiles.industry ILIKE ?", searchTerm, searchTerm)
+		query = query.Where("company_name ILIKE ? OR industry ILIKE ?", searchTerm, searchTerm)
 	}
 
 	// Get total count
@@ -539,25 +503,31 @@ func (r *adminRepository) GetCompanies(req *CompanyListRequest) (*CompanyListRes
 		order := req.SortBy
 		if req.SortOrder == "desc" {
 			order += " DESC"
-		} else {
-			order += " ASC"
 		}
 		query = query.Order(order)
 	} else {
-		query = query.Order("employer_profiles.created_at DESC")
+		query = query.Order("created_at DESC")
 	}
 
 	// Apply pagination
 	offset := (req.Page - 1) * req.Limit
 	query = query.Offset(offset).Limit(req.Limit)
 
-	// Execute query
-	err := query.Scan(&companies).Error
+	// Execute query with job and application counts
+	err := query.Select(`
+		employer_profiles.*,
+		COUNT(DISTINCT job_posts.id) as jobs_count,
+		COUNT(DISTINCT applications.id) as applications_count
+	`).
+		Joins("LEFT JOIN job_posts ON job_posts.employer_id = employer_profiles.user_id").
+		Joins("LEFT JOIN applications ON applications.job_id = job_posts.id").
+		Group("employer_profiles.id").
+		Find(&companies).Error
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate pagination info
 	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
 
 	return &CompanyListResponse{
@@ -574,28 +544,16 @@ func (r *adminRepository) GetCompanies(req *CompanyListRequest) (*CompanyListRes
 func (r *adminRepository) GetCompanyByID(companyID string) (*CompanyDetailResponse, error) {
 	var company CompanyDetailResponse
 
-	// Get company details with job and application counts
-	err := r.db.Table("employer_profiles").
+	err := r.db.Model(&EmployerProfile{}).
 		Select(`
-			employer_profiles.id,
-			employer_profiles.company_name,
-			employer_profiles.industry,
-			employer_profiles.company_size,
-			employer_profiles.company_description,
-			employer_profiles.city || ', ' || employer_profiles.state as location,
-			employer_profiles.website_url,
-			employer_profiles.recruiter_name,
-			employer_profiles.official_email,
-			employer_profiles.phone_number,
-			'active' as status,
-			employer_profiles.created_at,
-			employer_profiles.updated_at,
-			COALESCE(job_counts.jobs_count, 0) as jobs_count,
-			COALESCE(app_counts.applications_count, 0) as applications_count
+			employer_profiles.*,
+			COUNT(DISTINCT job_posts.id) as jobs_count,
+			COUNT(DISTINCT applications.id) as applications_count
 		`).
-		Joins("LEFT JOIN (SELECT employer_id, COUNT(*) as jobs_count FROM job_posts GROUP BY employer_id) job_counts ON employer_profiles.id = job_counts.employer_id").
-		Joins("LEFT JOIN (SELECT j.employer_id, COUNT(a.id) as applications_count FROM job_posts j LEFT JOIN applications a ON j.id = a.job_id GROUP BY j.employer_id) app_counts ON employer_profiles.id = app_counts.employer_id").
+		Joins("LEFT JOIN job_posts ON job_posts.employer_id = employer_profiles.user_id").
+		Joins("LEFT JOIN applications ON applications.job_id = job_posts.id").
 		Where("employer_profiles.id = ?", companyID).
+		Group("employer_profiles.id").
 		First(&company).Error
 
 	if err != nil {
@@ -603,89 +561,94 @@ func (r *adminRepository) GetCompanyByID(companyID string) (*CompanyDetailRespon
 	}
 
 	// Get associated user info
-	var user UserInfo
-	err = r.db.Table("users").
-		Select("id, name, email, role").
-		Joins("JOIN employer_profiles ON users.id = employer_profiles.user_id").
-		Where("employer_profiles.id = ?", companyID).
-		First(&user).Error
-
+	var user User
+	err = r.db.Where("id = ?", company.UserID).First(&user).Error
 	if err == nil {
-		company.User = &user
+		company.User = &UserInfo{
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
+			Role:  user.Role,
+		}
 	}
 
 	return &company, nil
 }
 
 func (r *adminRepository) UpdateCompany(companyID string, req *UpdateCompanyRequest) error {
-	// Get existing company
-	var company employerprofile.EmployerProfile
-	err := r.db.First(&company, "id = ?", companyID).Error
-	if err != nil {
-		return err
-	}
+	updates := make(map[string]interface{})
 
-	// Update fields if provided
-	if req.CompanyName != "" {
-		company.CompanyName = req.CompanyName
+	if req.Status != "" {
+		updates["status"] = req.Status
 	}
 	if req.Industry != "" {
-		company.Industry = req.Industry
+		updates["industry"] = req.Industry
 	}
 	if req.CompanySize != "" {
-		company.CompanySize = req.CompanySize
+		updates["company_size"] = req.CompanySize
 	}
 	if req.CompanyDescription != "" {
-		company.CompanyDescription = req.CompanyDescription
+		updates["company_description"] = req.CompanyDescription
 	}
 	if req.Location != "" {
-		// Parse location into city and state
-		// This is a simplified approach - you might want to enhance this
-		company.City = req.Location
+		updates["location"] = req.Location
 	}
 	if req.WebsiteUrl != "" {
-		company.WebsiteUrl = req.WebsiteUrl
+		updates["website_url"] = req.WebsiteUrl
 	}
 	if req.RecruiterName != "" {
-		company.RecruiterName = req.RecruiterName
+		updates["recruiter_name"] = req.RecruiterName
 	}
 	if req.OfficialEmail != "" {
-		company.OfficialEmail = req.OfficialEmail
+		updates["official_email"] = req.OfficialEmail
 	}
 	if req.PhoneNumber != "" {
-		company.PhoneNumber = req.PhoneNumber
+		updates["phone_number"] = req.PhoneNumber
 	}
 
-	// Save changes
-	return r.db.Save(&company).Error
+	if len(updates) == 0 {
+		return errors.New("no fields to update")
+	}
+
+	updates["updated_at"] = time.Now()
+
+	return r.db.Model(&EmployerProfile{}).Where("id = ?", companyID).Updates(updates).Error
 }
 
 func (r *adminRepository) DeleteCompany(companyID string) error {
 	// Start a transaction
 	tx := r.db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+	if tx.Error != nil {
+		return tx.Error
+	}
 
-	// Get company details
-	var company employerprofile.EmployerProfile
-	err := tx.First(&company, "id = ?", companyID).Error
-	if err != nil {
+	// Get the company to find the user_id
+	var company EmployerProfile
+	if err := tx.Where("id = ?", companyID).First(&company).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	// Delete related data
-	tx.Where("employer_id = ?", companyID).Delete(&JobPost{})
+	// Delete company's job posts
+	if err := tx.Where("employer_id = ?", company.UserID).Delete(&JobPost{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	// Delete applications for jobs from this company
-	tx.Exec("DELETE FROM applications WHERE job_id IN (SELECT id FROM job_posts WHERE employer_id = ?)", companyID)
+	// Delete applications for the company's jobs
+	if err := tx.Where("job_id IN (SELECT id FROM job_posts WHERE employer_id = ?)", company.UserID).Delete(&Application{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	// Finally delete the company profile
-	err = tx.Delete(&company).Error
-	if err != nil {
+	// Delete the company profile
+	if err := tx.Where("id = ?", companyID).Delete(&EmployerProfile{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete the associated user
+	if err := tx.Where("id = ?", company.UserID).Delete(&User{}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -698,20 +661,22 @@ func (r *adminRepository) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 
 	// Get total companies
 	var totalCompanies int64
-	r.db.Model(&employerprofile.EmployerProfile{}).Count(&totalCompanies)
+	r.db.Model(&EmployerProfile{}).Count(&totalCompanies)
 	analytics.TotalCompanies = int(totalCompanies)
 
-	// Get active companies (companies with at least one job)
+	// Get active companies (companies with at least one job posted in last 30 days)
+	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
 	var activeCompanies int64
-	r.db.Model(&employerprofile.EmployerProfile{}).
-		Joins("JOIN job_posts ON employer_profiles.id = job_posts.employer_id").
+	r.db.Model(&EmployerProfile{}).
+		Joins("JOIN job_posts ON job_posts.employer_id = employer_profiles.user_id").
+		Where("job_posts.created_at >= ?", thirtyDaysAgo).
 		Distinct("employer_profiles.id").
 		Count(&activeCompanies)
 	analytics.ActiveCompanies = int(activeCompanies)
 
 	// Get verified companies (companies with complete profile)
 	var verifiedCompanies int64
-	r.db.Model(&employerprofile.EmployerProfile{}).
+	r.db.Model(&EmployerProfile{}).
 		Where("company_name IS NOT NULL AND company_name != '' AND industry IS NOT NULL AND industry != ''").
 		Count(&verifiedCompanies)
 	analytics.VerifiedCompanies = int(verifiedCompanies)
@@ -722,8 +687,8 @@ func (r *adminRepository) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 	lastMonth := thisMonth.AddDate(0, -1, 0)
 
 	var newCompaniesThisMonth, newCompaniesLastMonth int64
-	r.db.Model(&employerprofile.EmployerProfile{}).Where("created_at >= ?", thisMonth).Count(&newCompaniesThisMonth)
-	r.db.Model(&employerprofile.EmployerProfile{}).Where("created_at >= ? AND created_at < ?", lastMonth, thisMonth).Count(&newCompaniesLastMonth)
+	r.db.Model(&EmployerProfile{}).Where("created_at >= ?", thisMonth).Count(&newCompaniesThisMonth)
+	r.db.Model(&EmployerProfile{}).Where("created_at >= ? AND created_at < ?", lastMonth, thisMonth).Count(&newCompaniesLastMonth)
 	analytics.NewCompaniesThisMonth = int(newCompaniesThisMonth)
 	analytics.NewCompaniesLastMonth = int(newCompaniesLastMonth)
 
@@ -734,7 +699,7 @@ func (r *adminRepository) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 
 	// Get companies by industry
 	var industryStats []IndustryStats
-	r.db.Model(&employerprofile.EmployerProfile{}).
+	r.db.Model(&EmployerProfile{}).
 		Select("industry, COUNT(*) as count").
 		Where("industry IS NOT NULL AND industry != ''").
 		Group("industry").
@@ -752,10 +717,10 @@ func (r *adminRepository) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 
 	// Get companies by location
 	var locationStats []LocationStats
-	r.db.Model(&employerprofile.EmployerProfile{}).
-		Select("city || ', ' || state as location, COUNT(*) as count").
-		Where("city IS NOT NULL AND city != '' AND state IS NOT NULL AND state != ''").
-		Group("city, state").
+	r.db.Model(&EmployerProfile{}).
+		Select("location, COUNT(*) as count").
+		Where("location IS NOT NULL AND location != ''").
+		Group("location").
 		Order("count DESC").
 		Limit(10).
 		Scan(&locationStats)
@@ -770,7 +735,7 @@ func (r *adminRepository) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 
 	// Get companies by size
 	var sizeStats []CompanySizeStats
-	r.db.Model(&employerprofile.EmployerProfile{}).
+	r.db.Model(&EmployerProfile{}).
 		Select("company_size as size, COUNT(*) as count").
 		Where("company_size IS NOT NULL AND company_size != ''").
 		Group("company_size").

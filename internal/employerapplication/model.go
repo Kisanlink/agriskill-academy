@@ -56,7 +56,7 @@ type ApplicantInfo struct {
 	Name        string   `json:"name"`
 	Email       string   `json:"email"`
 	Avatar      string   `json:"avatar"`
-	ResumeURL   string   `json:"resumeUrl"`
+	ResumeURL   string   `json:"resume_url"`
 	Skills      []string `json:"skills"` // Array, not string
 	Experience  string   `json:"experience"`
 	Education   string   `json:"education"`
@@ -79,27 +79,27 @@ type ApplicantProfile struct {
 	Experience string `json:"experience"`
 	Education  string `json:"education"`
 	Avatar     string `json:"avatar"`
-	ResumeUrl  string `json:"resumeUrl"`
+	ResumeUrl  string `json:"resume_url"`
 	Portfolio  string `json:"portfolio"`
-	LinkedIn   string `json:"linkedIn"`
+	LinkedIn   string `json:"linkedin"`
 	Github     string `json:"github"`
 	Summary    string `json:"summary"`
 }
 
 type Message struct {
 	ID            string     `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	ApplicationID string     `json:"applicationId" gorm:"column:application_id"`
-	SenderID      string     `json:"senderId" gorm:"column:sender_id"`
+	ApplicationID string     `json:"application_id" gorm:"column:application_id"`
+	SenderID      string     `json:"sender_id" gorm:"column:sender_id"`
 	Message       string     `json:"message" gorm:"column:message"`
-	SentAt        *time.Time `json:"sentAt" gorm:"column:sent_at;autoCreateTime"`
+	SentAt        *time.Time `json:"sent_at" gorm:"column:sent_at;autoCreateTime"`
 }
 
 type MessageWithSender struct {
 	ID            string     `json:"id"`
-	ApplicationID string     `json:"applicationId" gorm:"column:application_id"`
-	SenderID      string     `json:"senderId" gorm:"column:sender_id"`
-	SenderName    string     `json:"senderName"`
-	SenderType    string     `json:"senderType"` // "student" or "employer"
+	ApplicationID string     `json:"application_id" gorm:"column:application_id"`
+	SenderID      string     `json:"sender_id" gorm:"column:sender_id"`
+	SenderName    string     `json:"sender_name"`
+	SenderType    string     `json:"sender_type"` // "student" or "employer"
 	Message       string     `json:"message" gorm:"column:message"`
-	SentAt        *time.Time `json:"sentAt" gorm:"column:sent_at"`
+	SentAt        *time.Time `json:"sent_at" gorm:"column:sent_at"`
 }

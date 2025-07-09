@@ -52,94 +52,94 @@ func (fs *FlexibleSalary) MarshalJSON() ([]byte, error) {
 type JobPost struct {
 	ID                  string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	Title               string         `json:"title"`
-	RoleOverview        string         `json:"roleOverview"`
+	RoleOverview        string         `json:"role_overview"`
 	Requirements        string         `json:"requirements"`
 	Location            string         `json:"location"`
-	RequiredSkills      pq.StringArray `gorm:"type:text[]" json:"requiredSkills"`
-	EmployerID          string         `json:"employerId"`
-	EmployerName        string         `json:"employerName"`
-	EmployerEmail       string         `json:"employerEmail"`
+	RequiredSkills      pq.StringArray `gorm:"type:text[]" json:"required_skills"`
+	EmployerID          string         `json:"employer_id"`
+	EmployerName        string         `json:"employer_name"`
+	EmployerEmail       string         `json:"employer_email"`
 	Status              string         `json:"status"` // draft, published, closed, completed
-	CreatedAt           time.Time      `json:"createdAt"`
-	UpdatedAt           time.Time      `json:"updatedAt"`
-	ApplicationDeadline time.Time      `json:"applicationDeadline"`
-	JobType             string         `json:"jobType"`                                      // full-time, part-time, contract, internship
-	Experience          string         `json:"experience"`                                   // entry, mid, senior
-	SalaryMin           float64        `json:"salaryMin" gorm:"column:salary_min"`           // Database column
-	SalaryMax           float64        `json:"salaryMax" gorm:"column:salary_max"`           // Database column
-	SalaryCurrency      string         `json:"salaryCurrency" gorm:"column:salary_currency"` // Database column
-	Salary              Salary         `json:"salary" gorm:"-"`                              // Virtual field for JSON
+	CreatedAt           time.Time      `json:"created_at"`
+	UpdatedAt           time.Time      `json:"updated_at"`
+	ApplicationDeadline time.Time      `json:"application_deadline"`
+	JobType             string         `json:"job_type"`                                      // full-time, part-time, contract, internship
+	Experience          string         `json:"experience"`                                    // entry, mid, senior
+	SalaryMin           float64        `json:"salary_min" gorm:"column:salary_min"`           // Database column
+	SalaryMax           float64        `json:"salary_max" gorm:"column:salary_max"`           // Database column
+	SalaryCurrency      string         `json:"salary_currency" gorm:"column:salary_currency"` // Database column
+	Salary              Salary         `json:"salary" gorm:"-"`                               // Virtual field for JSON
 	Benefits            pq.StringArray `gorm:"type:text[]" json:"benefits"`
-	IsRemote            bool           `json:"isRemote"`
-	ApplicationsCount   int            `json:"applicationsCount" gorm:"default:0"`
-	CompletedAt         *time.Time     `json:"completedAt"`
-	HiredCandidateName  *string        `json:"hiredCandidateName"`
+	IsRemote            bool           `json:"is_remote"`
+	ApplicationsCount   int            `json:"applications_count" gorm:"default:0"`
+	CompletedAt         *time.Time     `json:"completed_at"`
+	HiredCandidateName  *string        `json:"hired_candidate_name"`
 }
 
 // Request Models
 type CreateJobPostRequest struct {
 	Title               string         `json:"title" binding:"required"`
-	RoleOverview        string         `json:"roleOverview" binding:"required"`
+	RoleOverview        string         `json:"role_overview" binding:"required"`
 	Requirements        string         `json:"requirements" binding:"required"`
 	Location            string         `json:"location" binding:"required"`
-	RequiredSkills      []string       `json:"requiredSkills"`
-	ApplicationDeadline time.Time      `json:"applicationDeadline"`
-	JobType             string         `json:"jobType" binding:"required"`    // full-time, part-time, contract, internship
+	RequiredSkills      []string       `json:"required_skills"`
+	ApplicationDeadline time.Time      `json:"application_deadline"`
+	JobType             string         `json:"job_type" binding:"required"`   // full-time, part-time, contract, internship
 	Experience          string         `json:"experience" binding:"required"` // entry, mid, senior
 	Salary              FlexibleSalary `json:"salary"`
 	Benefits            []string       `json:"benefits"`
-	IsRemote            bool           `json:"isRemote"`
+	IsRemote            bool           `json:"is_remote"`
 }
 
 // CreateDraftRequest - For creating draft jobs (all fields optional)
 type CreateDraftRequest struct {
 	Title               *string         `json:"title,omitempty"`
-	RoleOverview        *string         `json:"roleOverview,omitempty"`
+	RoleOverview        *string         `json:"role_overview,omitempty"`
 	Requirements        *string         `json:"requirements,omitempty"`
 	Location            *string         `json:"location,omitempty"`
-	RequiredSkills      []string        `json:"requiredSkills,omitempty"`
-	ApplicationDeadline *time.Time      `json:"applicationDeadline,omitempty"`
-	JobType             *string         `json:"jobType,omitempty"`
+	RequiredSkills      []string        `json:"required_skills,omitempty"`
+	ApplicationDeadline *time.Time      `json:"application_deadline,omitempty"`
+	JobType             *string         `json:"job_type,omitempty"`
 	Experience          *string         `json:"experience,omitempty"`
 	Salary              *FlexibleSalary `json:"salary,omitempty"`
 	Benefits            []string        `json:"benefits,omitempty"`
-	IsRemote            *bool           `json:"isRemote,omitempty"`
+	IsRemote            *bool           `json:"is_remote,omitempty"`
 }
 
 type UpdateJobPostRequest struct {
 	Title               *string         `json:"title"`
-	RoleOverview        *string         `json:"roleOverview"`
+	RoleOverview        *string         `json:"role_overview"`
 	Requirements        *string         `json:"requirements"`
 	Location            *string         `json:"location"`
-	RequiredSkills      []string        `json:"requiredSkills"`
-	ApplicationDeadline *time.Time      `json:"applicationDeadline"`
-	JobType             *string         `json:"jobType"`
+	RequiredSkills      []string        `json:"required_skills"`
+	ApplicationDeadline *time.Time      `json:"application_deadline"`
+	JobType             *string         `json:"job_type"`
 	Experience          *string         `json:"experience"`
 	Salary              *FlexibleSalary `json:"salary"`
 	Benefits            []string        `json:"benefits"`
-	IsRemote            *bool           `json:"isRemote"`
+	IsRemote            *bool           `json:"is_remote"`
 }
 
 // Response Models
 type JobPostResponse struct {
 	Success  bool      `json:"success"`
 	Message  string    `json:"message"`
-	JobPost  *JobPost  `json:"jobPost,omitempty"`
-	JobPosts []JobPost `json:"jobPosts,omitempty"`
+	JobPost  *JobPost  `json:"job_post,omitempty"`
+	JobPosts []JobPost `json:"job_posts,omitempty"`
 }
 
 // Search Filter Models
 type JobPostFilter struct {
 	Location    string   `json:"location"`
-	JobType     []string `json:"jobType"`
+	JobType     []string `json:"job_type"`
 	Experience  []string `json:"experience"`
 	SalaryRange *struct {
 		Min float64 `json:"min"`
 		Max float64 `json:"max"`
-	} `json:"salaryRange"`
-	IsRemote     *bool    `json:"isRemote"`
+	} `json:"salary_range"`
+	IsRemote     *bool    `json:"is_remote"`
 	Skills       []string `json:"skills"`
-	PostedWithin string   `json:"postedWithin"` // all, 24h, 7d, 30d
+	PostedWithin string   `json:"posted_within"` // all, 24h, 7d, 30d
 	Page         int      `json:"page"`
 	Limit        int      `json:"limit"`
 }
@@ -147,36 +147,36 @@ type JobPostFilter struct {
 // Enhanced Search Models
 type AdvancedJobSearchRequest struct {
 	// Basic filters
-	Keywords    string   `json:"keywords"`    // Search in title, description, requirements
-	Location    string   `json:"location"`    // City, state, or remote
-	JobType     []string `json:"jobType"`     // full-time, part-time, contract, internship
-	Experience  []string `json:"experience"`  // entry, mid, senior
-	Skills      []string `json:"skills"`      // Required skills
-	Industry    []string `json:"industry"`    // Company industry
-	CompanySize []string `json:"companySize"` // Company size filters
+	Keywords    string   `json:"keywords"`     // Search in title, description, requirements
+	Location    string   `json:"location"`     // City, state, or remote
+	JobType     []string `json:"job_type"`     // full-time, part-time, contract, internship
+	Experience  []string `json:"experience"`   // entry, mid, senior
+	Skills      []string `json:"skills"`       // Required skills
+	Industry    []string `json:"industry"`     // Company industry
+	CompanySize []string `json:"company_size"` // Company size filters
 
 	// Salary and benefits
 	SalaryRange *struct {
 		Min      float64 `json:"min"`
 		Max      float64 `json:"max"`
 		Currency string  `json:"currency"`
-	} `json:"salaryRange"`
+	} `json:"salary_range"`
 	Benefits []string `json:"benefits"` // Health insurance, 401k, etc.
 
 	// Work preferences
-	IsRemote *bool `json:"isRemote"` // Remote work preference
-	IsHybrid *bool `json:"isHybrid"` // Hybrid work preference
-	IsOnsite *bool `json:"isOnsite"` // On-site work preference
+	IsRemote *bool `json:"is_remote"` // Remote work preference
+	IsHybrid *bool `json:"is_hybrid"` // Hybrid work preference
+	IsOnsite *bool `json:"is_onsite"` // On-site work preference
 
 	// Timing filters
-	PostedWithin string `json:"postedWithin"` // all, 24h, 7d, 30d, 90d
-	Urgent       *bool  `json:"urgent"`       // Urgent hiring positions
+	PostedWithin string `json:"posted_within"` // all, 24h, 7d, 30d, 90d
+	Urgent       *bool  `json:"urgent"`        // Urgent hiring positions
 
 	// Sorting and pagination
-	SortBy    string `json:"sortBy"`    // relevance, date, salary, applications
-	SortOrder string `json:"sortOrder"` // asc, desc
-	Page      int    `json:"page"`      // Default: 1
-	Limit     int    `json:"limit"`     // Default: 20, Max: 100
+	SortBy    string `json:"sort_by"`    // relevance, date, salary, applications
+	SortOrder string `json:"sort_order"` // asc, desc
+	Page      int    `json:"page"`       // Default: 1
+	Limit     int    `json:"limit"`      // Default: 20, Max: 100
 }
 
 type JobSearchResponse struct {
@@ -188,14 +188,14 @@ type JobSearchResponse struct {
 }
 
 type SearchFilters struct {
-	AvailableLocations    []string      `json:"availableLocations"`
-	AvailableJobTypes     []string      `json:"availableJobTypes"`
-	AvailableExperience   []string      `json:"availableExperience"`
-	AvailableSkills       []string      `json:"availableSkills"`
-	AvailableIndustries   []string      `json:"availableIndustries"`
-	AvailableCompanySizes []string      `json:"availableCompanySizes"`
-	SalaryRanges          []SalaryRange `json:"salaryRanges"`
-	AvailableBenefits     []string      `json:"availableBenefits"`
+	AvailableLocations    []string      `json:"available_locations"`
+	AvailableJobTypes     []string      `json:"available_job_types"`
+	AvailableExperience   []string      `json:"available_experience"`
+	AvailableSkills       []string      `json:"available_skills"`
+	AvailableIndustries   []string      `json:"available_industries"`
+	AvailableCompanySizes []string      `json:"available_company_sizes"`
+	SalaryRanges          []SalaryRange `json:"salary_ranges"`
+	AvailableBenefits     []string      `json:"available_benefits"`
 }
 
 type SalaryRange struct {
@@ -209,19 +209,19 @@ type PaginationInfo struct {
 	Page       int  `json:"page"`
 	Limit      int  `json:"limit"`
 	Total      int  `json:"total"`
-	TotalPages int  `json:"totalPages"`
-	HasNext    bool `json:"hasNext"`
-	HasPrev    bool `json:"hasPrev"`
+	TotalPages int  `json:"total_pages"`
+	HasNext    bool `json:"has_next"`
+	HasPrev    bool `json:"has_prev"`
 }
 
 // Job Recommendation Models
 type JobRecommendationRequest struct {
-	UserID            string   `json:"userId"`
-	UserSkills        []string `json:"userSkills"`
-	UserLocation      string   `json:"userLocation"`
-	UserExperience    string   `json:"userExperience"`
-	PreferredJobTypes []string `json:"preferredJobTypes"`
-	MaxResults        int      `json:"maxResults"` // Default: 10
+	UserID            string   `json:"user_id"`
+	UserSkills        []string `json:"user_skills"`
+	UserLocation      string   `json:"user_location"`
+	UserExperience    string   `json:"user_experience"`
+	PreferredJobTypes []string `json:"preferred_job_types"`
+	MaxResults        int      `json:"max_results"` // Default: 10
 }
 
 type JobRecommendationResponse struct {
@@ -233,20 +233,20 @@ type JobRecommendationResponse struct {
 
 // Job Alert Models
 type JobAlertRequest struct {
-	UserID      string   `json:"userId"`
+	UserID      string   `json:"user_id"`
 	Keywords    []string `json:"keywords"`
 	Location    string   `json:"location"`
-	JobType     []string `json:"jobType"`
+	JobType     []string `json:"job_type"`
 	Experience  []string `json:"experience"`
 	Skills      []string `json:"skills"`
 	SalaryRange *struct {
 		Min      float64 `json:"min"`
 		Max      float64 `json:"max"`
 		Currency string  `json:"currency"`
-	} `json:"salaryRange"`
-	IsRemote  *bool  `json:"isRemote"`
+	} `json:"salary_range"`
+	IsRemote  *bool  `json:"is_remote"`
 	Frequency string `json:"frequency"` // daily, weekly, immediate
-	IsActive  bool   `json:"isActive"`
+	IsActive  bool   `json:"is_active"`
 }
 
 type JobAlertResponse struct {
@@ -258,22 +258,22 @@ type JobAlertResponse struct {
 
 type JobAlert struct {
 	ID          string   `json:"id"`
-	UserID      string   `json:"userId"`
+	UserID      string   `json:"user_id"`
 	Keywords    []string `json:"keywords"`
 	Location    string   `json:"location"`
-	JobType     []string `json:"jobType"`
+	JobType     []string `json:"job_type"`
 	Experience  []string `json:"experience"`
 	Skills      []string `json:"skills"`
 	SalaryRange *struct {
 		Min      float64 `json:"min"`
 		Max      float64 `json:"max"`
 		Currency string  `json:"currency"`
-	} `json:"salaryRange"`
-	IsRemote  *bool     `json:"isRemote"`
+	} `json:"salary_range"`
+	IsRemote  *bool     `json:"is_remote"`
 	Frequency string    `json:"frequency"`
-	IsActive  bool      `json:"isActive"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Job Discovery Models
@@ -296,8 +296,8 @@ type TrendingJobsResponse struct {
 }
 
 type SimilarJobsRequest struct {
-	JobID      string `json:"jobId"`
-	MaxResults int    `json:"maxResults"` // Default: 5
+	JobID      string `json:"job_id"`
+	MaxResults int    `json:"max_results"` // Default: 5
 }
 
 type SimilarJobsResponse struct {

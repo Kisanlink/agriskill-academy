@@ -10,10 +10,10 @@ import (
 
 type Certificate struct {
 	ID               string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	StudentProfileID string `json:"studentProfileId,omitempty"`
+	StudentProfileID string `json:"student_profile_id,omitempty"`
 	Name             string `json:"name" binding:"required"`
 	File             string `json:"file" binding:"required"`
-	IssueDate        string `json:"issueDate" binding:"required"`
+	IssueDate        string `json:"issue_date" binding:"required"`
 }
 
 // TableName specifies the database table name for Certificate
@@ -23,11 +23,11 @@ func (Certificate) TableName() string {
 
 type StudentProfile struct {
 	ID           string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID       string         `json:"userId" binding:"required"`
+	UserID       string         `json:"user_id" binding:"required"`
 	Name         string         `json:"name" binding:"required"`
 	Email        string         `json:"email" binding:"required,email"`
 	Location     string         `json:"location"`
-	ProfilePhoto string         `json:"profilePhoto"`
+	ProfilePhoto string         `json:"profile_photo"`
 	Resume       string         `json:"resume"`
 	Certificates []Certificate  `gorm:"foreignKey:StudentProfileID" json:"certificates"`
 	Skills       pq.StringArray `gorm:"type:text[]" json:"skills"` // Change to pq.StringArray
@@ -36,8 +36,8 @@ type StudentProfile struct {
 	Portfolio    string         `json:"portfolio"`
 	Linkedin     string         `json:"linkedin"`
 	Github       string         `json:"github"`
-	CreatedAt    time.Time      `json:"createdAt"`
-	UpdatedAt    time.Time      `json:"updatedAt"`
+	CreatedAt    time.Time      `json:"created_at"`
+	UpdatedAt    time.Time      `json:"updated_at"`
 }
 
 // TableName specifies the database table name for StudentProfile
@@ -50,7 +50,7 @@ type UpdateStudentProfileRequest struct {
 	Name         string         `json:"name,omitempty"`
 	Email        string         `json:"email,omitempty"`
 	Location     string         `json:"location,omitempty"`
-	ProfilePhoto string         `json:"profilePhoto,omitempty"`
+	ProfilePhoto string         `json:"profile_photo,omitempty"`
 	Resume       string         `json:"resume,omitempty"`
 	Skills       pq.StringArray `json:"skills,omitempty"`
 	Experience   *float64       `json:"experience,omitempty"`
@@ -65,5 +65,5 @@ type UpdateStudentProfileRequest struct {
 type UpdateCertificateRequest struct {
 	Name      string `json:"name" binding:"required"`
 	File      string `json:"file" binding:"required"`
-	IssueDate string `json:"issueDate" binding:"required"`
+	IssueDate string `json:"issue_date" binding:"required"`
 }

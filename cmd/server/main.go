@@ -5,6 +5,7 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"asa/config"
 	"asa/internal/admin"
@@ -82,6 +83,15 @@ func main() {
 	adminRepo := admin.NewAdminRepository(db)
 	adminService := admin.NewAdminService(adminRepo)
 	adminHandler := admin.NewAdminHandler(adminService)
+
+	// Health check endpoint (no auth required)
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status":    "healthy",
+			"service":   "asa-backend",
+			"timestamp": time.Now().Unix(),
+		})
+	})
 
 	// API routes
 	api := router.Group("/api")

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // contains checks if a slice of strings contains a specific string
@@ -20,6 +21,20 @@ func contains(list []string, val string) bool {
 		}
 	}
 	return false
+}
+
+// HashPassword - copy this exact function from AAA service
+func HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+
+// VerifyPassword - copy this exact function from AAA service
+func VerifyPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
 type AuthService interface {
@@ -59,6 +74,7 @@ func generateToken(user *User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
+		"role":    user.Role, // Add role to JWT claims
 		"exp":     time.Now().Add(time.Hour * 72).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -110,26 +126,47 @@ func (s *authService) Login(email, password string) (*User, string, error) {
 
 // Signup
 func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
+	fmt.Printf("🔍 AuthService.Signup called with: %+v\n", req)
+
 	// 1. Validate password confirmation
 	if req.Password != req.ConfirmPassword {
+		fmt.Printf("❌ Password mismatch\n")
 		return nil, "", errors.New("passwords do not match")
 	}
 
 	// 2. Check if user exists
-	existingUser, _ := s.repo.FindByEmail(req.Email)
-	if existingUser != nil {
+	fmt.Printf("🔍 Checking if user exists with email: %s\n", req.Email)
+	existingUser, err := s.repo.FindByEmail(req.Email)
+	if err != nil {
+		fmt.Printf("🔍 User not found (expected): %v\n", err)
+	} else if existingUser != nil {
+		fmt.Printf("❌ User already exists: %+v\n", existingUser)
 		return nil, "", errors.New("email already registered")
 	}
 
-	// 3. Create user (password and role handled by AAA service)
-	user := &User{
-		Name:  req.Name,
-		Email: req.Email,
-	}
-	err := s.repo.Create(user)
+	// 3. Create user (store hashed password and role locally as well)
+	fmt.Printf("🔍 Creating user with name: %s, email: %s\n", req.Name, req.Email)
+
+	// Hash the password using the same method as AAA service
+	hashedPassword, err := HashPassword(req.Password)
 	if err != nil {
+		fmt.Printf("❌ Failed to hash password: %v\n", err)
+		return nil, "", fmt.Errorf("failed to hash password: %w", err)
+	}
+	fmt.Printf("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
+
+	user := &User{
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: hashedPassword, // Store hashed password locally
+		Role:     req.Role,       // Store role locally
+	}
+	err = s.repo.Create(user)
+	if err != nil {
+		fmt.Printf("❌ Failed to create user in DB: %v\n", err)
 		return nil, "", err
 	}
+	fmt.Printf("✅ User created successfully with hashed password: %+v\n", user)
 
 	// 4. Generate token
 	token, err := generateToken(user)
@@ -138,8 +175,10 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 	}
 
 	// 5. Create corresponding profile based on role from request
+	fmt.Printf("🔍 Creating profile for role: %s\n", req.Role)
 	roles := []string{req.Role} // Use role from request since it's not stored in DB
 	if contains(roles, "employer") {
+		fmt.Printf("🔍 Creating employer profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
 		if req.City != "" && req.State != "" {
@@ -171,11 +210,15 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			HiringLocations:    []string{location},
 			HiringTypes:        []string{"full-time"},
 		}
+		fmt.Printf("🔍 Employer profile data: %+v\n", profile)
 		if err := s.employerRepo.Create(profile); err != nil {
+			fmt.Printf("❌ Failed to create employer profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create employer profile: %w", err)
 		}
+		fmt.Printf("✅ Employer profile created successfully\n")
 
 	} else if contains(roles, "student") {
+		fmt.Printf("🔍 Creating student profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
 		if req.City != "" && req.State != "" {
@@ -200,9 +243,14 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			Linkedin:     "",
 			Github:       "",
 		}
+		fmt.Printf("🔍 Student profile data: %+v\n", profile)
 		if err := s.studentProfileRepo.Create(profile); err != nil {
+			fmt.Printf("❌ Failed to create student profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create user profile: %w", err)
 		}
+		fmt.Printf("✅ Student profile created successfully\n")
+	} else {
+		fmt.Printf("⚠️ Unknown role: %s, no profile created\n", req.Role)
 	}
 
 	return user, token, nil

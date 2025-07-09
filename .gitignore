@@ -1,113 +1,402 @@
-# .gitignore for Go project
+# =============================================================================
+# ASA Backend - Comprehensive .gitignore
+# =============================================================================
 
-# Ignore Go binary files (compiled executables)
+# =============================================================================
+# Go Language Specific
+# =============================================================================
+
+# Binaries for programs and plugins
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
 
-# Ignore specific build artifacts
-main.exe
-server.exe
-asa
-server
-
-# Ignore Go test binaries and test files
-*_test.go
+# Test binary, built with `go test -c`
 *.test
-*.out
-test_*.sql
-test_*.js
-test_*.ps1
-test_*.sh
-debug_*.sql
-fix_*.sql
 
-# Go workspace settings
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+vendor/
+
+# Go workspace file
 go.work
 go.work.sum
 
-# Ignore Go mod and vendor directories (for projects using Go modules)
-vendor/
+# Go build cache
+go-build/
 
-# Dependency directories and Go modules cache
-/.vscode
-/.idea
-/.sublime*
-/.idea
-/go/pkg/
-/go/bin/
-/go/bin/*
+# =============================================================================
+# Project Specific Build Artifacts
+# =============================================================================
 
-# Ignore environment files
+# Application binaries
+main
+server
+asa
+asa.exe
+asa-linux
+asa-mac
+asa-windows.exe
+
+# Build directory
+build/
+dist/
+bin/
+
+# Binary files in cmd directory
+cmd/server/main
+cmd/server/main.exe
+
+# =============================================================================
+# Environment and Configuration Files
+# =============================================================================
+
+# Environment files (contains sensitive data)
 .env
 .env.local
+.env.development
 .env.production
+.env.staging
 .env.test
+.env.backup
 
-# Ignore IDE configurations and temporary files
-.vscode/
-.idea/
-*.sublime-workspace
-*.sublime-project
+# Configuration files with sensitive data
+config.local.json
+config.production.json
+config.staging.json
+secrets.json
+credentials.json
 
-# Ignore build, coverage, and log files
-*.log
-*.coverage
-*.test-coverage
+# =============================================================================
+# Database and Migration Files
+# =============================================================================
 
-# Ignore local configuration for local IDEs
-# JetBrains IDE (like GoLand, IntelliJ IDEA)
-.idea/
+# Database dumps and backups
+*.sql.bak
+*.sql.backup
+*.dump
+*.backup
 
-# macOS specific files
-.DS_Store
+# Test database files
+test.db
+test.sqlite
+test.sqlite3
 
-# Windows specific files
-Thumbs.db
+# Migration test files
+test_*.sql
+debug_*.sql
+fix_*.sql
 
-# Archive files (e.g., tarballs, zip files)
-*.tar.gz
-*.tgz
-*.zip
-*.tar.bz2
-*.tar.xz
+# =============================================================================
+# Upload and File Storage
+# =============================================================================
 
-# GoLand IDE files
-.idea/
+# Upload directories (user-uploaded content)
+uploads/
+uploads/*
+!uploads/.gitkeep
 
-# Ignore cache and build files for Go tools
-.go_cache
-.go_build
+# File uploads
+uploads/resumes/
+uploads/certificates/
+uploads/documents/
+uploads/images/
+uploads/temp/
 
-# Test coverage files
-*.coverprofile
-
-# Ignore binaries for generated files
-*.exe
-*.dll
-*.so
-*.dylib
-
-# Ignore vim swap files
-*~
-
-# Ignore personal editor settings
-*.swp
-
-# Ignore temporary and debug files
+# Temporary upload files
 *.tmp
 *.temp
-debug_*
 temp_*
 tmp_*
 
-# Ignore sample data and test data files
+# =============================================================================
+# Logs and Debug Files
+# =============================================================================
+
+# Log files
+*.log
+logs/
+*.log.*
+*.log.bak
+
+# Debug files
+debug_*
+debug.log
+debug.out
+
+# Application logs
+app.log
+server.log
+error.log
+access.log
+
+# =============================================================================
+# IDE and Editor Files
+# =============================================================================
+
+# Visual Studio Code
+.vscode/
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/extensions.json
+
+# JetBrains IDEs (GoLand, IntelliJ IDEA, etc.)
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# =============================================================================
+# Operating System Files
+# =============================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.tmp
+*.temp
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# Testing and Coverage
+# =============================================================================
+
+# Test coverage files
+*.coverprofile
+*.coverage
+coverage.out
+coverage.html
+coverage.xml
+
+# Test results
+test-results/
+test-output/
+junit.xml
+
+# =============================================================================
+# Archives and Compressed Files
+# =============================================================================
+
+# Archive files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tgz
+*.zip
+*.rar
+*.7z
+*.gz
+*.bz2
+*.xz
+
+# =============================================================================
+# Temporary and Cache Files
+# =============================================================================
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Cache directories
+.cache/
+cache/
+*.cache
+
+# Go module cache
+go-mod-cache/
+
+# =============================================================================
+# Development and Debug Files
+# =============================================================================
+
+# Debug files
+debug_*
+*.debug
+
+# Development files
+dev_*
+development_*
+
+# Sample and test data
 sample_*
 seed_*
 test_data/
 debug_data/
+fixtures/
 
-# Ignore PowerShell execution policy bypass files
+# =============================================================================
+# Deployment and CI/CD
+# =============================================================================
+
+# Deployment files
+deploy/
+deployment/
+*.deploy
+*.deployment
+
+# Docker files (if using Docker)
+Dockerfile.local
+docker-compose.override.yml
+.dockerignore
+
+# Kubernetes files
+*.kubeconfig
+kubeconfig
+
+# =============================================================================
+# Security and Secrets
+# =============================================================================
+
+# Private keys and certificates
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# =============================================================================
+# Scripts and Automation
+# =============================================================================
+
+# PowerShell execution policy bypass files
 *.ps1.bak
+*.ps1.tmp
+
+# Shell script backups
+*.sh.bak
+*.sh.tmp
+
+# =============================================================================
+# Documentation and Notes
+# =============================================================================
+
+# Documentation drafts
+docs/draft/
+docs/temp/
+
+# Notes and todos
+TODO.md
+NOTES.md
+CHANGELOG.md
+*.todo
+*.note
+
+# =============================================================================
+# Backup and Recovery
+# =============================================================================
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Recovery files
+*.recovery
+*.restore
+
+# =============================================================================
+# Monitoring and Metrics
+# =============================================================================
+
+# Metrics and monitoring files
+metrics/
+monitoring/
+*.metrics
+*.monitoring
+
+# =============================================================================
+# Air (Hot Reload) Configuration
+# =============================================================================
+
+# Air configuration
+.air.toml
+air.toml
+
+# =============================================================================
+# Keep Important Directories
+# =============================================================================
+
+# Keep uploads directory structure but ignore contents
+!uploads/
+uploads/*
+!uploads/.gitkeep
+
+# Keep migrations directory
+!migrations/
+!scripts/
+
+# Keep documentation
+!docs/
+!README.md
+!CHANGELOG.md
+!LICENSE

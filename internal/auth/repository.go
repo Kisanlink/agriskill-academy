@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 )
@@ -40,7 +41,14 @@ func (r *userRepository) FindByID(id string) (*User, error) {
 }
 
 func (r *userRepository) Create(user *User) error {
-	return r.db.Create(user).Error
+	fmt.Printf("🔍 Repository.Create called with user: %+v\n", user)
+	err := r.db.Create(user).Error
+	if err != nil {
+		fmt.Printf("❌ Repository.Create failed: %v\n", err)
+	} else {
+		fmt.Printf("✅ Repository.Create successful, user ID: %s\n", user.ID)
+	}
+	return err
 }
 
 func (r *userRepository) Update(user *User) error {

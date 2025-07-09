@@ -103,7 +103,7 @@ migrate: ## Run all database migrations in order
 		echo "[ERROR] Profiles rename script not found (scripts/008_rename_profiles.ps1)"; \
 		exit 1; \
 	fi
-	@echo "✓ All migrations completed successfully!"
+	@echo "✅ All migrations completed successfully!"
 
 .PHONY: migrate-schema
 migrate-schema: ## Apply only the database schema migration
@@ -172,14 +172,10 @@ vet: ## Run go vet
 	@echo "Running go vet..."
 	@go vet ./...
 
-.PHONY: lint
-lint: ## Run golangci-lint (if installed)
-	@echo "Running linter..."
-	@if command -v golangci-lint >/dev/null 2>&1; then \
-		golangci-lint run; \
-	else \
-		echo "golangci-lint not found. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
-	fi
+.PHONY: tidy
+tidy: ## Tidy Go modules
+	@echo "Tidying Go modules..."
+	@go mod tidy
 
 # Cleanup targets
 .PHONY: clean
@@ -188,83 +184,28 @@ clean: ## Clean build artifacts
 	@rm -rf $(BUILD_DIR)
 	@go clean
 
-.PHONY: clean-all
-clean-all: clean ## Clean everything including go mod cache
-	@echo "Cleaning everything..."
-	@go clean -modcache
+.PHONY: clean-uploads
+clean-uploads: ## Clean uploaded files
+	@echo "Cleaning uploaded files..."
 	@rm -rf uploads/resumes/*
 	@rm -rf uploads/certificates/*
 
-# Dependencies targets
+# Dependencies
 .PHONY: deps
-deps: ## Download dependencies
-	@echo "Downloading dependencies..."
+deps: ## Install dependencies
+	@echo "Installing dependencies..."
 	@go mod download
 
-.PHONY: deps-update
-deps-update: ## Update dependencies
-	@echo "Updating dependencies..."
-	@go get -u ./...
-	@go mod tidy
-
-.PHONY: deps-check
-deps-check: ## Check for outdated dependencies
-	@echo "Checking for outdated dependencies..."
-	@go list -u -m all
-
-# Docker targets (if using Docker)
-.PHONY: docker-build
-docker-build: ## Build Docker image
-	@echo "Building Docker image..."
-	@docker build -t $(APP_NAME) .
-
-.PHONY: docker-run
-docker-run: ## Run Docker container
-	@echo "Running Docker container..."
-	@docker run -p $(PORT):$(PORT) $(APP_NAME)
-
-.PHONY: docker-stop
-docker-stop: ## Stop Docker container
-	@echo "Stopping Docker container..."
-	@docker stop $(APP_NAME) || true
-
-# Utility targets
-.PHONY: install-tools
-install-tools: ## Install development tools
-	@echo "Installing development tools..."
+.PHONY: install-air
+install-air: ## Install Air for hot reloading
+	@echo "Installing Air for hot reloading..."
 	@go install github.com/cosmtrek/air@latest
-	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-	@echo "Tools installed successfully!"
 
-.PHONY: check
-check: fmt vet test ## Run all checks (format, vet, test)
-	@echo "All checks completed!"
+# Quick start
+.PHONY: setup
+setup: deps install-air ## Setup development environment
+	@echo "Development environment setup complete!"
 
-.PHONY: prepare
-prepare: deps check ## Prepare for development (deps + checks)
-	@echo "Project prepared for development!"
-
-# Production targets
-.PHONY: prod-build
-prod-build: build-linux ## Build for production (Linux)
-	@echo "Production build complete!"
-
-.PHONY: prod-run
-prod-run: prod-build ## Build and run for production
-	@echo "Starting production server..."
-	@./$(BUILD_DIR)/$(BINARY_NAME)-linux
-
-# Default make target
-.PHONY: make
-make: build ## Default make target (alias for build)
-	@echo "Build complete!"
-
-# Show current status
-.PHONY: status
-status: ## Show current project status
-	@echo "=== ASA Backend Status ==="
-	@echo "Go version: $(shell go version)"
-	@echo "Git commit: $(shell git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
-	@echo "Build directory: $(BUILD_DIR)"
-	@echo "Main file: $(MAIN_PATH)"
-	@echo "================================" 
+.PHONY: start
+start: migrate run ## Setup database and start the application
+	@echo "Application started successfully!" 

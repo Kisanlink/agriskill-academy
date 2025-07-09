@@ -68,7 +68,12 @@ func main() {
 	studentProfileService := studentprofile.NewStudentProfileService(studentProfileRepo)
 	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService)
 
-	storageService := storage.NewLocalStorageService("uploads", "http://localhost:3000/api/files")
+	// Use environment variable or config for the base URL instead of hardcoding localhost
+	storageBaseURL := os.Getenv("STORAGE_BASE_URL")
+	if storageBaseURL == "" {
+		log.Fatal("STORAGE_BASE_URL environment variable not set")
+	}
+	storageService := storage.NewLocalStorageService("uploads", storageBaseURL+"/api/files")
 	storageHandler := storage.NewStorageHandler(storageService)
 
 	// Notification module with preferences

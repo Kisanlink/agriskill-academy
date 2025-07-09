@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"AGRIJOBS/internal/employerprofile"
-	"AGRIJOBS/internal/userprofile"
+	"asa/internal/employerprofile"
+	"asa/internal/studentprofile"
 	"errors"
 	"fmt"
 	"os"
@@ -13,8 +13,32 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// contains checks if a slice of strings contains a specific string
+func contains(list []string, val string) bool {
+	for _, item := range list {
+		if item == val {
+			return true
+		}
+	}
+	return false
+}
+
+// HashPassword - copy this exact function from AAA service
+func HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+
+// VerifyPassword - copy this exact function from AAA service
+func VerifyPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
 type AuthService interface {
-	Login(email, password, role string) (*User, string, error)
+	Login(email, password string) (*User, string, error)
 	Signup(req *SignupRequest) (*User, string, error)
 	VerifyToken(tokenStr string) (bool, error)
 	SendResetLink(email string) error
@@ -23,22 +47,22 @@ type AuthService interface {
 }
 
 type authService struct {
-	repo            UserRepository
-	employerRepo    employerprofile.EmployerProfileRepository
-	userProfileRepo userprofile.UserProfileRepository
+	repo               UserRepository
+	employerRepo       employerprofile.EmployerProfileRepository
+	studentProfileRepo studentprofile.StudentProfileRepository
 }
 
-func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, userProfileRepo userprofile.UserProfileRepository) AuthService {
+func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository) AuthService {
 	return &authService{
-		repo:            repo,
-		employerRepo:    employerRepo,
-		userProfileRepo: userProfileRepo,
+		repo:               repo,
+		employerRepo:       employerRepo,
+		studentProfileRepo: studentProfileRepo,
 	}
 }
 
 // JWT Secret
 func getSecret() string {
-	secret := os.Getenv("JWT_SECRET")
+	secret := os.Getenv("SECRET_KEY")
 	if secret == "" {
 		return "secret"
 	}
@@ -50,7 +74,7 @@ func generateToken(user *User) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
-		"role":    user.Role,
+		"role":    user.Role, // Add role to JWT claims
 		"exp":     time.Now().Add(time.Hour * 72).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -83,26 +107,16 @@ func (s *authService) VerifyToken(tokenStr string) (bool, error) {
 	return true, nil
 }
 
-// Hash password
-func hashPassword(pw string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-	return string(bytes), err
-}
-
-// Compare hashed password
-func checkPassword(hashed, pw string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hashed), []byte(pw))
-}
+// Password functions removed - now handled by AAA service
 
 // Login
-func (s *authService) Login(email, password, role string) (*User, string, error) {
+func (s *authService) Login(email, password string) (*User, string, error) {
 	user, err := s.repo.FindByEmail(email)
-	if err != nil || user.Role != role {
+	if err != nil {
 		return nil, "", errors.New("invalid credentials")
 	}
-	if err := checkPassword(user.Password, password); err != nil {
-		return nil, "", errors.New("invalid credentials")
-	}
+	// Password validation is now handled by AAA service
+	// We only need to check if user exists in our local DB
 	token, err := generateToken(user)
 	if err != nil {
 		return nil, "", err
@@ -112,44 +126,59 @@ func (s *authService) Login(email, password, role string) (*User, string, error)
 
 // Signup
 func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
+	fmt.Printf("🔍 AuthService.Signup called with: %+v\n", req)
+
 	// 1. Validate password confirmation
 	if req.Password != req.ConfirmPassword {
+		fmt.Printf("❌ Password mismatch\n")
 		return nil, "", errors.New("passwords do not match")
 	}
 
 	// 2. Check if user exists
-	existingUser, _ := s.repo.FindByEmail(req.Email)
-	if existingUser != nil {
+	fmt.Printf("🔍 Checking if user exists with email: %s\n", req.Email)
+	existingUser, err := s.repo.FindByEmail(req.Email)
+	if err != nil {
+		fmt.Printf("🔍 User not found (expected): %v\n", err)
+	} else if existingUser != nil {
+		fmt.Printf("❌ User already exists: %+v\n", existingUser)
 		return nil, "", errors.New("email already registered")
 	}
 
-	// 3. Hash password
-	hashedPassword, err := hashPassword(req.Password)
-	if err != nil {
-		return nil, "", err
-	}
+	// 3. Create user (store hashed password and role locally as well)
+	fmt.Printf("🔍 Creating user with name: %s, email: %s\n", req.Name, req.Email)
 
-	// 4. Create user
+	// Hash the password using the same method as AAA service
+	hashedPassword, err := HashPassword(req.Password)
+	if err != nil {
+		fmt.Printf("❌ Failed to hash password: %v\n", err)
+		return nil, "", fmt.Errorf("failed to hash password: %w", err)
+	}
+	fmt.Printf("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
+
 	user := &User{
 		Name:     req.Name,
 		Email:    req.Email,
-		Password: hashedPassword,
-		Role:     req.Role,
+		Password: hashedPassword, // Store hashed password locally
+		Role:     req.Role,       // Store role locally
 	}
 	err = s.repo.Create(user)
 	if err != nil {
+		fmt.Printf("❌ Failed to create user in DB: %v\n", err)
 		return nil, "", err
 	}
+	fmt.Printf("✅ User created successfully with hashed password: %+v\n", user)
 
-	// 5. Generate token
+	// 4. Generate token
 	token, err := generateToken(user)
 	if err != nil {
 		return nil, "", err
 	}
 
-	// 6. Create corresponding profile
-	switch user.Role {
-	case "employer":
+	// 5. Create corresponding profile based on role from request
+	fmt.Printf("🔍 Creating profile for role: %s\n", req.Role)
+	roles := []string{req.Role} // Use role from request since it's not stored in DB
+	if contains(roles, "employer") {
+		fmt.Printf("🔍 Creating employer profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
 		if req.City != "" && req.State != "" {
@@ -181,11 +210,15 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			HiringLocations:    []string{location},
 			HiringTypes:        []string{"full-time"},
 		}
+		fmt.Printf("🔍 Employer profile data: %+v\n", profile)
 		if err := s.employerRepo.Create(profile); err != nil {
+			fmt.Printf("❌ Failed to create employer profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create employer profile: %w", err)
 		}
+		fmt.Printf("✅ Employer profile created successfully\n")
 
-	case "student":
+	} else if contains(roles, "student") {
+		fmt.Printf("🔍 Creating student profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
 		if req.City != "" && req.State != "" {
@@ -196,7 +229,7 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			location = req.State
 		}
 
-		profile := &userprofile.UserProfile{
+		profile := &studentprofile.StudentProfile{
 			UserID:       user.ID,
 			Name:         user.Name,
 			Email:        user.Email,
@@ -204,10 +237,20 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			Skills:       []string{},
 			Resume:       "",
 			ProfilePhoto: "",
+			Experience:   0.0,
+			Education:    "",
+			Portfolio:    "",
+			Linkedin:     "",
+			Github:       "",
 		}
-		if err := s.userProfileRepo.Create(profile); err != nil {
+		fmt.Printf("🔍 Student profile data: %+v\n", profile)
+		if err := s.studentProfileRepo.Create(profile); err != nil {
+			fmt.Printf("❌ Failed to create student profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create user profile: %w", err)
 		}
+		fmt.Printf("✅ Student profile created successfully\n")
+	} else {
+		fmt.Printf("⚠️ Unknown role: %s, no profile created\n", req.Role)
 	}
 
 	return user, token, nil
@@ -226,30 +269,9 @@ func (s *authService) SendResetLink(email string) error {
 
 // Reset password using token (mock logic)
 func (s *authService) ResetPassword(token, newPassword string) error {
-	parsed, err := jwt.Parse(token, func(t *jwt.Token) (interface{}, error) {
-		return []byte(getSecret()), nil
-	})
-	if err != nil || !parsed.Valid {
-		return errors.New("invalid or expired token")
-	}
-	claims, ok := parsed.Claims.(jwt.MapClaims)
-	if !ok {
-		return errors.New("invalid token claims")
-	}
-	email, ok := claims["email"].(string)
-	if !ok {
-		return errors.New("invalid token email")
-	}
-	user, err := s.repo.FindByEmail(email)
-	if err != nil {
-		return err
-	}
-	hashed, err := hashPassword(newPassword)
-	if err != nil {
-		return err
-	}
-	user.Password = hashed
-	return s.repo.Update(user)
+	// Password reset is now handled by AAA service
+	// This method is kept for backward compatibility but doesn't modify local DB
+	return nil
 }
 
 // Update profile
@@ -277,15 +299,13 @@ func (s *authService) UpdateProfile(userID string, req *UpdateProfileRequest) (*
 		return nil, err
 	}
 
-	// Update role-specific profile based on user role
-	switch user.Role {
-	case "employer":
-		if err := s.updateEmployerProfile(userID, req); err != nil {
-			return nil, fmt.Errorf("failed to update employer profile: %w", err)
-		}
-	case "student":
+	// Update role-specific profile based on roles from JWT context
+	// Note: Role-based logic should be handled by the calling handler
+	// which has access to the JWT context with roles
+	if err := s.updateEmployerProfile(userID, req); err != nil {
+		// Try student profile if employer profile update fails
 		if err := s.updateStudentProfile(userID, req); err != nil {
-			return nil, fmt.Errorf("failed to update student profile: %w", err)
+			return nil, fmt.Errorf("failed to update profile: %w", err)
 		}
 	}
 
@@ -360,7 +380,7 @@ func (s *authService) updateEmployerProfile(userID string, req *UpdateProfileReq
 
 // Update student profile
 func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequest) error {
-	profile, err := s.userProfileRepo.GetByUserID(userID)
+	profile, err := s.studentProfileRepo.GetByUserID(userID)
 	if err != nil {
 		return err
 	}
@@ -375,20 +395,34 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 	if req.Location != "" {
 		profile.Location = req.Location
 	}
-	if req.PhoneNumber != "" {
-		// Note: UserProfile doesn't have phone number field, we might need to add it
-		// For now, we'll skip this field
+	// Phone number field is not in StudentProfile model, it's handled at user level
+	// if req.PhoneNumber != "" {
+	//     // Phone number is stored in users table, not student_profiles
+	// }
+	if req.LinkedinProfile != "" {
+		profile.Linkedin = req.LinkedinProfile
 	}
 	if req.ProfilePhoto != "" {
 		profile.ProfilePhoto = req.ProfilePhoto
 	}
+	if req.Resume != "" {
+		profile.Resume = req.Resume
+	}
 	if len(req.Skills) > 0 {
 		profile.Skills = req.Skills
 	}
-	if req.LinkedinProfile != "" {
-		// Note: UserProfile doesn't have linkedin field, we might need to add it
-		// For now, we'll skip this field
+	if req.Experience > 0 {
+		profile.Experience = req.Experience
+	}
+	if req.Education != "" {
+		profile.Education = req.Education
+	}
+	if req.Portfolio != "" {
+		profile.Portfolio = req.Portfolio
+	}
+	if req.Github != "" {
+		profile.Github = req.Github
 	}
 
-	return s.userProfileRepo.Update(profile)
+	return s.studentProfileRepo.Update(profile)
 }

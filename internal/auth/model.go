@@ -6,35 +6,38 @@ type User struct {
 	ID        string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `gorm:"uniqueIndex" json:"email"`
-	Password  string    `json:"-"`
-	Role      string    `json:"role"` // "employer" or "student"
+	Password  string    `json:"-"` // Stored locally but not exposed in JSON
+	Role      string    `json:"-"` // Stored locally but not exposed in JSON
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type SignupRequest struct {
 	Name            string `json:"name" binding:"required"`
-	Email           string `json:"email" binding:"required,email"`
+	Username        string `json:"username" binding:"required"` // Username for AAA service
+	Email           string `json:"email" binding:"required"`    // Email for our local DB
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirmPassword" binding:"required"`
-	Role            string `json:"role" binding:"required"` // "student" or "employer"
+	Role            string `json:"role" binding:"required,oneof=student employer"` // "student" or "employer"
+	PhoneNumber     int64  `json:"phoneNumber" binding:"required"`                 // Changed to int64 for AAA service
+	CountryCode     string `json:"countryCode,omitempty"`                          // Optional, defaults to "+91"
+	AadhaarNumber   string `json:"aadhaarNumber,omitempty"`                        // Optional
 
-	// Employer-only fields
-	CompanyName    string `json:"companyName"`
-	GstinNumber    string `json:"gstinNumber"`
-	CompanyAddress string `json:"companyAddress"`
-	City           string `json:"city"`
-	State          string `json:"state"`
-	Pincode        string `json:"pincode"`
-	IndustryType   string `json:"industryType"`
-	CompanySize    string `json:"companySize"`
-	Website        string `json:"website"`
+	// Employer-only fields (optional)
+	CompanyName    string `json:"companyName,omitempty"`
+	GstinNumber    string `json:"gstinNumber,omitempty"`
+	CompanyAddress string `json:"companyAddress,omitempty"`
+	City           string `json:"city,omitempty"`
+	State          string `json:"state,omitempty"`
+	Pincode        string `json:"pincode,omitempty"`
+	IndustryType   string `json:"industryType,omitempty"`
+	CompanySize    string `json:"companySize,omitempty"`
+	Website        string `json:"website,omitempty"`
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
+	Username string `json:"username" binding:"required"` // Username for AAA service
 	Password string `json:"password" binding:"required"`
-	Role     string `json:"role" binding:"required,oneof=employer student"`
 }
 
 type UpdateProfileRequest struct {
@@ -56,7 +59,12 @@ type UpdateProfileRequest struct {
 
 	// Role-specific fields (will be validated based on user role)
 	// For students
-	Skills []string `json:"skills,omitempty"`
+	Skills     []string `json:"skills,omitempty"`
+	Resume     string   `json:"resume,omitempty"`
+	Experience float64  `json:"experience,omitempty"`
+	Education  string   `json:"education,omitempty"`
+	Portfolio  string   `json:"portfolio,omitempty"`
+	Github     string   `json:"github,omitempty"`
 
 	// For employers
 	CompanyName        string   `json:"companyName,omitempty"`

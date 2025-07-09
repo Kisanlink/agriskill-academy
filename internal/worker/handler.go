@@ -3,7 +3,9 @@
 package worker
 
 import (
+	"asa/pkg/authz"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +19,24 @@ func NewWorkerHandler(s JobService) *WorkerHandler {
 	return &WorkerHandler{s}
 }
 
+func getJWT(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return authHeader[7:]
+	}
+	return ""
+}
+
 // POST /worker/job
 func (h *WorkerHandler) EnqueueJob(c *gin.Context) {
+	username := c.GetString("username")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_jobs", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var req struct {
 		Type    string                 `json:"type" binding:"required"`
 		Payload map[string]interface{} `json:"payload"`

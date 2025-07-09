@@ -1,7 +1,9 @@
 package employerprofile
 
 import (
+	"asa/pkg/authz"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,8 +16,25 @@ func NewEmployerProfileHandler(s EmployerProfileService) *EmployerProfileHandler
 	return &EmployerProfileHandler{s}
 }
 
+func getJWT(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return authHeader[7:]
+	}
+	return ""
+}
+
 // GET /employers/:employerId/profile
 func (h *EmployerProfileHandler) GetProfile(c *gin.Context) {
+	username := c.GetString("email")
+	employerID := c.Param("employerId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_employer_profiles", "read", employerID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	userID := c.Param("employerId")
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
@@ -27,6 +46,14 @@ func (h *EmployerProfileHandler) GetProfile(c *gin.Context) {
 
 // GET /employers/me/profile
 func (h *EmployerProfileHandler) GetMyProfile(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_employer_profiles", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	userID := c.GetString("user_id")
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
@@ -42,6 +69,15 @@ func (h *EmployerProfileHandler) GetMyProfile(c *gin.Context) {
 
 // PUT /employers/:employerId/profile
 func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
+	username := c.GetString("email")
+	employerID := c.Param("employerId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_employer_profiles", "update", employerID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	userID := c.Param("employerId")
 	var req EmployerProfile
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -58,6 +94,14 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 
 // POST /employers/profile
 func (h *EmployerProfileHandler) CreateProfile(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_employer_profiles", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var req EmployerProfile
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
@@ -84,6 +128,15 @@ func (h *EmployerProfileHandler) CreateProfile(c *gin.Context) {
 
 // DELETE /employers/:employerId/profile
 func (h *EmployerProfileHandler) DeleteProfile(c *gin.Context) {
+	username := c.GetString("email")
+	employerID := c.Param("employerId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_employer_profiles", "delete", employerID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	userID := c.Param("employerId")
 	if err := h.service.DeleteProfile(userID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to delete profile"})

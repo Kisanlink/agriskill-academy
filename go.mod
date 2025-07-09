@@ -1,4 +1,4 @@
-module AGRIJOBS
+module asa
 
 go 1.24.4
 

@@ -1,12 +1,22 @@
 package admin
 
 import (
-	"AGRIJOBS/internal/employerprofile"
+	"asa/internal/employerprofile"
 	"errors"
 	"time"
 
 	"gorm.io/gorm"
 )
+
+// contains checks if a slice of strings contains a specific string
+func contains(list []string, val string) bool {
+	for _, item := range list {
+		if item == val {
+			return true
+		}
+	}
+	return false
+}
 
 type AdminRepository interface {
 	GetJobAnalytics() (*JobAnalytics, error)
@@ -168,7 +178,7 @@ func (r *adminRepository) GetUserAnalytics() (*UserAnalytics, error) {
 
 	// Get top locations (from user profiles)
 	var locationStats []LocationStats
-	r.db.Model(&UserProfile{}).
+	r.db.Model(&StudentProfile{}).
 		Select("location, COUNT(*) as count").
 		Where("location IS NOT NULL AND location != ''").
 		Group("location").
@@ -295,12 +305,6 @@ type User struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
-type UserProfile struct {
-	ID       string `gorm:"primaryKey;type:uuid"`
-	Location string `json:"location"`
-	Skills   string `json:"skills"`
-}
-
 type EmployerProfile struct {
 	ID          string `gorm:"primaryKey;type:uuid"`
 	CompanyName string `json:"companyName"`
@@ -311,6 +315,17 @@ type EmployerProfile struct {
 type Bookmark struct {
 	ID     string `gorm:"primaryKey;type:uuid"`
 	UserID string `json:"userId"`
+}
+
+type StudentProfile struct {
+	ID       string `gorm:"primaryKey;type:uuid"`
+	Location string `json:"location"`
+	Skills   string `json:"skills"`
+}
+
+// TableName specifies the database table name for StudentProfile
+func (StudentProfile) TableName() string {
+	return "student_profiles"
 }
 
 // User Management Methods
@@ -385,30 +400,33 @@ func (r *adminRepository) GetUserByID(userID string) (*UserDetailResponse, error
 		return nil, err
 	}
 
-	// Get role-specific profile
-	switch user.Role {
-	case "employer":
-		var employerProfile struct {
-			CompanyName string `json:"companyName"`
-			Industry    string `json:"industry"`
-			Location    string `json:"location"`
-		}
-		r.db.Model(&EmployerProfile{}).
-			Select("company_name, industry, location").
-			Where("user_id = ?", userID).
-			First(&employerProfile)
-		user.Profile = employerProfile
+	// Get role-specific profile based on profile existence
+	// Try employer profile first, then student profile
+	var employerProfile struct {
+		CompanyName string `json:"companyName"`
+		Industry    string `json:"industry"`
+		Location    string `json:"location"`
+	}
+	err = r.db.Model(&EmployerProfile{}).
+		Select("company_name, industry, location").
+		Where("user_id = ?", userID).
+		First(&employerProfile).Error
 
-	case "student":
+	if err == nil {
+		user.Profile = employerProfile
+	} else {
+		// Try student profile if employer profile doesn't exist
 		var studentProfile struct {
 			Location string `json:"location"`
 			Skills   string `json:"skills"`
 		}
-		r.db.Model(&UserProfile{}).
+		err = r.db.Model(&StudentProfile{}).
 			Select("location, skills").
 			Where("user_id = ?", userID).
-			First(&studentProfile)
-		user.Profile = studentProfile
+			First(&studentProfile).Error
+		if err == nil {
+			user.Profile = studentProfile
+		}
 	}
 
 	return &user, nil
@@ -435,9 +453,8 @@ func (r *adminRepository) UpdateUser(userID string, req *UpdateUserRequest) erro
 		}
 		user.Email = req.Email
 	}
-	if req.Role != "" {
-		user.Role = req.Role
-	}
+	// Role updates are now handled by AAA service
+	// We don't store roles in local DB anymore
 	if req.Status != "" {
 		user.Status = req.Status
 	}
@@ -463,13 +480,10 @@ func (r *adminRepository) DeleteUser(userID string) error {
 		return err
 	}
 
-	// Delete role-specific profile
-	switch user.Role {
-	case "employer":
-		tx.Where("user_id = ?", userID).Delete(&EmployerProfile{})
-	case "student":
-		tx.Where("user_id = ?", userID).Delete(&UserProfile{})
-	}
+	// Delete role-specific profile based on profile existence
+	// Delete both profile types to ensure cleanup
+	tx.Where("user_id = ?", userID).Delete(&EmployerProfile{})
+	tx.Where("user_id = ?", userID).Delete(&StudentProfile{})
 
 	// Delete related data
 	tx.Where("student_id = ? OR employer_id = ?", userID, userID).Delete(&Application{})

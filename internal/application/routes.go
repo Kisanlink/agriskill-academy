@@ -3,18 +3,30 @@
 package application
 
 import (
+	"asa/internal/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *ApplicationHandler) {
-	// Student actions
-	rg.POST("/jobs/:id/apply", handler.Apply)
-	rg.GET("/applications/my", handler.GetMyApplications)
-	rg.GET("/applications/:applicationId", handler.GetApplicationByID)
-	rg.DELETE("/applications/:applicationId", handler.Remove)
-	rg.PUT("/applications/:applicationId/status", handler.UpdateStatus)
+	// Student applies to a job
+	rg.POST("/jobs/:id/apply", middleware.RequireRole("student"), handler.Apply)
 
-	// Employer actions
-	rg.GET("/jobs/:id/applications", handler.GetApplicationsByJob)
-	rg.PUT("/jobs/:id/applications/:applicationId/status", handler.UpdateStatusByEmployer)
+	// Student views their own applications
+	rg.GET("/applications/my", middleware.RequireRole("student"), handler.GetMyApplications)
+
+	// Employer views applications for a job
+	rg.GET("/jobs/:id/applications", middleware.RequireRole("employer"), handler.GetApplicationsByJob)
+
+	// Student or employer views a specific application
+	rg.GET("/applications/:applicationId", handler.GetApplicationByID)
+
+	// Student removes their application
+	rg.DELETE("/applications/:applicationId", middleware.RequireRole("student"), handler.Remove)
+
+	// Student updates status (withdraw)
+	rg.PUT("/applications/:applicationId/status", middleware.RequireRole("student"), handler.UpdateStatus)
+
+	// Employer updates application status
+	rg.PUT("/jobs/:id/applications/:applicationId/status", middleware.RequireRole("employer"), handler.UpdateStatusByEmployer)
 }

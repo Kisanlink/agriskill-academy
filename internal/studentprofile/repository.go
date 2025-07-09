@@ -1,33 +1,33 @@
-// File: internal/userprofile/repository.go
+// File: internal/studentprofile/repository.go
 
-package userprofile
+package studentprofile
 
 import (
 	"gorm.io/gorm"
 )
 
-type UserProfileRepository interface {
-	GetByUserID(userID string) (*UserProfile, error)
-	Update(profile *UserProfile) error
-	Create(profile *UserProfile) error
+type StudentProfileRepository interface {
+	GetByUserID(userID string) (*StudentProfile, error)
+	Update(profile *StudentProfile) error
+	Create(profile *StudentProfile) error
 	AddCertificate(cert *Certificate) error
 }
 
-type userProfileRepository struct {
+type studentProfileRepository struct {
 	db *gorm.DB
 }
 
-func NewUserProfileRepository(db *gorm.DB) UserProfileRepository {
-	return &userProfileRepository{db}
+func NewStudentProfileRepository(db *gorm.DB) StudentProfileRepository {
+	return &studentProfileRepository{db}
 }
 
-func (r *userProfileRepository) GetByUserID(userID string) (*UserProfile, error) {
-	var profile UserProfile
+func (r *studentProfileRepository) GetByUserID(userID string) (*StudentProfile, error) {
+	var profile StudentProfile
 	err := r.db.Preload("Certificates").Where("user_id = ?", userID).First(&profile).Error
 	return &profile, err
 }
 
-func (r *userProfileRepository) Update(profile *UserProfile) error {
+func (r *studentProfileRepository) Update(profile *StudentProfile) error {
 	// Start a transaction
 	tx := r.db.Begin()
 	if tx.Error != nil {
@@ -35,7 +35,7 @@ func (r *userProfileRepository) Update(profile *UserProfile) error {
 	}
 
 	// Delete existing certificates for this profile
-	if err := tx.Where("user_profile_id = ?", profile.ID).Delete(&Certificate{}).Error; err != nil {
+	if err := tx.Where("student_profile_id = ?", profile.ID).Delete(&Certificate{}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -48,7 +48,7 @@ func (r *userProfileRepository) Update(profile *UserProfile) error {
 
 	// Create new certificates
 	for i := range profile.Certificates {
-		profile.Certificates[i].UserProfileID = profile.ID
+		profile.Certificates[i].StudentProfileID = profile.ID
 		// Ensure ID is empty so database generates proper UUID
 		profile.Certificates[i].ID = ""
 		if err := tx.Create(&profile.Certificates[i]).Error; err != nil {
@@ -61,11 +61,11 @@ func (r *userProfileRepository) Update(profile *UserProfile) error {
 	return tx.Commit().Error
 }
 
-func (r *userProfileRepository) Create(profile *UserProfile) error {
+func (r *studentProfileRepository) Create(profile *StudentProfile) error {
 	return r.db.Create(profile).Error
 }
 
-func (r *userProfileRepository) AddCertificate(cert *Certificate) error {
+func (r *studentProfileRepository) AddCertificate(cert *Certificate) error {
 	// Ensure ID is empty so database generates proper UUID
 	cert.ID = ""
 	return r.db.Create(cert).Error

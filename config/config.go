@@ -23,7 +23,7 @@ func LoadEnv() {
 	}
 
 	AAAServiceBaseURL = os.Getenv("AAA_SERVICE_URL")
-	AAASecret = os.Getenv("AAA_SECRET")
+	AAASecret = os.Getenv("SECRET_KEY")
 }
 
 func InitDB() (*gorm.DB, error) {

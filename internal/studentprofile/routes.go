@@ -1,12 +1,12 @@
-// File: internal/userprofile/routes.go
+// File: internal/studentprofile/routes.go
 
-package userprofile
+package studentprofile
 
 import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(rg *gin.RouterGroup, handler *UserProfileHandler) {
+func RegisterRoutes(rg *gin.RouterGroup, handler *StudentProfileHandler) {
 	students := rg.Group("/students")
 	{
 		students.GET("/:studentId/profile", handler.GetProfile)

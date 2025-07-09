@@ -1,12 +1,16 @@
 package admin
 
 import (
+	"asa/internal/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *AdminHandler) {
 	admin := rg.Group("/admin")
+	admin.Use(middleware.RequireRole("admin"))
 	{
+		// Analytics endpoints
 		analytics := admin.Group("/analytics")
 		{
 			analytics.GET("/jobs", handler.GetJobAnalytics)

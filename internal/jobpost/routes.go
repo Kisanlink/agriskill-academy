@@ -1,6 +1,8 @@
 package jobpost
 
 import (
+	"asa/internal/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,24 +28,26 @@ func RegisterPublicRoutes(rg *gin.RouterGroup, handler *JobPostHandler) {
 func RegisterAuthenticatedRoutes(rg *gin.RouterGroup, handler *JobPostHandler) {
 	jobs := rg.Group("/jobs")
 	{
-		// Specific routes (must come before parameterized routes)
-		jobs.GET("/drafts", handler.GetDrafts)
-		jobs.GET("/my-posts", handler.GetByEmployer)
-		jobs.POST("/draft", handler.CreateDraft)
-		jobs.POST("/publish", handler.Publish)
+		// Employer-only routes (require employer role)
+		employerJobs := jobs.Group("")
+		employerJobs.Use(middleware.RequireRole("employer"))
+		{
+			employerJobs.GET("/drafts", handler.GetDrafts)
+			employerJobs.GET("/my-posts", handler.GetByEmployer)
+			employerJobs.POST("/draft", handler.CreateDraft)
+			employerJobs.POST("/publish", handler.Publish)
+			employerJobs.POST("", handler.Create)
+			employerJobs.PUT("/:id", handler.Update)
+			employerJobs.DELETE("/:id", handler.Delete)
+			employerJobs.POST("/:id/publish", handler.PublishDraft)
+		}
 
-		// Job alerts endpoints (auth required)
+		// Job alerts endpoints (auth required for any role)
 		jobs.POST("/alerts", handler.CreateJobAlert)
 		jobs.GET("/alerts", handler.GetJobAlertsByUser)
 		jobs.GET("/alerts/:id", handler.GetJobAlertByID)
 		jobs.PUT("/alerts/:id", handler.UpdateJobAlert)
 		jobs.DELETE("/alerts/:id", handler.DeleteJobAlert)
-
-		// Parameterized routes (must come after specific routes)
-		jobs.POST("", handler.Create)
-		jobs.PUT("/:id", handler.Update)
-		jobs.DELETE("/:id", handler.Delete)
-		jobs.POST("/:id/publish", handler.PublishDraft)
 	}
 }
 

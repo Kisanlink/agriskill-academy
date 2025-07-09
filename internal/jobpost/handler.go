@@ -1,9 +1,11 @@
 package jobpost
 
 import (
+	"asa/pkg/authz"
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,8 +18,24 @@ func NewJobPostHandler(s JobPostService) *JobPostHandler {
 	return &JobPostHandler{s}
 }
 
+func getJWT(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return authHeader[7:]
+	}
+	return ""
+}
+
 // POST /jobs
 func (h *JobPostHandler) Create(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var req CreateJobPostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
@@ -45,6 +63,14 @@ func (h *JobPostHandler) Create(c *gin.Context) {
 
 // POST /jobs/draft
 func (h *JobPostHandler) CreateDraft(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var req CreateDraftRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
@@ -75,6 +101,14 @@ func (h *JobPostHandler) CreateDraft(c *gin.Context) {
 
 // POST /jobs/publish
 func (h *JobPostHandler) Publish(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var req CreateJobPostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
@@ -105,6 +139,15 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 
 // PUT /jobs/:id
 func (h *JobPostHandler) Update(c *gin.Context) {
+	username := c.GetString("email")
+	jobID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "update", jobID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	id := c.Param("id")
 	var req UpdateJobPostRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -142,6 +185,15 @@ func (h *JobPostHandler) Update(c *gin.Context) {
 
 // DELETE /jobs/:id
 func (h *JobPostHandler) Delete(c *gin.Context) {
+	username := c.GetString("email")
+	jobID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "delete", jobID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	id := c.Param("id")
 
 	// Verify ownership
@@ -173,6 +225,15 @@ func (h *JobPostHandler) Delete(c *gin.Context) {
 
 // GET /jobs/:id
 func (h *JobPostHandler) GetByID(c *gin.Context) {
+	username := c.GetString("email")
+	jobID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", jobID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	id := c.Param("id")
 	job, err := h.service.GetByID(id)
 	if err != nil {
@@ -184,6 +245,14 @@ func (h *JobPostHandler) GetByID(c *gin.Context) {
 
 // GET /jobs/my-posts
 func (h *JobPostHandler) GetByEmployer(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	employerID := c.GetString("user_id")
 	if employerID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Missing employer ID"})
@@ -200,6 +269,14 @@ func (h *JobPostHandler) GetByEmployer(c *gin.Context) {
 
 // GET /jobs - Get all published jobs (for students)
 func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	// Get query parameters for filtering
 	pageStr := c.DefaultQuery("page", "1")
 	limitStr := c.DefaultQuery("limit", "20")
@@ -295,6 +372,14 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 
 // GET /jobs/featured
 func (h *JobPostHandler) GetFeaturedJobs(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	// Get limit from query parameter, default to 10
 	limitStr := c.DefaultQuery("limit", "10")
 	limit, err := strconv.Atoi(limitStr)
@@ -313,6 +398,14 @@ func (h *JobPostHandler) GetFeaturedJobs(c *gin.Context) {
 
 // GET /jobs/recent
 func (h *JobPostHandler) GetRecentJobs(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	// Get limit from query parameter, default to 20
 	limitStr := c.DefaultQuery("limit", "20")
 	limit, err := strconv.Atoi(limitStr)
@@ -331,6 +424,14 @@ func (h *JobPostHandler) GetRecentJobs(c *gin.Context) {
 
 // POST /jobs/search
 func (h *JobPostHandler) Search(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var filter JobPostFilter
 	if err := c.ShouldBindJSON(&filter); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
@@ -349,6 +450,14 @@ func (h *JobPostHandler) Search(c *gin.Context) {
 
 // POST /jobs/advanced-search
 func (h *JobPostHandler) AdvancedSearch(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var request AdvancedJobSearchRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
@@ -366,6 +475,14 @@ func (h *JobPostHandler) AdvancedSearch(c *gin.Context) {
 
 // GET /jobs/search-filters
 func (h *JobPostHandler) GetSearchFilters(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	filters, err := h.service.GetSearchFilters()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to get search filters"})
@@ -377,6 +494,14 @@ func (h *JobPostHandler) GetSearchFilters(c *gin.Context) {
 
 // GET /jobs/trending
 func (h *JobPostHandler) GetTrendingJobs(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	limitStr := c.DefaultQuery("limit", "10")
 	limit, err := strconv.Atoi(limitStr)
 	if err != nil || limit <= 0 {
@@ -394,7 +519,16 @@ func (h *JobPostHandler) GetTrendingJobs(c *gin.Context) {
 
 // GET /jobs/:id/similar
 func (h *JobPostHandler) GetSimilarJobs(c *gin.Context) {
+	username := c.GetString("email")
 	jobID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", jobID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	jobID = c.Param("id")
 	maxResultsStr := c.DefaultQuery("maxResults", "5")
 	maxResults, err := strconv.Atoi(maxResultsStr)
 	if err != nil || maxResults <= 0 {
@@ -412,6 +546,14 @@ func (h *JobPostHandler) GetSimilarJobs(c *gin.Context) {
 
 // POST /jobs/recommendations
 func (h *JobPostHandler) GetRecommendedJobs(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var request JobRecommendationRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
@@ -436,6 +578,14 @@ func (h *JobPostHandler) GetRecommendedJobs(c *gin.Context) {
 
 // POST /jobs/alerts
 func (h *JobPostHandler) CreateJobAlert(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	var request JobAlertRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
@@ -460,7 +610,16 @@ func (h *JobPostHandler) CreateJobAlert(c *gin.Context) {
 
 // PUT /jobs/alerts/:id
 func (h *JobPostHandler) UpdateJobAlert(c *gin.Context) {
+	username := c.GetString("email")
 	alertID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "update", alertID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	alertID = c.Param("id")
 	var request JobAlertRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
@@ -497,7 +656,16 @@ func (h *JobPostHandler) UpdateJobAlert(c *gin.Context) {
 
 // DELETE /jobs/alerts/:id
 func (h *JobPostHandler) DeleteJobAlert(c *gin.Context) {
+	username := c.GetString("email")
 	alertID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "delete", alertID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	alertID = c.Param("id")
 
 	// Verify ownership
 	userID := c.GetString("user_id")
@@ -528,7 +696,16 @@ func (h *JobPostHandler) DeleteJobAlert(c *gin.Context) {
 
 // GET /jobs/alerts/:id
 func (h *JobPostHandler) GetJobAlertByID(c *gin.Context) {
+	username := c.GetString("email")
 	alertID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "read", alertID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	alertID = c.Param("id")
 
 	// Verify ownership
 	userID := c.GetString("user_id")
@@ -553,6 +730,14 @@ func (h *JobPostHandler) GetJobAlertByID(c *gin.Context) {
 
 // GET /jobs/alerts
 func (h *JobPostHandler) GetJobAlertsByUser(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	userID := c.GetString("user_id")
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "User not authenticated"})
@@ -572,6 +757,14 @@ func (h *JobPostHandler) GetJobAlertsByUser(c *gin.Context) {
 
 // GET /jobs/drafts
 func (h *JobPostHandler) GetDrafts(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	employerID := c.GetString("user_id")
 	if employerID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Missing employer ID"})
@@ -589,7 +782,16 @@ func (h *JobPostHandler) GetDrafts(c *gin.Context) {
 
 // POST /jobs/:id/publish
 func (h *JobPostHandler) PublishDraft(c *gin.Context) {
+	username := c.GetString("email")
 	jobID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "update", jobID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	jobID = c.Param("id")
 	employerID := c.GetString("user_id")
 
 	if employerID == "" {

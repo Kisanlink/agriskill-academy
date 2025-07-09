@@ -5,20 +5,21 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
-	"AGRIJOBS/config"
-	"AGRIJOBS/internal/admin"
-	"AGRIJOBS/internal/application"
-	"AGRIJOBS/internal/auth"
-	"AGRIJOBS/internal/bookmark"
-	"AGRIJOBS/internal/employerapplication"
-	"AGRIJOBS/internal/employerprofile"
-	"AGRIJOBS/internal/jobpost"
-	"AGRIJOBS/internal/middleware"
-	"AGRIJOBS/internal/notification"
-	"AGRIJOBS/internal/storage"
-	"AGRIJOBS/internal/userprofile"
-	"AGRIJOBS/internal/worker"
+	"asa/config"
+	"asa/internal/admin"
+	"asa/internal/application"
+	"asa/internal/auth"
+	"asa/internal/bookmark"
+	"asa/internal/employerapplication"
+	"asa/internal/employerprofile"
+	"asa/internal/jobpost"
+	"asa/internal/middleware"
+	"asa/internal/notification"
+	"asa/internal/storage"
+	"asa/internal/studentprofile"
+	"asa/internal/worker"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,10 +37,12 @@ func main() {
 	router.Use(middleware.Logger())
 
 	// Instantiate repositories, services, handlers for each module
-	authRepo := auth.NewUserRepository(db)
 	employerProfileRepo := employerprofile.NewEmployerProfileRepository(db)
-	userProfileRepo := userprofile.NewUserProfileRepository(db)
-	authService := auth.NewAuthService(authRepo, employerProfileRepo, userProfileRepo)
+	studentProfileRepo := studentprofile.NewStudentProfileRepository(db)
+
+	// Create auth service and handler
+	authRepo := auth.NewUserRepository(db)
+	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo)
 	authHandler := auth.NewAuthHandler(authService)
 
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
@@ -62,10 +65,15 @@ func main() {
 	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo, jobRepo)
 	bookmarkHandler := bookmark.NewBookmarkHandler(bookmarkService)
 
-	userProfileService := userprofile.NewUserProfileService(userProfileRepo)
-	userProfileHandler := userprofile.NewUserProfileHandler(userProfileService)
+	studentProfileService := studentprofile.NewStudentProfileService(studentProfileRepo)
+	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService)
 
-	storageService := storage.NewLocalStorageService("uploads", "http://localhost:3000/api/files")
+	// Use environment variable or config for the base URL instead of hardcoding localhost
+	storageBaseURL := os.Getenv("STORAGE_BASE_URL")
+	if storageBaseURL == "" {
+		log.Fatal("STORAGE_BASE_URL environment variable not set")
+	}
+	storageService := storage.NewLocalStorageService("uploads", storageBaseURL+"/api/files")
 	storageHandler := storage.NewStorageHandler(storageService)
 
 	// Notification module with preferences
@@ -80,6 +88,15 @@ func main() {
 	adminRepo := admin.NewAdminRepository(db)
 	adminService := admin.NewAdminService(adminRepo)
 	adminHandler := admin.NewAdminHandler(adminService)
+
+	// Health check endpoint (no auth required)
+	router.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status":    "healthy",
+			"service":   "asa-backend",
+			"timestamp": time.Now().Unix(),
+		})
+	})
 
 	// API routes
 	api := router.Group("/api")
@@ -115,8 +132,8 @@ func main() {
 	// Bookmarks
 	bookmark.RegisterRoutes(authGroup, bookmarkHandler)
 
-	// User profile
-	userprofile.RegisterRoutes(authGroup, userProfileHandler)
+	// Student profile
+	studentprofile.RegisterRoutes(authGroup, studentProfileHandler)
 
 	// File upload routes (require auth)
 	storage.RegisterAuthenticatedRoutes(authGroup, storageHandler)

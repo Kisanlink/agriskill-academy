@@ -11,7 +11,7 @@ import (
 type NotificationService interface {
 	SendEmail(to, subject, body string) error
 	GetPreferences(userID string) (*NotificationPreferences, error)
-	UpdatePreferences(userID string, req *UpdatePreferencesRequest) (*NotificationPreferences, error)
+	UpdatePreferences(userID string, req *UpdateNotificationPreferencesRequest) (*NotificationPreferences, error)
 	ShouldSendNotification(userID, notificationType string) (bool, error)
 	SendNotificationIfEnabled(userID, notificationType, to, subject, body string) error
 }
@@ -58,7 +58,7 @@ func (s *mailService) GetPreferences(userID string) (*NotificationPreferences, e
 	return s.prefsRepo.GetOrCreate(userID)
 }
 
-func (s *mailService) UpdatePreferences(userID string, req *UpdatePreferencesRequest) (*NotificationPreferences, error) {
+func (s *mailService) UpdatePreferences(userID string, req *UpdateNotificationPreferencesRequest) (*NotificationPreferences, error) {
 	preferences, err := s.prefsRepo.GetOrCreate(userID)
 	if err != nil {
 		return nil, err

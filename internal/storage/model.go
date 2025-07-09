@@ -43,15 +43,15 @@ type UploadRequest struct {
 type UploadResponse struct {
 	Success  bool   `json:"success"`
 	Message  string `json:"message"`
-	FilePath string `json:"filePath,omitempty"`
-	FileName string `json:"fileName,omitempty"`
-	FileSize int64  `json:"fileSize,omitempty"`
-	FileType string `json:"fileType,omitempty"`
-	FileURL  string `json:"fileUrl,omitempty"`
+	FilePath string `json:"file_path,omitempty"`
+	FileName string `json:"file_name,omitempty"`
+	FileSize int64  `json:"file_size,omitempty"`
+	FileType string `json:"file_type,omitempty"`
+	FileURL  string `json:"file_url,omitempty"`
 }
 
 type DeleteFileRequest struct {
-	FilePath string `json:"filePath" binding:"required"`
+	FilePath string `json:"file_path" binding:"required"`
 }
 
 type FileInfo struct {

@@ -83,24 +83,24 @@ dev: ## Run in development mode (alias for air)
 migrate: ## Run all database migrations in order
 	@echo "Running all database migrations..."
 	@echo "1. Applying complete database schema..."
-	@if [ -f "scripts/001_apply_schema.ps1" ]; then \
-		powershell -ExecutionPolicy Bypass -File scripts/001_apply_schema.ps1; \
+	@if [ -f "scripts/001_apply_schema.sh" ]; then \
+		bash scripts/001_apply_schema.sh; \
 	else \
-		echo "[ERROR] Schema migration script not found (scripts/001_apply_schema.ps1)"; \
+		echo "[ERROR] Schema migration script not found (scripts/001_apply_schema.sh)"; \
 		exit 1; \
 	fi
 	@echo "2. Applying messages timestamp fix..."
-	@if [ -f "scripts/007_fix_messages.ps1" ]; then \
-		powershell -ExecutionPolicy Bypass -File scripts/007_fix_messages.ps1; \
+	@if [ -f "scripts/007_fix_messages.sh" ]; then \
+		bash scripts/007_fix_messages.sh; \
 	else \
-		echo "[ERROR] Messages fix script not found (scripts/007_fix_messages.ps1)"; \
+		echo "[ERROR] Messages fix script not found (scripts/007_fix_messages.sh)"; \
 		exit 1; \
 	fi
 	@echo "3. Applying student profiles rename..."
-	@if [ -f "scripts/008_rename_profiles.ps1" ]; then \
-		powershell -ExecutionPolicy Bypass -File scripts/008_rename_profiles.ps1; \
+	@if [ -f "scripts/008_rename_profiles.sh" ]; then \
+		bash scripts/008_rename_profiles.sh; \
 	else \
-		echo "[ERROR] Profiles rename script not found (scripts/008_rename_profiles.ps1)"; \
+		echo "[ERROR] Profiles rename script not found (scripts/008_rename_profiles.sh)"; \
 		exit 1; \
 	fi
 	@echo "✅ All migrations completed successfully!"
@@ -108,30 +108,30 @@ migrate: ## Run all database migrations in order
 .PHONY: migrate-schema
 migrate-schema: ## Apply only the database schema migration
 	@echo "Applying database schema migration..."
-	@if [ -f "scripts/001_apply_schema.ps1" ]; then \
-		powershell -ExecutionPolicy Bypass -File scripts/001_apply_schema.ps1; \
+	@if [ -f "scripts/001_apply_schema.sh" ]; then \
+		bash scripts/001_apply_schema.sh; \
 	else \
-		echo "[ERROR] Schema migration script not found (scripts/001_apply_schema.ps1)"; \
+		echo "[ERROR] Schema migration script not found (scripts/001_apply_schema.sh)"; \
 		exit 1; \
 	fi
 
 .PHONY: migrate-messages
 migrate-messages: ## Apply only the messages timestamp fix
 	@echo "Applying messages timestamp fix..."
-	@if [ -f "scripts/007_fix_messages.ps1" ]; then \
-		powershell -ExecutionPolicy Bypass -File scripts/007_fix_messages.ps1; \
+	@if [ -f "scripts/007_fix_messages.sh" ]; then \
+		bash scripts/007_fix_messages.sh; \
 	else \
-		echo "[ERROR] Messages fix script not found (scripts/007_fix_messages.ps1)"; \
+		echo "[ERROR] Messages fix script not found (scripts/007_fix_messages.sh)"; \
 		exit 1; \
 	fi
 
 .PHONY: migrate-profiles
 migrate-profiles: ## Apply only the student profiles rename
 	@echo "Applying student profiles rename..."
-	@if [ -f "scripts/008_rename_profiles.ps1" ]; then \
-		powershell -ExecutionPolicy Bypass -File scripts/008_rename_profiles.ps1; \
+	@if [ -f "scripts/008_rename_profiles.sh" ]; then \
+		bash scripts/008_rename_profiles.sh; \
 	else \
-		echo "[ERROR] Profiles rename script not found (scripts/008_rename_profiles.ps1)"; \
+		echo "[ERROR] Profiles rename script not found (scripts/008_rename_profiles.sh)"; \
 		exit 1; \
 	fi
 

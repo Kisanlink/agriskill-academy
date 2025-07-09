@@ -30,18 +30,18 @@ var ValidStatuses = []string{
 
 type Application struct {
 	ID          string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	JobID       string    `json:"jobId"`
-	StudentID   string    `json:"studentId"`
-	AppliedAt   time.Time `json:"appliedAt"`
+	JobID       string    `json:"job_id"`
+	StudentID   string    `json:"student_id"`
+	AppliedAt   time.Time `json:"applied_at"`
 	Status      string    `json:"status"`
-	CoverLetter string    `json:"coverLetter"`
-	ResumeFile  string    `json:"resumeFile"`
-	JobTitle    string    `json:"jobTitle"`
+	CoverLetter string    `json:"cover_letter"`
+	ResumeFile  string    `json:"resume_file"`
+	JobTitle    string    `json:"job_title"`
 	Company     string    `json:"company"`
 	Location    string    `json:"location"`
-	JobType     string    `json:"jobType"`
+	JobType     string    `json:"job_type"`
 	Experience  string    `json:"experience"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // Request/Response Models

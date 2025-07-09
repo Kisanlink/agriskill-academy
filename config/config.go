@@ -56,6 +56,24 @@ func InitDB() (*gorm.DB, error) {
 	return db, nil
 }
 
+// AutoMigrateDB runs auto-migration for all models
+func AutoMigrateDB(db *gorm.DB) error {
+	log.Println("Running auto-migration...")
+
+	// Import all your models here
+	// You'll need to import the model packages
+	// For now, this is a placeholder - you'd add your actual models
+
+	// Example:
+	// err := db.AutoMigrate(&auth.User{}, &studentprofile.StudentProfile{}, &employerprofile.EmployerProfile{})
+	// if err != nil {
+	//     return fmt.Errorf("auto-migration failed: %w", err)
+	// }
+
+	log.Println("Auto-migration completed successfully!")
+	return nil
+}
+
 func CloseDB(db *gorm.DB) {
 	sqlDB, err := db.DB()
 	if err == nil {

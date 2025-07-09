@@ -6,8 +6,6 @@ type User struct {
 	ID        string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `gorm:"uniqueIndex" json:"email"`
-	Password  string    `json:"-"`
-	Role      string    `json:"role"` // "employer" or "student"
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -17,7 +15,8 @@ type SignupRequest struct {
 	Email           string `json:"email" binding:"required,email"`
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirmPassword" binding:"required"`
-	Role            string `json:"role" binding:"required"` // "student" or "employer"
+	Role            string `json:"role" binding:"required"`        // "student" or "employer"
+	PhoneNumber     string `json:"phoneNumber" binding:"required"` // Added phone number for signup
 
 	// Employer-only fields
 	CompanyName    string `json:"companyName"`
@@ -32,9 +31,8 @@ type SignupRequest struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
+	Email    string `json:"email" binding:"required"` //(required,email)
 	Password string `json:"password" binding:"required"`
-	Role     string `json:"role" binding:"required,oneof=employer student"`
 }
 
 type UpdateProfileRequest struct {
@@ -56,7 +54,12 @@ type UpdateProfileRequest struct {
 
 	// Role-specific fields (will be validated based on user role)
 	// For students
-	Skills []string `json:"skills,omitempty"`
+	Skills     []string `json:"skills,omitempty"`
+	Resume     string   `json:"resume,omitempty"`
+	Experience float64  `json:"experience,omitempty"`
+	Education  string   `json:"education,omitempty"`
+	Portfolio  string   `json:"portfolio,omitempty"`
+	Github     string   `json:"github,omitempty"`
 
 	// For employers
 	CompanyName        string   `json:"companyName,omitempty"`

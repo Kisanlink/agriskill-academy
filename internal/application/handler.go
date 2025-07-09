@@ -3,8 +3,10 @@
 package application
 
 import (
+	"asa/pkg/authz"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,8 +19,24 @@ func NewApplicationHandler(s ApplicationService) *ApplicationHandler {
 	return &ApplicationHandler{s}
 }
 
+func getJWT(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return authHeader[7:]
+	}
+	return ""
+}
+
 // POST /jobs/:id/apply
 func (h *ApplicationHandler) Apply(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	jobId := c.Param("id")
 	studentID := c.GetString("user_id")
 
@@ -69,7 +87,14 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 
 // GET /applications/my
 func (h *ApplicationHandler) GetMyApplications(c *gin.Context) {
+	username := c.GetString("username")
 	studentID := c.GetString("user_id") // From JWT middleware
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "read", studentID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
 	apps, err := h.service.GetMyApplications(studentID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Could not fetch applications"})
@@ -80,9 +105,17 @@ func (h *ApplicationHandler) GetMyApplications(c *gin.Context) {
 
 // GET /jobs/:id/applications
 func (h *ApplicationHandler) GetApplicationsByJob(c *gin.Context) {
+	username := c.GetString("username")
+	jobID := c.Param("id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "read", jobID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	fmt.Printf("DEBUG: ===== REGULAR APPLICATION HANDLER CALLED =====\n")
 
-	jobID := c.Param("id")
 	employerID := c.GetString("user_id")
 
 	fmt.Printf("DEBUG: GetApplicationsByJob called - JobID: %s, EmployerID: %s\n", jobID, employerID)
@@ -100,7 +133,15 @@ func (h *ApplicationHandler) GetApplicationsByJob(c *gin.Context) {
 
 // GET /applications/:applicationId
 func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
+	username := c.GetString("username")
 	appID := c.Param("applicationId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "read", appID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	userID := c.GetString("user_id")
 
 	app, err := h.service.GetApplicationByID(appID)
@@ -124,7 +165,15 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 
 // DELETE /applications/:applicationId
 func (h *ApplicationHandler) Remove(c *gin.Context) {
+	username := c.GetString("username")
 	appID := c.Param("applicationId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "delete", appID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	studentID := c.GetString("user_id") // From JWT middleware
 	if err := h.service.Remove(appID, studentID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Could not remove application"})
@@ -135,7 +184,15 @@ func (h *ApplicationHandler) Remove(c *gin.Context) {
 
 // PUT /applications/:applicationId/status (Student can only withdraw)
 func (h *ApplicationHandler) UpdateStatus(c *gin.Context) {
+	username := c.GetString("username")
 	appID := c.Param("applicationId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "update", appID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	studentID := c.GetString("user_id")
 
 	var req UpdateStatusRequest
@@ -153,8 +210,16 @@ func (h *ApplicationHandler) UpdateStatus(c *gin.Context) {
 
 // PUT /jobs/:id/applications/:applicationId/status (Employer can update status)
 func (h *ApplicationHandler) UpdateStatusByEmployer(c *gin.Context) {
-	jobID := c.Param("id")
+	username := c.GetString("username")
 	appID := c.Param("applicationId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "update", appID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	jobID := c.Param("id")
 	employerID := c.GetString("user_id")
 
 	var req UpdateStatusRequest

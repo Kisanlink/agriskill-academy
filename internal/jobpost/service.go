@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"AGRIJOBS/internal/employerprofile"
+	"asa/internal/employerprofile"
 )
 
 type JobPostService interface {

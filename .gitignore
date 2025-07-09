@@ -10,7 +10,7 @@
 # Ignore specific build artifacts
 main.exe
 server.exe
-agrijobs
+asa
 server
 
 # Ignore Go test binaries and test files

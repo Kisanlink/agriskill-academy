@@ -69,10 +69,8 @@ func (s *adminService) GetUserByID(userID string) (*UserDetailResponse, error) {
 }
 
 func (s *adminService) UpdateUser(userID string, req *UpdateUserRequest) error {
-	// Validate role if provided
-	if req.Role != "" && req.Role != "student" && req.Role != "employer" {
-		return errors.New("invalid role: must be 'student' or 'employer'")
-	}
+	// Role validation is now handled by AAA service
+	// We don't validate roles in local DB anymore
 
 	// Validate status if provided
 	if req.Status != "" && req.Status != "active" && req.Status != "suspended" && req.Status != "deleted" {

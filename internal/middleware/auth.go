@@ -1,81 +1,45 @@
-// File: internal/middleware/auth.go
-
 package middleware
 
 import (
-	"fmt"
+	"asa/pkg/jwtutil"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
+
+// contains checks if a slice of strings contains a specific string
+func contains(list []string, val string) bool {
+	for _, item := range list {
+		if item == val {
+			return true
+		}
+	}
+	return false
+}
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Extract the Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Missing or invalid token"})
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Missing or invalid token"})
+			return
+		}
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		// Validate the token locally using the shared secret from SECRET_KEY
+		claims, err := jwtutil.ParseToken(tokenString)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid or expired token"})
 			return
 		}
 
-		// Strip the 'Bearer ' prefix to get the token
-		tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			secret = "secret" // Default secret for dev/test environments
-		}
-
-		// Parse the token
-		token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
-			// Ensure the token is signed using the correct method
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(secret), nil
-		})
-
-		// Check for errors in token parsing
-		if err != nil || !token.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid or expired token"})
-			c.Abort()
-			return
-		}
-
-		// Retrieve the claims and set the user context
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			// Debug logging
-			fmt.Printf("Token claims: %+v\n", claims)
-
-			// Ensure correct type casting
-			userID, ok := claims["user_id"].(string)
-			if !ok {
-				fmt.Printf("Failed to extract user_id from claims: %+v\n", claims)
-				c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid user ID"})
-				c.Abort()
-				return
-			}
-
-			fmt.Printf("Extracted user_id: %s\n", userID)
-
-			// Set values in the context
-			c.Set("user_id", userID)
-			c.Set("user_email", claims["email"])
-			c.Set("user_name", claims["name"])
-			c.Set("role", claims["role"])
-
-			// Optionally, log the claims (useful for debugging)
-			// fmt.Println("Token claims:", claims)
-		} else {
-			c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid token claims"})
-			c.Abort()
-			return
-		}
-
-		// Proceed to the next handler
+		// Set all important JWT claims in context
+		c.Set("user_id", claims["user_id"])
+		c.Set("username", claims["username"])
+		c.Set("email", claims["email"])
+		c.Set("name", claims["name"])
+		c.Set("roles", claims["roles"]) // <-- roles is now a []string
 		c.Next()
 	}
 }

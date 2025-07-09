@@ -54,7 +54,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				COALESCE(up.name, u.name) AS profile_name
 			FROM applications a
 			JOIN users u ON u.id = a.student_id
-			LEFT JOIN user_profiles up ON up.user_id = a.student_id
+			LEFT JOIN student_profiles up ON up.user_id = a.student_id
 			WHERE a.job_id = ? AND a.status = ?
 		`
 		args = []interface{}{jobID, status}
@@ -77,7 +77,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				COALESCE(up.name, u.name) AS profile_name
 			FROM applications a
 			JOIN users u ON u.id = a.student_id
-			LEFT JOIN user_profiles up ON up.user_id = a.student_id
+			LEFT JOIN student_profiles up ON up.user_id = a.student_id
 			WHERE a.job_id = ?
 		`
 		args = []interface{}{jobID}
@@ -131,7 +131,7 @@ func (r *employerApplicationRepository) GetApplicantProfile(studentID string) (*
 			'' as phone, up.location, up.skills::text as skills, CAST(up.experience AS TEXT) as experience, up.education,
 			up.profile_photo as avatar, up.resume as resume_url, up.portfolio, up.linkedin, up.github, up.name as name
 		FROM users u
-		JOIN user_profiles up ON up.user_id = u.id
+		JOIN student_profiles up ON up.user_id = u.id
 		WHERE u.id = ?
 	`, studentID).Scan(&profile).Error
 	if err != nil {
@@ -172,7 +172,7 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(studentID strin
 			up.experience as experience, up.education, up.portfolio, up.linkedin, up.github, up.name as name
 		FROM applications a
 		JOIN users u ON u.id = a.student_id
-		JOIN user_profiles up ON up.user_id = a.student_id
+		JOIN student_profiles up ON up.user_id = a.student_id
 		WHERE a.student_id = ?
 	`, studentID).Rows()
 	if err != nil {

@@ -3,6 +3,7 @@
 package storage
 
 import (
+	"asa/pkg/authz"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -18,8 +19,24 @@ func NewStorageHandler(s StorageService) *StorageHandler {
 	return &StorageHandler{s}
 }
 
+func getJWT(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return authHeader[7:]
+	}
+	return ""
+}
+
 // POST /upload/:folder
 func (h *StorageHandler) UploadFile(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	folder := c.Param("folder")
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
@@ -62,6 +79,14 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 
 // POST /upload/image/:folder
 func (h *StorageHandler) UploadImage(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	folder := c.Param("folder")
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
@@ -104,6 +129,14 @@ func (h *StorageHandler) UploadImage(c *gin.Context) {
 
 // POST /upload/document/:folder
 func (h *StorageHandler) UploadDocument(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	folder := c.Param("folder")
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
@@ -146,6 +179,14 @@ func (h *StorageHandler) UploadDocument(c *gin.Context) {
 
 // POST /upload/resume/:folder
 func (h *StorageHandler) UploadResume(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	folder := c.Param("folder")
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
@@ -188,12 +229,20 @@ func (h *StorageHandler) UploadResume(c *gin.Context) {
 
 // DELETE /files/:filePath
 func (h *StorageHandler) DeleteFile(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "delete", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	filePath := c.Param("filePath")
 
 	// Decode URL-encoded file path
 	filePath = filepath.Clean(filePath)
 
-	err := h.service.DeleteFile(filePath)
+	err = h.service.DeleteFile(filePath)
 	if err != nil {
 		switch err {
 		case ErrFileNotFound:
@@ -211,6 +260,14 @@ func (h *StorageHandler) DeleteFile(c *gin.Context) {
 
 // GET /files/:folder
 func (h *StorageHandler) ListFiles(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	folder := c.Param("folder")
 
 	files, err := h.service.ListFiles(folder)
@@ -233,6 +290,14 @@ func (h *StorageHandler) ListFiles(c *gin.Context) {
 
 // GET /files/info/:filePath
 func (h *StorageHandler) GetFileInfo(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	filePath := c.Param("filePath")
 
 	// Decode URL-encoded file path
@@ -260,6 +325,14 @@ func (h *StorageHandler) GetFileInfo(c *gin.Context) {
 
 // GET /files/*filePath - Serve/Download file
 func (h *StorageHandler) ServeFile(c *gin.Context) {
+	username := c.GetString("email")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "read", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	filePath := c.Param("filePath")
 
 	// Decode URL-encoded file path
@@ -272,7 +345,7 @@ func (h *StorageHandler) ServeFile(c *gin.Context) {
 	}
 
 	// Get file info to check if it exists
-	_, err := h.service.GetFileInfo(filePath)
+	_, err = h.service.GetFileInfo(filePath)
 	if err != nil {
 		switch err {
 		case ErrFileNotFound:

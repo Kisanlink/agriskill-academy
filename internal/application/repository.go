@@ -5,7 +5,7 @@ package application
 import (
 	"fmt"
 
-	"AGRIJOBS/internal/jobpost"
+	"asa/internal/jobpost"
 
 	"gorm.io/gorm"
 )

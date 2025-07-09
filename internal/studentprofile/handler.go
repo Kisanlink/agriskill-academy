@@ -1,26 +1,43 @@
-// File: internal/userprofile/handler.go
+// File: internal/studentprofile/handler.go
 
-package userprofile
+package studentprofile
 
 import (
+	"asa/pkg/authz"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-type UserProfileHandler struct {
-	service UserProfileService
+type StudentProfileHandler struct {
+	service StudentProfileService
 }
 
-func NewUserProfileHandler(s UserProfileService) *UserProfileHandler {
-	return &UserProfileHandler{s}
+func NewStudentProfileHandler(s StudentProfileService) *StudentProfileHandler {
+	return &StudentProfileHandler{s}
+}
+
+func getJWT(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
+		return authHeader[7:]
+	}
+	return ""
 }
 
 // GET /students/:studentId/profile
-func (h *UserProfileHandler) GetProfile(c *gin.Context) {
-	studentID := c.Param("studentId")
-	profile, err := h.service.GetProfile(studentID)
+func (h *StudentProfileHandler) GetProfile(c *gin.Context) {
+	username := c.GetString("username")
+	profileID := c.Param("studentId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "read", profileID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	profile, err := h.service.GetProfile(profileID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Profile not found"})
 		return
@@ -44,15 +61,29 @@ func (h *UserProfileHandler) GetProfile(c *gin.Context) {
 }
 
 // PUT /students/:studentId/profile
-func (h *UserProfileHandler) UpdateProfile(c *gin.Context) {
-	studentID := c.Param("studentId")
-	var req UserProfile
+func (h *StudentProfileHandler) UpdateProfile(c *gin.Context) {
+	username := c.GetString("username")
+	profileID := c.Param("studentId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", profileID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	userID := c.GetString("user_id")
+	if profileID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "You can only update your own profile"})
+		return
+	}
+
+	var req StudentProfile
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
 		return
 	}
-	req.UserID = studentID
-	err := h.service.UpdateProfile(&req)
+	req.UserID = userID
+	err = h.service.UpdateProfile(&req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to update profile"})
 		return
@@ -61,8 +92,16 @@ func (h *UserProfileHandler) UpdateProfile(c *gin.Context) {
 }
 
 // GET /students/me/profile
-func (h *UserProfileHandler) GetMyProfile(c *gin.Context) {
-	userID := c.GetString("user_id") // from JWT
+func (h *StudentProfileHandler) GetMyProfile(c *gin.Context) {
+	username := c.GetString("username")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "read", userID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
 		return
@@ -91,8 +130,21 @@ func (h *UserProfileHandler) GetMyProfile(c *gin.Context) {
 }
 
 // POST /students/:studentId/certificates
-func (h *UserProfileHandler) AddCertificate(c *gin.Context) {
+func (h *StudentProfileHandler) AddCertificate(c *gin.Context) {
+	username := c.GetString("username")
 	studentID := c.Param("studentId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_certificates", "create", studentID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	userID := c.GetString("user_id")
+	if studentID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "You can only add certificates to your own profile"})
+		return
+	}
 
 	var cert Certificate
 	if err := c.ShouldBindJSON(&cert); err != nil {
@@ -100,15 +152,15 @@ func (h *UserProfileHandler) AddCertificate(c *gin.Context) {
 		return
 	}
 
-	// Get the user profile first to get the profile ID
-	userProfile, err := h.service.GetProfile(studentID)
+	// Get the student profile first to get the profile ID
+	studentProfile, err := h.service.GetProfile(studentID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "User profile not found"})
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Student profile not found"})
 		return
 	}
 
-	// Set the user profile ID from the actual profile and clear any invalid ID
-	cert.UserProfileID = userProfile.ID
+	// Set the student profile ID from the actual profile and clear any invalid ID
+	cert.StudentProfileID = studentProfile.ID
 	cert.ID = "" // Clear ID to let database generate proper UUID
 
 	err = h.service.AddCertificate(&cert)
@@ -120,14 +172,22 @@ func (h *UserProfileHandler) AddCertificate(c *gin.Context) {
 }
 
 // PUT /students/me/profile
-func (h *UserProfileHandler) UpdateMyProfile(c *gin.Context) {
-	userID := c.GetString("user_id") // from JWT
+func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
+	username := c.GetString("username")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
 		return
 	}
 
-	var req UpdateUserProfileRequest
+	var req UpdateStudentProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
@@ -170,9 +230,9 @@ func (h *UserProfileHandler) UpdateMyProfile(c *gin.Context) {
 		// Clear existing certificates and add new ones
 		existingProfile.Certificates = req.Certificates
 
-		// Set the user profile ID for each certificate and clear any invalid IDs
+		// Set the student profile ID for each certificate and clear any invalid IDs
 		for i := range existingProfile.Certificates {
-			existingProfile.Certificates[i].UserProfileID = existingProfile.ID
+			existingProfile.Certificates[i].StudentProfileID = existingProfile.ID
 			// Clear the ID to let the database generate a proper UUID
 			existingProfile.Certificates[i].ID = ""
 		}
@@ -191,8 +251,16 @@ func (h *UserProfileHandler) UpdateMyProfile(c *gin.Context) {
 }
 
 // POST /students/me/certificates
-func (h *UserProfileHandler) AddMyCertificate(c *gin.Context) {
-	userID := c.GetString("user_id") // from JWT
+func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
+	username := c.GetString("username")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_certificates", "create", userID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
 		return
@@ -208,15 +276,15 @@ func (h *UserProfileHandler) AddMyCertificate(c *gin.Context) {
 		return
 	}
 
-	// Get the user profile first to get the profile ID
-	userProfile, err := h.service.GetProfile(userID)
+	// Get the student profile first to get the profile ID
+	studentProfile, err := h.service.GetProfile(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "User profile not found"})
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Student profile not found"})
 		return
 	}
 
-	// Set the user profile ID from the actual profile and clear any invalid ID
-	cert.UserProfileID = userProfile.ID
+	// Set the student profile ID from the actual profile and clear any invalid ID
+	cert.StudentProfileID = studentProfile.ID
 	cert.ID = "" // Clear ID to let database generate proper UUID
 
 	err = h.service.AddCertificate(&cert)

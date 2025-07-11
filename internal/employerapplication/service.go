@@ -99,8 +99,8 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 				Github:      app.Github,
 				ProfileName: app.ProfileName,
 				Location:    app.Location,
-				Summary:     "", // Not available in current data
-				Phone:       "", // Not available in current data
+				Summary:     "",        // Not available in current data
+				Phone:       app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)
@@ -184,8 +184,8 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 				Github:      app.Github,
 				ProfileName: app.ProfileName,
 				Location:    app.Location,
-				Summary:     "", // Not available in current data
-				Phone:       "", // Not available in current data
+				Summary:     "",        // Not available in current data
+				Phone:       app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)

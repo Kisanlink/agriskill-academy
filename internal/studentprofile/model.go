@@ -27,6 +27,7 @@ type StudentProfile struct {
 	Name         string         `json:"name" binding:"required"`
 	Email        string         `json:"email" binding:"required,email"`
 	Location     string         `json:"location"`
+	PhoneNumber  string         `json:"phone_number"`
 	ProfilePhoto string         `json:"profile_photo"`
 	Resume       string         `json:"resume"`
 	Certificates []Certificate  `gorm:"foreignKey:StudentProfileID" json:"certificates"`
@@ -50,6 +51,7 @@ type UpdateStudentProfileRequest struct {
 	Name         string         `json:"name,omitempty"`
 	Email        string         `json:"email,omitempty"`
 	Location     string         `json:"location,omitempty"`
+	PhoneNumber  string         `json:"phone_number,omitempty"`
 	ProfilePhoto string         `json:"profile_photo,omitempty"`
 	Resume       string         `json:"resume,omitempty"`
 	Skills       pq.StringArray `json:"skills,omitempty"`

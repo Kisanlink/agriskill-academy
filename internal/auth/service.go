@@ -40,10 +40,14 @@ func VerifyPassword(hashedPassword, password string) error {
 type AuthService interface {
 	Login(email, password string) (*User, string, error)
 	Signup(req *SignupRequest) (*User, string, error)
+	SignupWithID(req *SignupRequest, userID string, phoneNumber string) (*User, string, error)
 	VerifyToken(tokenStr string) (bool, error)
 	SendResetLink(email string) error
 	ResetPassword(token, newPassword string) error
 	UpdateProfile(userID string, req *UpdateProfileRequest) (*User, error)
+	GetUserByEmail(email string) (*User, error)
+	GetUserByID(userID string) (*User, error)
+	ListAllUsers() ([]User, error)
 }
 
 type authService struct {
@@ -71,10 +75,14 @@ func getSecret() string {
 
 // Sign JWT Token
 func generateToken(user *User) (string, error) {
+	// Convert single role to roles array for consistency with middleware
+	roles := []string{user.Role}
+
 	claims := jwt.MapClaims{
 		"user_id": user.ID,
 		"email":   user.Email,
-		"role":    user.Role, // Add role to JWT claims
+		"role":    user.Role, // Keep single role for backward compatibility
+		"roles":   roles,     // Add roles array for middleware
 		"exp":     time.Now().Add(time.Hour * 72).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -105,6 +113,21 @@ func (s *authService) VerifyToken(tokenStr string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// GetUserByEmail retrieves a user by email
+func (s *authService) GetUserByEmail(email string) (*User, error) {
+	return s.repo.FindByEmail(email)
+}
+
+// GetUserByID retrieves a user by ID
+func (s *authService) GetUserByID(userID string) (*User, error) {
+	return s.repo.FindByID(userID)
+}
+
+// ListAllUsers retrieves all users (for debugging)
+func (s *authService) ListAllUsers() ([]User, error) {
+	return s.repo.ListAllUsers()
 }
 
 // Password functions removed - now handled by AAA service
@@ -234,6 +257,139 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			Name:         user.Name,
 			Email:        user.Email,
 			Location:     location,
+			Skills:       []string{},
+			Resume:       "",
+			ProfilePhoto: "",
+			Experience:   0.0,
+			Education:    "",
+			Portfolio:    "",
+			Linkedin:     "",
+			Github:       "",
+		}
+		fmt.Printf("🔍 Student profile data: %+v\n", profile)
+		if err := s.studentProfileRepo.Create(profile); err != nil {
+			fmt.Printf("❌ Failed to create student profile: %v\n", err)
+			return nil, "", fmt.Errorf("failed to create user profile: %w", err)
+		}
+		fmt.Printf("✅ Student profile created successfully\n")
+	} else {
+		fmt.Printf("⚠️ Unknown role: %s, no profile created\n", req.Role)
+	}
+
+	return user, token, nil
+}
+
+// SignupWithID - creates a user with a specific ID (for AAA integration)
+func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumber string) (*User, string, error) {
+	fmt.Printf("🔍 AuthService.SignupWithID called with: %+v, userID: %s\n", req, userID)
+
+	// 1. Validate password confirmation
+	if req.Password != req.ConfirmPassword {
+		fmt.Printf("❌ Password mismatch\n")
+		return nil, "", errors.New("passwords do not match")
+	}
+
+	// 2. Check if user exists with the specific ID
+	fmt.Printf("🔍 Checking if user exists with ID: %s\n", userID)
+	existingUser, err := s.repo.FindByID(userID)
+	if err != nil {
+		fmt.Printf("🔍 User not found with ID (expected): %v\n", err)
+	} else if existingUser != nil {
+		fmt.Printf("❌ User already exists with ID: %+v\n", existingUser)
+		return nil, "", errors.New("user ID already exists")
+	}
+
+	// 3. Create user with the specified ID
+	fmt.Printf("🔍 Creating user with ID: %s, name: %s, email: %s\n", userID, req.Name, req.Email)
+
+	// Hash the password using the same method as AAA service
+	hashedPassword, err := HashPassword(req.Password)
+	if err != nil {
+		fmt.Printf("❌ Failed to hash password: %v\n", err)
+		return nil, "", fmt.Errorf("failed to hash password: %w", err)
+	}
+	fmt.Printf("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
+
+	user := &User{
+		Name:     req.Name,
+		Email:    req.Email,
+		Password: hashedPassword, // Store hashed password locally
+		Role:     req.Role,       // Store role locally
+	}
+	err = s.repo.CreateWithID(user, userID)
+	if err != nil {
+		fmt.Printf("❌ Failed to create user in DB: %v\n", err)
+		return nil, "", err
+	}
+	fmt.Printf("✅ User created successfully with specified ID: %+v\n", user)
+
+	// 4. Generate token
+	token, err := generateToken(user)
+	if err != nil {
+		return nil, "", err
+	}
+
+	// 5. Create corresponding profile based on role from request
+	fmt.Printf("🔍 Creating profile for role: %s\n", req.Role)
+	roles := []string{req.Role} // Use role from request since it's not stored in DB
+	if contains(roles, "employer") {
+		fmt.Printf("🔍 Creating employer profile for user: %s\n", user.ID)
+		// Build location string safely
+		location := ""
+		if req.City != "" && req.State != "" {
+			location = req.City + ", " + req.State
+		} else if req.City != "" {
+			location = req.City
+		} else if req.State != "" {
+			location = req.State
+		}
+
+		profile := &employerprofile.EmployerProfile{
+			UserID:             user.ID,
+			CompanyName:        req.CompanyName,
+			WebsiteUrl:         req.Website,
+			Industry:           req.IndustryType,
+			CompanySize:        req.CompanySize,
+			CompanyDescription: "", // optional
+			RecruiterName:      req.Name,
+			Designation:        "Recruiter",
+			OfficialEmail:      req.Email,
+			PhoneNumber:        phoneNumber, // <-- set here
+			LinkedinProfile:    "",
+			GstinNumber:        req.GstinNumber,
+			CompanyAddress:     req.CompanyAddress,
+			City:               req.City,
+			State:              req.State,
+			Pincode:            req.Pincode,
+			JobCategories:      []string{},
+			HiringLocations:    []string{location},
+			HiringTypes:        []string{"full-time"},
+		}
+		fmt.Printf("🔍 Employer profile data: %+v\n", profile)
+		if err := s.employerRepo.Create(profile); err != nil {
+			fmt.Printf("❌ Failed to create employer profile: %v\n", err)
+			return nil, "", fmt.Errorf("failed to create employer profile: %w", err)
+		}
+		fmt.Printf("✅ Employer profile created successfully\n")
+
+	} else if contains(roles, "student") {
+		fmt.Printf("🔍 Creating student profile for user: %s\n", user.ID)
+		// Build location string safely
+		location := ""
+		if req.City != "" && req.State != "" {
+			location = req.City + ", " + req.State
+		} else if req.City != "" {
+			location = req.City
+		} else if req.State != "" {
+			location = req.State
+		}
+
+		profile := &studentprofile.StudentProfile{
+			UserID:       user.ID,
+			Name:         user.Name,
+			Email:        user.Email,
+			Location:     location,
+			PhoneNumber:  phoneNumber, // <-- set here
 			Skills:       []string{},
 			Resume:       "",
 			ProfilePhoto: "",

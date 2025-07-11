@@ -86,7 +86,7 @@ func (s *jobPostService) CreateJobPost(req *CreateJobPostRequest, employerID, em
 		employerProfile, err := s.employerRepo.GetByUserID(employerID)
 		if err == nil && employerProfile != nil {
 			if employerName == "" {
-				employerName = employerProfile.CompanyName
+				employerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
 			}
 			if employerEmail == "" {
 				employerEmail = employerProfile.OfficialEmail
@@ -263,7 +263,7 @@ func (s *jobPostService) populateEmployerDetails(job *JobPost) {
 		} else if employerProfile != nil {
 			fmt.Printf("DEBUG: Found employer profile: %+v\n", employerProfile)
 			if job.EmployerName == "" {
-				job.EmployerName = employerProfile.CompanyName
+				job.EmployerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
 				fmt.Printf("DEBUG: Set employerName to: '%s'\n", job.EmployerName)
 			}
 			if job.EmployerEmail == "" {
@@ -575,7 +575,7 @@ func (s *jobPostService) CreateDraft(req *CreateDraftRequest, employerID, employ
 		employerProfile, err := s.employerRepo.GetByUserID(employerID)
 		if err == nil && employerProfile != nil {
 			if employerName == "" {
-				employerName = employerProfile.CompanyName
+				employerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
 			}
 			if employerEmail == "" {
 				employerEmail = employerProfile.OfficialEmail

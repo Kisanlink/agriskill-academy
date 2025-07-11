@@ -28,6 +28,13 @@ func LoadEnv() {
 
 func InitDB() (*gorm.DB, error) {
 	LoadEnv()
+	fmt.Println("Env variables:")
+	fmt.Println("DB_HOST:", os.Getenv("DB_HOST"))
+	fmt.Println("DB_PORT:", os.Getenv("DB_PORT"))
+	fmt.Println("POSTGRESS_USER:", os.Getenv("POSTGRESS_USER"))
+	fmt.Println("POSTGRESS_PASS:", os.Getenv("POSTGRESS_PASS"))
+	fmt.Println("DB_NAME:", os.Getenv("DB_NAME"))
+	fmt.Println("DB_SSLMODE:", os.Getenv("DB_SSLMODE"))
 
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
@@ -54,24 +61,6 @@ func InitDB() (*gorm.DB, error) {
 
 	DB = db
 	return db, nil
-}
-
-// AutoMigrateDB runs auto-migration for all models
-func AutoMigrateDB(db *gorm.DB) error {
-	log.Println("Running auto-migration...")
-
-	// Import all your models here
-	// You'll need to import the model packages
-	// For now, this is a placeholder - you'd add your actual models
-
-	// Example:
-	// err := db.AutoMigrate(&auth.User{}, &studentprofile.StudentProfile{}, &employerprofile.EmployerProfile{})
-	// if err != nil {
-	//     return fmt.Errorf("auto-migration failed: %w", err)
-	// }
-
-	log.Println("Auto-migration completed successfully!")
-	return nil
 }
 
 func CloseDB(db *gorm.DB) {

@@ -19,7 +19,7 @@ type SignupRequest struct {
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
 	Role            string `json:"role" binding:"required,oneof=student employer"` // "student" or "employer"
-	PhoneNumber     int64  `json:"phone_number" binding:"required"`                // Changed to int64 for AAA service
+	PhoneNumber     string `json:"phone_number" binding:"required"`                // Changed to string for frontend compatibility
 	CountryCode     string `json:"country_code,omitempty"`                         // Optional, defaults to "+91"
 	AadhaarNumber   string `json:"aadhaar_number,omitempty"`                       // Optional
 

@@ -32,6 +32,7 @@ type JobApplicationWithApplicant struct {
 	LinkedIn    string `json:"linkedin" gorm:"column:linkedin"`
 	Github      string `json:"github" gorm:"column:github"`
 	ProfileName string `json:"profile_name" gorm:"column:profile_name"`
+	Phone       string `json:"phone" gorm:"column:phone"`
 }
 
 // New response structure for frontend

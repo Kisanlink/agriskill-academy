@@ -51,7 +51,8 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				COALESCE(up.portfolio, '') AS portfolio, 
 				COALESCE(up.linkedin, '') AS linkedin, 
 				COALESCE(up.github, '') AS github, 
-				COALESCE(up.name, u.name) AS profile_name
+				COALESCE(up.name, u.name) AS profile_name,
+				COALESCE(up.phone_number, '') AS phone
 			FROM applications a
 			JOIN users u ON u.id = a.student_id
 			LEFT JOIN student_profiles up ON up.user_id = a.student_id
@@ -74,7 +75,8 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				COALESCE(up.portfolio, '') AS portfolio, 
 				COALESCE(up.linkedin, '') AS linkedin, 
 				COALESCE(up.github, '') AS github, 
-				COALESCE(up.name, u.name) AS profile_name
+				COALESCE(up.name, u.name) AS profile_name,
+				COALESCE(up.phone_number, '') AS phone
 			FROM applications a
 			JOIN users u ON u.id = a.student_id
 			LEFT JOIN student_profiles up ON up.user_id = a.student_id
@@ -128,7 +130,7 @@ func (r *employerApplicationRepository) GetApplicantProfile(studentID string) (*
 	err := r.db.Raw(`
 		SELECT 
 			u.id, u.name, u.email, 
-			'' as phone, up.location, up.skills::text as skills, CAST(up.experience AS TEXT) as experience, up.education,
+			up.phone_number as phone, up.location, up.skills::text as skills, CAST(up.experience AS TEXT) as experience, up.education,
 			up.profile_photo as avatar, up.resume as resume_url, up.portfolio, up.linkedin, up.github, up.name as name
 		FROM users u
 		JOIN student_profiles up ON up.user_id = u.id
@@ -169,7 +171,8 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(studentID strin
 			a.job_title, a.company, a.location, a.job_type, a.experience,
 			u.id as id, u.name, u.email,
 			up.profile_photo as avatar, up.resume as resume_url, up.skills::text as skills, up.location, 
-			up.experience as experience, up.education, up.portfolio, up.linkedin, up.github, up.name as name
+			up.experience as experience, up.education, up.portfolio, up.linkedin, up.github, up.name as name,
+			up.phone_number as phone
 		FROM applications a
 		JOIN users u ON u.id = a.student_id
 		JOIN student_profiles up ON up.user_id = a.student_id

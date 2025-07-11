@@ -8,7 +8,16 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte(os.Getenv("SECRET_KEY")) // Use the same secret as AAA service
+var jwtSecret = []byte(getSecret()) // Use the same secret as AAA service
+
+// getSecret returns the JWT secret with fallback
+func getSecret() string {
+	secret := os.Getenv("SECRET_KEY")
+	if secret == "" {
+		return "secret" // Fallback secret
+	}
+	return secret
+}
 
 // GenerateToken creates a JWT token using user info and expiration duration
 func GenerateToken(userID, email, role string, duration time.Duration) (string, error) {
@@ -19,10 +28,14 @@ func GenerateToken(userID, email, role string, duration time.Duration) (string, 
 	log.Printf("🔑 Duration: %v", duration)
 	log.Printf("🔑 JWT Secret length: %d", len(jwtSecret))
 
+	// Convert single role to roles array for consistency with middleware
+	roles := []string{role}
+
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
-		"role":    role,
+		"role":    role,  // Keep single role for backward compatibility
+		"roles":   roles, // Add roles array for middleware
 		"exp":     time.Now().Add(duration).Unix(),
 	}
 

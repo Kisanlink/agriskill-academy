@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -65,18 +66,29 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 		log.Printf("📝 Using default country code: %s", countryCode)
 	}
 
-	// Build AAA payload with correct field names
+	// Convert phone number from string to number for AAA service
+	phoneNumber, err := strconv.ParseInt(req.PhoneNumber, 10, 64)
+	if err != nil {
+		log.Printf("❌ Invalid phone number format: %s", req.PhoneNumber)
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid phone number format"})
+		return
+	}
+
+	// Prepare payload for AAA service
 	aaaPayload := map[string]interface{}{
 		"username":      req.Username, // Use username for AAA service
 		"password":      req.Password,
-		"mobile_number": req.PhoneNumber, // Number, not string
+		"mobile_number": phoneNumber, // Convert to number for AAA service
 		"country_code":  countryCode,
 	}
 
-	// Add optional fields if provided
+	// Add aadhaar number if provided, otherwise send null
 	if req.AadhaarNumber != "" {
 		aaaPayload["aadhaar_number"] = req.AadhaarNumber
 		log.Printf("📝 Adding aadhaar number: %s", req.AadhaarNumber)
+	} else {
+		aaaPayload["aadhaar_number"] = nil
+		log.Printf("📝 No aadhaar number provided, sending null")
 	}
 
 	log.Printf("📤 AAA Service URL: %s", config.AAAServiceBaseURL)
@@ -117,9 +129,11 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	var aaaResp struct {
 		Success bool `json:"success"`
 		Data    struct {
-			ID    string `json:"id"`
-			Name  string `json:"name"`
-			Email string `json:"username"`
+			ID           string `json:"id"`
+			Name         string `json:"name"`
+			Email        string `json:"username"`
+			MobileNumber int64  `json:"mobile_number"`
+			CountryCode  string `json:"country_code"`
 		} `json:"data"`
 	}
 	json.Unmarshal(responseBody, &aaaResp)
@@ -129,6 +143,8 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	log.Printf("   Data.ID: %s", aaaResp.Data.ID)
 	log.Printf("   Data.Name: %s", aaaResp.Data.Name)
 	log.Printf("   Data.Email: %s", aaaResp.Data.Email)
+	log.Printf("   Data.MobileNumber: %d", aaaResp.Data.MobileNumber)
+	log.Printf("   Data.CountryCode: %s", aaaResp.Data.CountryCode)
 
 	// Use header values if available, fallback to body
 	userID := registerUserID
@@ -179,12 +195,17 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	// Create local user profile if AAA registration was successful
 	var localUser *User
 	if userID != "" {
-		log.Printf("📝 Creating local user profile...")
-		log.Printf("📝 Auth service: %+v", h.authService)
+		log.Printf("📝 Creating local user profile with AAA user ID: %s", userID)
 		log.Printf("📝 Request data: %+v", req)
 
-		// Create local user record using auth service
-		user, localToken, err := h.authService.Signup(&req)
+		// Convert mobile number to string for profile
+		phoneNumber := ""
+		if aaaResp.Data.MobileNumber != 0 {
+			phoneNumber = strconv.FormatInt(aaaResp.Data.MobileNumber, 10)
+		}
+
+		// Create local user record using AAA user ID and phone number
+		user, localToken, err := h.authService.SignupWithID(&req, userID, phoneNumber)
 		if err != nil {
 			log.Printf("❌ Failed to create local user: %v", err)
 			log.Printf("❌ Error details: %T: %v", err, err)
@@ -239,11 +260,11 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success":      true,
-		"message":      "Signup successful",
-		"user":         responseUser,
-		"token":        localToken,   // Use local token with role
-		"refreshToken": refreshToken, // Keep AAA refresh token
+		"success":       true,
+		"message":       "Signup successful",
+		"user":          responseUser,
+		"token":         localToken,   // Use local token with role
+		"refresh_token": refreshToken, // Keep AAA refresh token
 	})
 }
 
@@ -332,6 +353,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			Email   string `json:"username"`
 			Role    string `json:"role"`
 			Created string `json:"created"`
+			Roles   []struct {
+				RoleName string `json:"role_name"`
+			} `json:"roles"`
 		} `json:"data"`
 		Token        string `json:"token"`
 		RefreshToken string `json:"refreshToken"`
@@ -346,8 +370,27 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	log.Printf("   Data.Email: %s", aaaResp.Data.Email)
 	log.Printf("   Data.Role: %s", aaaResp.Data.Role)
 	log.Printf("   Data.Created: %s", aaaResp.Data.Created)
+	log.Printf("   Data.Roles count: %d", len(aaaResp.Data.Roles))
+	for i, role := range aaaResp.Data.Roles {
+		log.Printf("   Data.Roles[%d]: %s", i, role.RoleName)
+	}
 	log.Printf("   Token: %s", aaaResp.Token)
 	log.Printf("   RefreshToken: %s", aaaResp.RefreshToken)
+
+	// Extract roles from AAA response
+	var roles []string
+	if len(aaaResp.Data.Roles) > 0 {
+		for _, role := range aaaResp.Data.Roles {
+			roles = append(roles, role.RoleName)
+		}
+		log.Printf("✅ Extracted roles from AAA response: %v", roles)
+	} else if aaaResp.Data.Role != "" {
+		// Fallback to single role if roles array is empty
+		roles = []string{aaaResp.Data.Role}
+		log.Printf("⚠️ Using single role as fallback: %v", roles)
+	} else {
+		log.Printf("⚠️ No roles found in AAA response")
+	}
 
 	// Use header values if available, fallback to body
 	if userID == "" {
@@ -383,34 +426,113 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	log.Printf("✅ Login successful - sending response")
 	log.Printf("=== AAA LOGIN DEBUG END ===")
 
-	// Generate local token with role for proper permission checks
+	// Try to get additional user details from local database
+	// Since we can't access repo directly from interface, we'll use the email from AAA response
+	// and assume the user exists in local DB (since they logged in successfully)
+	var userName, userEmail string
+	var userCreated time.Time
+
+	log.Printf("🔍 === LOCAL USER LOOKUP DEBUG ===")
+	log.Printf("🔍 User ID from AAA: %s", userID)
+	log.Printf("🔍 AAA Email (username): %s", aaaResp.Data.Email)
+
+	// Debug: List all users in database to see what's available
+	log.Printf("🔍 === DATABASE DEBUG ===")
+	allUsers, err := h.authService.ListAllUsers()
+	if err != nil {
+		log.Printf("❌ Failed to list users: %v", err)
+	} else {
+		log.Printf("✅ Database contains %d users", len(allUsers))
+	}
+	log.Printf("🔍 === DATABASE DEBUG COMPLETE ===")
+
+	// Try to get local user data using the user ID from AAA response
+	// The AAA response email field is actually the username, not the real email
+	localUser, err := h.authService.GetUserByID(userID)
+	if err != nil {
+		log.Printf("❌ Local user lookup failed: %v", err)
+		log.Printf("❌ Error type: %T", err)
+	} else if localUser != nil {
+		userName = localUser.Name
+		userEmail = localUser.Email
+		userCreated = localUser.CreatedAt
+		log.Printf("✅ Found local user data:")
+		log.Printf("   ID: %s", localUser.ID)
+		log.Printf("   Name: %s", userName)
+		log.Printf("   Email: %s", userEmail)
+		log.Printf("   Created: %s", userCreated.Format("2006-01-02T15:04:05Z"))
+		log.Printf("   Role: %s", localUser.Role)
+	} else {
+		log.Printf("⚠️ Local user lookup returned nil user")
+	}
+
+	if err != nil || localUser == nil {
+		log.Printf("⚠️ No local user data found for user ID: %s", userID)
+		log.Printf("⚠️ Falling back to AAA response data")
+		// Fallback to AAA response data
+		userName = aaaResp.Data.Name
+		userEmail = aaaResp.Data.Email // This is actually the username
+		log.Printf("⚠️ Fallback values - Name: %s, Email: %s", userName, userEmail)
+	}
+
+	log.Printf("🔍 === LOCAL USER LOOKUP COMPLETE ===")
+
+	// Generate local token with roles for proper permission checks
 	localToken := ""
-	if aaaResp.Data.Role != "" {
-		// Generate local token with role from AAA response
-		localToken, err = jwtutil.GenerateToken(userID, aaaResp.Data.Email, aaaResp.Data.Role, 72*time.Hour)
+	primaryRole := ""
+	if len(roles) > 0 {
+		// Generate local token with roles from AAA response
+		// Use the first role as primary role for backward compatibility
+		primaryRole = roles[0]
+		localToken, err = jwtutil.GenerateToken(userID, userEmail, primaryRole, 72*time.Hour)
 		if err != nil {
 			log.Printf("❌ Failed to generate local token: %v", err)
 			// Fallback to AAA token if local token generation fails
 			localToken = token
 		} else {
-			log.Printf("✅ Generated local token with role: %s", aaaResp.Data.Role)
+			log.Printf("✅ Generated local token with primary role: %s (all roles: %v)", primaryRole, roles)
 		}
 	} else {
-		// Fallback to AAA token if no role in response
+		// Fallback to AAA token if no roles in response
 		localToken = token
-		log.Printf("⚠️ Using AAA token as fallback (no role in response)")
+		log.Printf("⚠️ Using AAA token as fallback (no roles in response)")
+	}
+
+	// Use local user data if available, otherwise fallback to AAA response
+	responseName := userName
+	responseEmail := userEmail
+
+	// If we have local user data, use it; otherwise fallback to request data
+	if localUser != nil {
+		responseName = localUser.Name
+		responseEmail = localUser.Email
+		log.Printf("✅ Using local user data - Name: %s, Email: %s", responseName, responseEmail)
+	} else {
+		log.Printf("⚠️ No local user data, using fallback - Name: %s, Email: %s", responseName, responseEmail)
+	}
+
+	// Handle created date
+	var responseCreated string
+	if !userCreated.IsZero() {
+		responseCreated = userCreated.Format("2006-01-02T15:04:05Z")
+	} else if aaaResp.Data.Created != "" {
+		responseCreated = aaaResp.Data.Created
+	} else {
+		// Use current time as fallback for created date
+		responseCreated = time.Now().Format("2006-01-02T15:04:05Z")
+		log.Printf("⚠️ No created date available, using current time: %s", responseCreated)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"success":      true,
-		"message":      "Login successful",
-		"id":           userID,
-		"name":         aaaResp.Data.Name,
-		"email":        aaaResp.Data.Email,
-		"role":         aaaResp.Data.Role,
-		"created":      aaaResp.Data.Created,
-		"token":        localToken, // Use local token with role
-		"refreshToken": refreshToken,
+		"success":       true,
+		"message":       "Login successful",
+		"id":            userID,
+		"name":          responseName,
+		"email":         responseEmail,
+		"role":          primaryRole, // Use extracted primary role instead of empty Data.Role
+		"created":       responseCreated,
+		"token":         localToken, // Use local token with role
+		"refresh_token": refreshToken,
 	})
 }
 
@@ -457,7 +579,7 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req struct {
 		Token       string `json:"token" binding:"required"`
-		NewPassword string `json:"newPassword" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})

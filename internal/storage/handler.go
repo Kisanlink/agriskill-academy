@@ -4,6 +4,7 @@ package storage
 
 import (
 	"asa/pkg/authz"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -180,6 +181,7 @@ func (h *StorageHandler) UploadDocument(c *gin.Context) {
 // POST /upload/resume/:folder
 func (h *StorageHandler) UploadResume(c *gin.Context) {
 	username := c.GetString("email")
+	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -209,6 +211,14 @@ func (h *StorageHandler) UploadResume(c *gin.Context) {
 		return
 	}
 
+	// If this is a student uploading a resume to the resumes folder, also update their profile
+	if userID != "" && folder == "resumes" {
+		fmt.Printf("DEBUG: Resume uploaded for user %s, path: %s - Profile update needed\n", userID, path)
+		// Note: In a production environment, you would inject the student profile service here
+		// For now, we'll just log that the profile needs to be updated
+		// The frontend should make a separate call to update the profile with this file path
+	}
+
 	// Get file info for response
 	fileInfo, err := h.service.GetFileInfo(path)
 	if err != nil {
@@ -219,6 +229,178 @@ func (h *StorageHandler) UploadResume(c *gin.Context) {
 	c.JSON(http.StatusOK, UploadResponse{
 		Success:  true,
 		Message:  "Resume uploaded successfully",
+		FilePath: path,
+		FileName: fileInfo.Name,
+		FileSize: fileInfo.Size,
+		FileType: fileInfo.Type,
+		FileURL:  fileInfo.URL,
+	})
+}
+
+// POST /upload/student/resume - Special endpoint for student resume upload
+func (h *StorageHandler) UploadStudentResume(c *gin.Context) {
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Resume file is required"})
+		return
+	}
+
+	// Validate file type
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	allowedTypes := []string{".pdf", ".doc", ".docx"}
+	isValid := false
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid file type. Allowed: PDF, DOC, DOCX"})
+		return
+	}
+
+	// Validate file size (10MB max)
+	if fileHeader.Size > 10*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "File size exceeds maximum allowed size (10MB)"})
+		return
+	}
+
+	// Save file using the storage service
+	path, err := h.service.SaveResume(fileHeader, "resumes")
+	if err != nil {
+		switch err {
+		case ErrFileTooLarge:
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Resume size exceeds maximum allowed size (10MB)"})
+		case ErrInvalidFileType:
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid resume format. Allowed: PDF, DOC, DOCX"})
+		case ErrInvalidFolder:
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid folder name"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Resume upload failed: " + err.Error()})
+		}
+		return
+	}
+
+	// Get file info for response
+	fileInfo, err := h.service.GetFileInfo(path)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": true, "filePath": path})
+		return
+	}
+
+	fmt.Printf("DEBUG: Student resume uploaded successfully - UserID: %s, Path: %s\n", userID, path)
+
+	c.JSON(http.StatusOK, UploadResponse{
+		Success:  true,
+		Message:  "Resume uploaded successfully",
+		FilePath: path,
+		FileName: fileInfo.Name,
+		FileSize: fileInfo.Size,
+		FileType: fileInfo.Type,
+		FileURL:  fileInfo.URL,
+	})
+}
+
+// POST /upload/student/certificate
+func (h *StorageHandler) UploadStudentCertificate(c *gin.Context) {
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Certificate file is required"})
+		return
+	}
+
+	// Get certificate details from form
+	certificateName := c.PostForm("name")
+	issueDate := c.PostForm("issue_date")
+
+	if certificateName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Certificate name is required"})
+		return
+	}
+
+	if issueDate == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Issue date is required"})
+		return
+	}
+
+	// Validate file type
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	allowedTypes := []string{".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"}
+	isValid := false
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid file type. Allowed: PDF, DOC, DOCX, JPG, JPEG, PNG"})
+		return
+	}
+
+	// Validate file size (10MB max)
+	if fileHeader.Size > 10*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "File size exceeds maximum allowed size (10MB)"})
+		return
+	}
+
+	// Save file using the storage service
+	path, err := h.service.SaveDocument(fileHeader, "certificates")
+	if err != nil {
+		switch err {
+		case ErrFileTooLarge:
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Certificate size exceeds maximum allowed size (10MB)"})
+		case ErrInvalidFileType:
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid certificate format. Allowed: PDF, DOC, DOCX, JPG, JPEG, PNG"})
+		case ErrInvalidFolder:
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid folder name"})
+		default:
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Certificate upload failed: " + err.Error()})
+		}
+		return
+	}
+
+	// Get file info for response
+	fileInfo, err := h.service.GetFileInfo(path)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"success": true, "filePath": path})
+		return
+	}
+
+	fmt.Printf("DEBUG: Student certificate uploaded successfully - UserID: %s, Path: %s, Name: %s\n", userID, path, certificateName)
+
+	c.JSON(http.StatusOK, UploadResponse{
+		Success:  true,
+		Message:  "Certificate uploaded successfully",
 		FilePath: path,
 		FileName: fileInfo.Name,
 		FileSize: fileInfo.Size,

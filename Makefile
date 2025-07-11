@@ -103,6 +103,13 @@ migrate: ## Run all database migrations in order
 		echo "[ERROR] Profiles rename script not found (scripts/008_rename_profiles.sh)"; \
 		exit 1; \
 	fi
+	@echo "4. Adding phone number to student profiles..."
+	@if [ -f "scripts/009_add_phone_to_student_profiles.sh" ]; then \
+		bash scripts/009_add_phone_to_student_profiles.sh; \
+	else \
+		echo "[ERROR] Phone number migration script not found (scripts/009_add_phone_to_student_profiles.sh)"; \
+		exit 1; \
+	fi
 	@echo "✅ All migrations completed successfully!"
 
 .PHONY: migrate-schema
@@ -201,11 +208,18 @@ install-air: ## Install Air for hot reloading
 	@echo "Installing Air for hot reloading..."
 	@go install github.com/cosmtrek/air@latest
 
-# Quick start
 .PHONY: setup
-setup: deps install-air ## Setup development environment
+setup: deps ## Setup development environment
+	@echo "Setting up development environment..."
+	@bash scripts/setup_uploads.sh
 	@echo "Development environment setup complete!"
 
+.PHONY: setup-uploads
+setup-uploads: ## Setup uploads directory structure
+	@echo "Setting up uploads directory structure..."
+	@bash scripts/setup_uploads.sh
+
+# Quick start
 .PHONY: start
 start: migrate run ## Setup database and start the application
 	@echo "Application started successfully!" 

@@ -33,6 +33,8 @@ func RegisterAuthenticatedRoutes(rg *gin.RouterGroup, handler *StorageHandler) {
 	rg.POST("/upload/image/:folder", handler.UploadImage)
 	rg.POST("/upload/document/:folder", handler.UploadDocument)
 	rg.POST("/upload/resume/:folder", handler.UploadResume)
+	rg.POST("/upload/student/resume", handler.UploadStudentResume)
+	rg.POST("/upload/student/certificate", handler.UploadStudentCertificate)
 
 	// File management endpoints (require auth)
 	rg.GET("/files/info/*filePath", handler.GetFileInfo)

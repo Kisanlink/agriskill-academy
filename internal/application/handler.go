@@ -6,7 +6,12 @@ import (
 	"asa/pkg/authz"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
+	"time"
+
+	"mime/multipart"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,36 +46,102 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 	studentID := c.GetString("user_id")
 
 	fmt.Printf("DEBUG: Apply called - JobID: %s, StudentID: %s\n", jobId, studentID)
-
-	// Debug: Print all form fields
 	fmt.Printf("DEBUG: Content-Type: %s\n", c.GetHeader("Content-Type"))
+
+	// Parse multipart form data
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil { // 32MB max
+		fmt.Printf("DEBUG: ParseMultipartForm error: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to parse form data"})
+		return
+	}
+
 	fmt.Printf("DEBUG: Form fields: %+v\n", c.Request.Form)
 
-	coverLetter := c.PostForm("coverLetter")
-	file, err := c.FormFile("resumeFile")
-	if err != nil {
-		fmt.Printf("DEBUG: Resume file error: %v\n", err)
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Resume file is required"})
-		return
+	coverLetter := c.PostForm("cover_letter")
+	fmt.Printf("DEBUG: Cover letter: %s\n", coverLetter)
+
+	// Try multiple possible field names for the resume file
+	var file *multipart.FileHeader
+	var fileErr error
+
+	// Try different field names (prioritize snake_case)
+	file, fileErr = c.FormFile("resume_file")
+	if fileErr != nil {
+		fmt.Printf("DEBUG: resume_file not found, trying resumeFile\n")
+		file, fileErr = c.FormFile("resumeFile")
+		if fileErr != nil {
+			fmt.Printf("DEBUG: resumeFile not found, trying resume\n")
+			file, fileErr = c.FormFile("resume")
+			if fileErr != nil {
+				fmt.Printf("DEBUG: resume not found, trying file\n")
+				file, fileErr = c.FormFile("file")
+				if fileErr != nil {
+					fmt.Printf("DEBUG: Resume file error - tried resume_file, resumeFile, resume, file: %v\n", fileErr)
+					c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Resume file is required"})
+					return
+				}
+			}
+		}
 	}
 
 	fmt.Printf("DEBUG: Resume file received - Name: %s, Size: %d\n", file.Filename, file.Size)
 
+	// Validate file type
+	if !IsValidResumeFile(file.Filename) {
+		fmt.Printf("DEBUG: Invalid file type: %s\n", file.Filename)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid file type. Allowed: PDF, DOC, DOCX",
+		})
+		return
+	}
+
+	// Validate file size (10MB max)
+	if file.Size > 10*1024*1024 {
+		fmt.Printf("DEBUG: File too large: %d bytes\n", file.Size)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File size exceeds maximum allowed size (10MB)",
+		})
+		return
+	}
+
+	// Create uploads/resumes directory if it doesn't exist
+	uploadDir := "uploads/resumes"
+	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+		fmt.Printf("DEBUG: Failed to create upload directory: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create upload directory"})
+		return
+	}
+
+	// Generate unique filename
+	timestamp := time.Now().UnixNano()
+	ext := filepath.Ext(file.Filename)
+	baseName := strings.TrimSuffix(file.Filename, ext)
+	safeBaseName := strings.ReplaceAll(baseName, " ", "_")
+	filename := fmt.Sprintf("%d_%s_%s%s", timestamp, studentID, safeBaseName, ext)
+
+	fmt.Printf("DEBUG: Generated filename: %s\n", filename)
+
 	// Save file
-	filename := "uploads/resumes/" + studentID + "_" + file.Filename
-	if err := c.SaveUploadedFile(file, filename); err != nil {
+	dst := filepath.Join(uploadDir, filename)
+	if err := c.SaveUploadedFile(file, dst); err != nil {
 		fmt.Printf("DEBUG: File save error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to upload resume"})
 		return
 	}
 
-	fmt.Printf("DEBUG: File saved successfully to: %s\n", filename)
+	fmt.Printf("DEBUG: File saved successfully to: %s\n", dst)
+
+	// Store relative path for database
+	resumePath := filepath.Join("resumes", filename)
+	fmt.Printf("DEBUG: Resume path for database: %s\n", resumePath)
 
 	app := &Application{
 		JobID:       jobId,
 		StudentID:   studentID,
 		CoverLetter: coverLetter,
-		ResumeFile:  filename,
+		ResumeFile:  resumePath,
 	}
 
 	fmt.Printf("DEBUG: Application object created: %+v\n", app)
@@ -81,8 +152,20 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Application submitted successfully\n")
+	fmt.Printf("DEBUG: Application submitted successfully with ID: %s\n", app.ID)
 	c.JSON(http.StatusCreated, gin.H{"success": true, "message": "Application submitted successfully", "application": app})
+}
+
+// Helper function to validate resume file type
+func IsValidResumeFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	allowedTypes := []string{".pdf", ".doc", ".docx"}
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			return true
+		}
+	}
+	return false
 }
 
 // GET /applications/my

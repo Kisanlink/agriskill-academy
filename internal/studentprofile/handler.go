@@ -4,15 +4,11 @@ package studentprofile
 
 import (
 	"asa/pkg/authz"
-	"bytes"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -51,17 +47,8 @@ func (h *StudentProfileHandler) GetProfile(c *gin.Context) {
 	}
 
 	// Rewrite resume field to always use /api/files/serve/
-	if profile.Resume != "" {
-		if !strings.HasPrefix(profile.Resume, "http") {
-			trimmed := profile.Resume
-			if strings.HasPrefix(trimmed, "/") {
-				trimmed = trimmed[1:]
-			}
-			if strings.HasPrefix(trimmed, "uploads/") {
-				trimmed = trimmed[len("uploads/"):]
-			}
-			profile.Resume = "http://localhost:3000/api/files/serve/" + trimmed
-		}
+	if profile.Resume != nil {
+		profile.Resume = profile.Resume
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile fetched", "data": profile})
@@ -120,17 +107,8 @@ func (h *StudentProfileHandler) GetMyProfile(c *gin.Context) {
 	}
 
 	// Rewrite resume field to always use /api/files/serve/
-	if profile.Resume != "" {
-		if !strings.HasPrefix(profile.Resume, "http") {
-			trimmed := profile.Resume
-			if strings.HasPrefix(trimmed, "/") {
-				trimmed = trimmed[1:]
-			}
-			if strings.HasPrefix(trimmed, "uploads/") {
-				trimmed = trimmed[len("uploads/"):]
-			}
-			profile.Resume = "http://localhost:3000/api/files/serve/" + trimmed
-		}
+	if profile.Resume != nil {
+		profile.Resume = profile.Resume
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile fetched", "data": profile})
@@ -178,6 +156,32 @@ func (h *StudentProfileHandler) AddCertificate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Certificate added", "data": cert})
 }
 
+// DELETE /students/me/certificates/:certificateId
+func (h *StudentProfileHandler) DeleteMyCertificate(c *gin.Context) {
+	username := c.GetString("username")
+	userID := c.GetString("user_id")
+	certificateID := c.Param("certificateId")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_certificates", "delete", certificateID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	err = h.service.DeleteCertificate(certificateID, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Certificate not found or you don't have permission to delete it"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Certificate deleted successfully"})
+}
+
 // PUT /students/me/profile
 func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	username := c.GetString("username")
@@ -194,21 +198,11 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		return
 	}
 
-	// Check if this is a multipart form (file upload) or JSON
-	contentType := c.GetHeader("Content-Type")
-	fmt.Printf("DEBUG: UpdateMyProfile - Content-Type: %s\n", contentType)
-	fmt.Printf("DEBUG: UpdateMyProfile - UserID: %s\n", userID)
-	fmt.Printf("DEBUG: UpdateMyProfile - All headers: %+v\n", c.Request.Header)
-
-	// Log request body for debugging
-	body, err := c.GetRawData()
-	if err == nil {
-		fmt.Printf("DEBUG: Raw request body: %s\n", string(body))
-		// Restore the body for further processing
-		c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
-	}
-
 	var req UpdateStudentProfileRequest
+	contentType := c.GetHeader("Content-Type")
+
+	fmt.Printf("DEBUG: Content-Type: %s\n", contentType)
+	fmt.Printf("DEBUG: User ID: %s\n", userID)
 
 	if strings.Contains(contentType, "multipart/form-data") {
 		fmt.Printf("DEBUG: Handling multipart form data\n")
@@ -244,40 +238,89 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 				return
 			}
 
-			// Generate unique filename
-			timestamp := time.Now().UnixNano()
-			ext := filepath.Ext(resumeFile.Filename)
-			baseName := strings.TrimSuffix(resumeFile.Filename, ext)
-			safeBaseName := strings.ReplaceAll(baseName, " ", "_")
-			filename := fmt.Sprintf("%d_%s%s", timestamp, safeBaseName, ext)
+			// Read file into bytes
+			file, err := resumeFile.Open()
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"message": "Failed to read file",
+				})
+				return
+			}
+			defer file.Close()
 
-			// Create uploads/resumes directory if it doesn't exist
-			uploadDir := "uploads/resumes"
-			if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+			fileBytes, err := io.ReadAll(file)
+			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
-					"message": "Failed to create upload directory",
+					"message": "Failed to read file",
 				})
 				return
 			}
 
-			// Save file
-			dst := filepath.Join(uploadDir, filename)
-			if err := c.SaveUploadedFile(resumeFile, dst); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"success": false,
-					"message": "Failed to save file",
-					"error":   err.Error(),
-				})
-				return
+			// Set resume data in request
+			req.Resume = fileBytes
+			req.ResumeName = resumeFile.Filename
+			req.ResumeType = resumeFile.Header.Get("Content-Type")
+			if req.ResumeType == "" {
+				req.ResumeType = getMimeTypeFromExtension(resumeFile.Filename)
 			}
-
-			// Set resume path in request
-			resumePath := filepath.Join("resumes", filename)
-			req.Resume = resumePath
-			fmt.Printf("DEBUG: Resume path set: %s\n", resumePath)
+			req.ResumeSize = resumeFile.Size
+			fmt.Printf("DEBUG: Resume data set - Size: %d bytes, Type: %s\n", len(fileBytes), req.ResumeType)
 		} else {
 			fmt.Printf("DEBUG: No resume file found: %v\n", err)
+		}
+
+		// Handle profile photo upload
+		if profilePhotoFile, err := c.FormFile("profile_photo"); err == nil {
+			fmt.Printf("DEBUG: Profile photo found - Name: %s, Size: %d\n", profilePhotoFile.Filename, profilePhotoFile.Size)
+			// Validate file type
+			if !IsValidImageFile(profilePhotoFile.Filename) {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"message": "Invalid image type. Allowed: JPG, PNG, GIF, WebP",
+				})
+				return
+			}
+
+			// Validate file size (5MB max for images)
+			if profilePhotoFile.Size > 5*1024*1024 {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"message": "Image size exceeds maximum allowed size (5MB)",
+				})
+				return
+			}
+
+			// Read file into bytes
+			file, err := profilePhotoFile.Open()
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"message": "Failed to read image file",
+				})
+				return
+			}
+			defer file.Close()
+
+			fileBytes, err := io.ReadAll(file)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"message": "Failed to read image file",
+				})
+				return
+			}
+
+			// Set profile photo data in request
+			req.ProfilePhoto = fileBytes
+			req.ProfilePhotoName = profilePhotoFile.Filename
+			req.ProfilePhotoType = profilePhotoFile.Header.Get("Content-Type")
+			if req.ProfilePhotoType == "" {
+				req.ProfilePhotoType = getMimeTypeFromExtension(profilePhotoFile.Filename)
+			}
+			req.ProfilePhotoSize = profilePhotoFile.Size
+			fmt.Printf("DEBUG: Profile photo data set - Size: %d bytes, Type: %s\n", len(fileBytes), req.ProfilePhotoType)
 		}
 
 		// Handle other form fields
@@ -297,10 +340,6 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 			req.PhoneNumber = phoneNumber
 			fmt.Printf("DEBUG: Phone number from form: %s\n", phoneNumber)
 		}
-		if profilePhoto := c.PostForm("profile_photo"); profilePhoto != "" {
-			req.ProfilePhoto = profilePhoto
-			fmt.Printf("DEBUG: Profile photo from form: %s\n", profilePhoto)
-		}
 		if education := c.PostForm("education"); education != "" {
 			req.Education = education
 			fmt.Printf("DEBUG: Education from form: %s\n", education)
@@ -317,52 +356,36 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 			req.Github = github
 			fmt.Printf("DEBUG: GitHub from form: %s\n", github)
 		}
-		if experienceStr := c.PostForm("experience"); experienceStr != "" {
-			if experience, err := strconv.ParseFloat(experienceStr, 64); err == nil {
-				req.Experience = &experience
-				fmt.Printf("DEBUG: Experience from form: %f\n", experience)
-			}
-		}
-		if skillsStr := c.PostForm("skills"); skillsStr != "" {
-			// Parse skills as comma-separated string
-			skills := strings.Split(skillsStr, ",")
-			for i, skill := range skills {
-				skills[i] = strings.TrimSpace(skill)
-			}
-			req.Skills = skills
-			fmt.Printf("DEBUG: Skills from form: %v\n", skills)
-		}
 	} else {
-		fmt.Printf("DEBUG: Handling JSON data\n")
-		// Handle JSON data
+		// Handle JSON request
 		if err := c.ShouldBindJSON(&req); err != nil {
 			fmt.Printf("DEBUG: JSON binding error: %v\n", err)
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
-				"message": "Invalid request",
+				"message": "Invalid request format",
 				"error":   err.Error(),
-				"details": "Check that all required fields are present and properly formatted",
 			})
 			return
 		}
-		fmt.Printf("DEBUG: JSON request parsed successfully: %+v\n", req)
 	}
+
+	// Set user ID
+	req.UserID = userID
+
+	fmt.Printf("DEBUG: Final request: %+v\n", req)
 
 	// Get existing profile or create new one
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
-		fmt.Printf("DEBUG: Profile not found, creating new one\n")
 		// Create new profile
 		profile = &StudentProfile{
 			UserID: userID,
-			Name:   c.GetString("name"),
-			Email:  c.GetString("email"),
+			Name:   req.Name,
+			Email:  req.Email,
 		}
-	} else {
-		fmt.Printf("DEBUG: Existing profile found\n")
 	}
 
-	// Update profile fields
+	// Update profile fields from request
 	if req.Name != "" {
 		profile.Name = req.Name
 	}
@@ -374,12 +397,6 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	}
 	if req.PhoneNumber != "" {
 		profile.PhoneNumber = req.PhoneNumber
-	}
-	if req.ProfilePhoto != "" {
-		profile.ProfilePhoto = req.ProfilePhoto
-	}
-	if req.Resume != "" {
-		profile.Resume = req.Resume
 	}
 	if req.Education != "" {
 		profile.Education = req.Education
@@ -400,19 +417,29 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		profile.Skills = req.Skills
 	}
 
-	fmt.Printf("DEBUG: About to save profile: %+v\n", profile)
+	// Update file fields
+	if req.Resume != nil {
+		profile.Resume = req.Resume
+		profile.ResumeName = req.ResumeName
+		profile.ResumeType = req.ResumeType
+		profile.ResumeSize = req.ResumeSize
+	}
+	if req.ProfilePhoto != nil {
+		profile.ProfilePhoto = req.ProfilePhoto
+		profile.ProfilePhotoName = req.ProfilePhotoName
+		profile.ProfilePhotoType = req.ProfilePhotoType
+		profile.ProfilePhotoSize = req.ProfilePhotoSize
+	}
 
-	// Save profile
+	// Update profile
 	if profile.ID == "" {
 		err = h.service.CreateProfile(profile)
-		fmt.Printf("DEBUG: Creating new profile\n")
 	} else {
 		err = h.service.UpdateProfile(profile)
-		fmt.Printf("DEBUG: Updating existing profile\n")
 	}
 
 	if err != nil {
-		fmt.Printf("DEBUG: Profile save error: %v\n", err)
+		fmt.Printf("DEBUG: Service error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to update profile",
@@ -421,7 +448,8 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Profile saved successfully\n")
+	fmt.Printf("DEBUG: Profile updated successfully: %+v\n", profile)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Profile updated successfully",
@@ -547,38 +575,30 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 		return
 	}
 
-	// Generate unique filename
-	timestamp := time.Now().UnixNano()
-	ext := filepath.Ext(fileHeader.Filename)
-	baseName := strings.TrimSuffix(fileHeader.Filename, ext)
-	safeBaseName := strings.ReplaceAll(baseName, " ", "_")
-	filename := fmt.Sprintf("%d_%s%s", timestamp, safeBaseName, ext)
+	// Read file into bytes
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Failed to read file",
+		})
+		return
+	}
+	defer file.Close()
 
-	// Create uploads/resumes directory if it doesn't exist
-	uploadDir := "uploads/resumes"
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "Failed to create upload directory",
+			"message": "Failed to read file",
 		})
 		return
 	}
 
-	// Save file
-	dst := filepath.Join(uploadDir, filename)
-	if err := c.SaveUploadedFile(fileHeader, dst); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to save file",
-			"error":   err.Error(),
-		})
-		return
-	}
-
-	// Update student profile with resume path
+	// Get or create student profile
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
-		// If profile doesn't exist, create it
+		// Create new profile
 		profile = &StudentProfile{
 			UserID: userID,
 			Name:   c.GetString("name"),
@@ -586,13 +606,24 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 		}
 	}
 
-	// Set resume path (relative to uploads directory)
-	profile.Resume = filepath.Join("resumes", filename)
+	// Update resume data
+	profile.Resume = fileBytes
+	profile.ResumeName = fileHeader.Filename
+	profile.ResumeType = fileHeader.Header.Get("Content-Type")
+	if profile.ResumeType == "" {
+		profile.ResumeType = getMimeTypeFromExtension(fileHeader.Filename)
+	}
+	profile.ResumeSize = fileHeader.Size
 
-	// Update or create profile
+	// Save profile
 	if profile.ID == "" {
 		err = h.service.CreateProfile(profile)
 	} else {
+		// Update the profile with resume data
+		profile.Resume = fileBytes
+		profile.ResumeName = fileHeader.Filename
+		profile.ResumeType = profile.ResumeType
+		profile.ResumeSize = fileHeader.Size
 		err = h.service.UpdateProfile(profile)
 	}
 
@@ -609,9 +640,10 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 		"success": true,
 		"message": "Resume uploaded successfully",
 		"data": gin.H{
-			"resume_path": profile.Resume,
-			"file_name":   filename,
-			"file_size":   fileHeader.Size,
+			"resume_name": profile.ResumeName,
+			"resume_type": profile.ResumeType,
+			"resume_size": profile.ResumeSize,
+			"file_url":    fmt.Sprintf("/api/files/serve/resume/%s", userID),
 		},
 	})
 }
@@ -700,36 +732,7 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 		return
 	}
 
-	// Generate unique filename
-	timestamp := time.Now().UnixNano()
-	ext = filepath.Ext(certificateFile.Filename)
-	baseName := strings.TrimSuffix(certificateFile.Filename, ext)
-	safeBaseName := strings.ReplaceAll(baseName, " ", "_")
-	filename := fmt.Sprintf("%d_%s%s", timestamp, safeBaseName, ext)
-
-	// Create uploads/certificates directory if it doesn't exist
-	uploadDir := "uploads/certificates"
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to create upload directory",
-		})
-		return
-	}
-
-	// Save file
-	dst := filepath.Join(uploadDir, filename)
-	if err := c.SaveUploadedFile(certificateFile, dst); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to save file",
-			"error":   err.Error(),
-		})
-		return
-	}
-
-	// Set certificate file path
-	certificatePath := filepath.Join("certificates", filename)
+	// File system storage is no longer needed - we store binary data directly
 
 	// Get or create student profile
 	profile, err := h.service.GetProfile(userID)
@@ -751,11 +754,42 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 		}
 	}
 
+	// Read file into bytes
+	file, err := certificateFile.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Failed to read certificate file",
+		})
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to read certificate file",
+		})
+		return
+	}
+
+	// Get file metadata
+	fileName := certificateFile.Filename
+	fileType := certificateFile.Header.Get("Content-Type")
+	if fileType == "" {
+		fileType = getMimeTypeFromExtension(fileName)
+	}
+	fileSize := certificateFile.Size
+
 	// Create certificate record
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
 		Name:             certificateName,
-		File:             certificatePath,
+		File:             fileBytes,
+		FileName:         fileName,
+		FileType:         fileType,
+		FileSize:         fileSize,
 		IssueDate:        issueDate,
 	}
 
@@ -775,7 +809,7 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 		"message": "Certificate uploaded successfully",
 		"data": gin.H{
 			"certificate": certificate,
-			"file_path":   certificatePath,
+			"file_url":    fmt.Sprintf("/api/files/serve/certificate/%s", certificate.ID),
 		},
 	})
 }
@@ -796,15 +830,51 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 		return
 	}
 
-	var req struct {
-		ResumePath string `json:"resume_path" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
+	// Get the file from the request
+	fileHeader, err := c.FormFile("resume")
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "Invalid request",
+			"message": "Resume file is required",
 			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Validate file type
+	if !IsValidResumeFile(fileHeader.Filename) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid file type. Allowed: PDF, DOC, DOCX",
+		})
+		return
+	}
+
+	// Validate file size (10MB max)
+	if fileHeader.Size > 10*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File size exceeds maximum allowed size (10MB)",
+		})
+		return
+	}
+
+	// Read file into bytes
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Failed to read file",
+		})
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to read file",
 		})
 		return
 	}
@@ -820,8 +890,14 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 		}
 	}
 
-	// Update resume path
-	profile.Resume = req.ResumePath
+	// Update resume data
+	profile.Resume = fileBytes
+	profile.ResumeName = fileHeader.Filename
+	profile.ResumeType = fileHeader.Header.Get("Content-Type")
+	if profile.ResumeType == "" {
+		profile.ResumeType = getMimeTypeFromExtension(fileHeader.Filename)
+	}
+	profile.ResumeSize = fileHeader.Size
 
 	// Save profile
 	if profile.ID == "" {
@@ -936,37 +1012,35 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 		return
 	}
 
-	// Generate unique filename
-	timestamp := time.Now().UnixNano()
-	ext = filepath.Ext(certificateFile.Filename)
-	baseName := strings.TrimSuffix(certificateFile.Filename, ext)
-	safeBaseName := strings.ReplaceAll(baseName, " ", "_")
-	filename := fmt.Sprintf("%d_%s%s", timestamp, safeBaseName, ext)
+	// Read file into bytes
+	file, err := certificateFile.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Failed to read certificate file",
+		})
+		return
+	}
+	defer file.Close()
 
-	// Create uploads/certificates directory if it doesn't exist
-	uploadDir := "uploads/certificates"
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "Failed to create upload directory",
+			"message": "Failed to read certificate file",
 		})
 		return
 	}
 
-	// Save file
-	dst := filepath.Join(uploadDir, filename)
-	if err := c.SaveUploadedFile(certificateFile, dst); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to save file",
-			"error":   err.Error(),
-		})
-		return
+	// Get file metadata
+	fileName := certificateFile.Filename
+	fileType := certificateFile.Header.Get("Content-Type")
+	if fileType == "" {
+		fileType = getMimeTypeFromExtension(fileName)
 	}
+	fileSize := certificateFile.Size
 
-	// Set certificate file path
-	certificatePath := filepath.Join("certificates", filename)
-	fmt.Printf("DEBUG: Certificate path set: %s\n", certificatePath)
+	fmt.Printf("DEBUG: File read successfully - Size: %d bytes, Type: %s\n", len(fileBytes), fileType)
 
 	// Get or create student profile
 	profile, err := h.service.GetProfile(userID)
@@ -996,7 +1070,10 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
 		Name:             certificateName,
-		File:             certificatePath,
+		File:             fileBytes,
+		FileName:         fileName,
+		FileType:         fileType,
+		FileSize:         fileSize,
 		IssueDate:        issueDate,
 	}
 
@@ -1019,7 +1096,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 		"message": "Certificate uploaded successfully",
 		"data": gin.H{
 			"certificate": certificate,
-			"file_path":   certificatePath,
+			"file_url":    fmt.Sprintf("/api/files/serve/certificate/%s", certificate.ID),
 		},
 	})
 }
@@ -1043,24 +1120,104 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 
 	fmt.Printf("DEBUG: AddCertificateToProfile - UserID: %s\n", userID)
 
-	// Parse JSON request
-	var req struct {
-		Name      string `json:"name" binding:"required"`
-		File      string `json:"file" binding:"required"`
-		IssueDate string `json:"issue_date" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		fmt.Printf("DEBUG: JSON binding error: %v\n", err)
+	// Parse multipart form data for file upload
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		fmt.Printf("DEBUG: ParseMultipartForm error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"message": "Invalid request",
+			"message": "Failed to parse form data",
 			"error":   err.Error(),
 		})
 		return
 	}
 
-	fmt.Printf("DEBUG: Certificate request - Name: %s, File: %s, IssueDate: %s\n", req.Name, req.File, req.IssueDate)
+	// Get certificate file
+	certificateFile, err := c.FormFile("file")
+	if err != nil {
+		fmt.Printf("DEBUG: Certificate file error: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Certificate file is required",
+		})
+		return
+	}
+
+	// Get certificate details from form
+	certificateName := c.PostForm("name")
+	issueDate := c.PostForm("issue_date")
+
+	if certificateName == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Certificate name is required",
+		})
+		return
+	}
+
+	if issueDate == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Issue date is required",
+		})
+		return
+	}
+
+	fmt.Printf("DEBUG: Certificate request - Name: %s, File: %s, IssueDate: %s\n", certificateName, certificateFile.Filename, issueDate)
+
+	// Validate file type
+	ext := strings.ToLower(filepath.Ext(certificateFile.Filename))
+	allowedTypes := []string{".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"}
+	isValid := false
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid file type. Allowed: PDF, DOC, DOCX, JPG, JPEG, PNG",
+		})
+		return
+	}
+
+	// Validate file size (10MB max)
+	if certificateFile.Size > 10*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File size exceeds maximum allowed size (10MB)",
+		})
+		return
+	}
+
+	// Read file into bytes
+	file, err := certificateFile.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Failed to read certificate file",
+		})
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to read certificate file",
+		})
+		return
+	}
+
+	// Get file metadata
+	fileName := certificateFile.Filename
+	fileType := certificateFile.Header.Get("Content-Type")
+	if fileType == "" {
+		fileType = getMimeTypeFromExtension(fileName)
+	}
+	fileSize := certificateFile.Size
 
 	// Get or create student profile
 	profile, err := h.service.GetProfile(userID)
@@ -1089,9 +1246,12 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	// Create certificate record
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
-		Name:             req.Name,
-		File:             req.File,
-		IssueDate:        req.IssueDate,
+		Name:             certificateName,
+		File:             fileBytes,
+		FileName:         fileName,
+		FileType:         fileType,
+		FileSize:         fileSize,
+		IssueDate:        issueDate,
 	}
 
 	// Save certificate to database
@@ -1131,6 +1291,45 @@ func IsValidResumeFile(filename string) bool {
 func IsValidDocumentFile(filename string) bool {
 	ext := strings.ToLower(filepath.Ext(filename))
 	allowedTypes := []string{".pdf", ".doc", ".docx", ".txt", ".rtf"}
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			return true
+		}
+	}
+	return false
+}
+
+// Helper function to get MIME type from file extension
+func getMimeTypeFromExtension(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	case ".pdf":
+		return "application/pdf"
+	case ".doc":
+		return "application/msword"
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".txt":
+		return "text/plain"
+	case ".rtf":
+		return "application/rtf"
+	default:
+		return "application/octet-stream"
+	}
+}
+
+// Helper function to validate image file type
+func IsValidImageFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
 	for _, allowedExt := range allowedTypes {
 		if ext == allowedExt {
 			return true

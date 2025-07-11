@@ -8,26 +8,34 @@ import (
 
 type EmployerProfile struct {
 	ID                 string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID             string         `gorm:"type:uuid;not null;uniqueIndex" json:"user_id"`
-	CompanyName        string         `gorm:"column:company_name" json:"company_name"`
-	Logo               string         `json:"logo"`
-	WebsiteUrl         string         `gorm:"column:website_url" json:"website_url"`
+	UserID             string         `json:"user_id" binding:"required"`
+	CompanyName        string         `json:"company_name"`
+	Logo               []byte         `json:"logo" gorm:"type:bytea"`
+	LogoName           string         `json:"logo_name"`
+	LogoType           string         `json:"logo_type"`
+	LogoSize           int64          `json:"logo_size"`
+	WebsiteURL         string         `json:"website_url"`
 	Industry           string         `json:"industry"`
-	CompanySize        string         `gorm:"column:company_size" json:"company_size"`
-	CompanyDescription string         `gorm:"column:company_description" json:"company_description"`
-	RecruiterName      string         `gorm:"column:recruiter_name" json:"recruiter_name"`
+	CompanySize        string         `json:"company_size"`
+	CompanyDescription string         `json:"company_description"`
+	RecruiterName      string         `json:"recruiter_name"`
 	Designation        string         `json:"designation"`
-	OfficialEmail      string         `gorm:"column:official_email" json:"official_email"`
-	PhoneNumber        string         `gorm:"column:phone_number" json:"phone_number"`
-	LinkedinProfile    string         `gorm:"column:linkedin_profile" json:"linkedin_profile"`
-	GstinNumber        string         `gorm:"column:gstin_number" json:"gstin_number"`
-	CompanyAddress     string         `gorm:"column:company_address" json:"company_address"`
-	City               string         `gorm:"column:city" json:"city"`
-	State              string         `gorm:"column:state" json:"state"`
-	Pincode            string         `gorm:"column:pincode" json:"pincode"`
-	JobCategories      pq.StringArray `gorm:"type:text[];column:job_categories" json:"job_categories"`
-	HiringLocations    pq.StringArray `gorm:"type:text[];column:hiring_locations" json:"hiring_locations"`
-	HiringTypes        pq.StringArray `gorm:"type:text[];column:hiring_types" json:"hiring_types"`
-	CreatedAt          time.Time      `gorm:"column:created_at" json:"created_at"`
-	UpdatedAt          time.Time      `gorm:"column:updated_at" json:"updated_at"`
+	OfficialEmail      string         `json:"official_email"`
+	PhoneNumber        string         `json:"phone_number"`
+	LinkedinProfile    string         `json:"linkedin_profile"`
+	JobCategories      pq.StringArray `gorm:"type:text[]" json:"job_categories"`
+	HiringLocations    pq.StringArray `gorm:"type:text[]" json:"hiring_locations"`
+	HiringTypes        pq.StringArray `gorm:"type:text[]" json:"hiring_types"`
+	GSTINNumber        string         `json:"gstin_number"`
+	CompanyAddress     string         `json:"company_address"`
+	City               string         `json:"city"`
+	State              string         `json:"state"`
+	Pincode            string         `json:"pincode"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
+}
+
+// TableName specifies the database table name for EmployerProfile
+func (EmployerProfile) TableName() string {
+	return "employer_profiles"
 }

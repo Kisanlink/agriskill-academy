@@ -1,21 +1,33 @@
 package auth
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
-	ID        string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `gorm:"uniqueIndex" json:"email"`
-	Password  string    `json:"-"` // Stored locally but not exposed in JSON
-	Role      string    `json:"-"` // Stored locally but not exposed in JSON
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	Name       string    `json:"name"`
+	Username   string    `json:"username" gorm:"uniqueIndex"`
+	Email      string    `json:"email" binding:"required,email"`
+	Password   string    `json:"password" binding:"required"`
+	Role       string    `json:"role" binding:"required"`
+	Avatar     []byte    `json:"avatar" gorm:"type:bytea"`
+	AvatarName string    `json:"avatar_name"`
+	AvatarType string    `json:"avatar_type"`
+	AvatarSize int64     `json:"avatar_size"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// TableName specifies the database table name for User
+func (User) TableName() string {
+	return "users"
 }
 
 type SignupRequest struct {
 	Name            string `json:"name" binding:"required"`
-	Username        string `json:"user_name" binding:"required"` // Username for AAA service
-	Email           string `json:"email" binding:"required"`     // Email for our local DB
+	Username        string `json:"username" binding:"required"` // Username for AAA service
+	Email           string `json:"email" binding:"required"`    // Email for our local DB
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
 	Role            string `json:"role" binding:"required,oneof=student employer"` // "student" or "employer"

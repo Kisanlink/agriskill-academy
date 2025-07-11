@@ -20,5 +20,6 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *StudentProfileHandler) {
 		students.POST("/me/certificate", handler.UploadMyCertificate)
 		students.POST("/me/certificates/upload", handler.UploadCertificate)
 		students.POST("/me/certificates/add", handler.AddCertificateToProfile)
+		students.DELETE("/me/certificates/:certificateId", handler.DeleteMyCertificate)
 	}
 }

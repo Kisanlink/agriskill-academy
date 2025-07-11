@@ -5,11 +5,10 @@ package application
 import (
 	"asa/pkg/authz"
 	"fmt"
+	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"mime/multipart"
 
@@ -106,42 +105,40 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 		return
 	}
 
-	// Create uploads/resumes directory if it doesn't exist
-	uploadDir := "uploads/resumes"
-	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
-		fmt.Printf("DEBUG: Failed to create upload directory: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create upload directory"})
+	// Read file into bytes
+	fileReader, err := file.Open()
+	if err != nil {
+		fmt.Printf("DEBUG: Failed to open file: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to read file"})
+		return
+	}
+	defer fileReader.Close()
+
+	fileBytes, err := io.ReadAll(fileReader)
+	if err != nil {
+		fmt.Printf("DEBUG: Failed to read file bytes: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read file"})
 		return
 	}
 
-	// Generate unique filename
-	timestamp := time.Now().UnixNano()
-	ext := filepath.Ext(file.Filename)
-	baseName := strings.TrimSuffix(file.Filename, ext)
-	safeBaseName := strings.ReplaceAll(baseName, " ", "_")
-	filename := fmt.Sprintf("%d_%s_%s%s", timestamp, studentID, safeBaseName, ext)
+	fmt.Printf("DEBUG: File read successfully - Size: %d bytes\n", len(fileBytes))
 
-	fmt.Printf("DEBUG: Generated filename: %s\n", filename)
-
-	// Save file
-	dst := filepath.Join(uploadDir, filename)
-	if err := c.SaveUploadedFile(file, dst); err != nil {
-		fmt.Printf("DEBUG: File save error: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to upload resume"})
-		return
+	// Get file metadata
+	fileName := file.Filename
+	fileType := file.Header.Get("Content-Type")
+	if fileType == "" {
+		fileType = getMimeTypeFromExtension(fileName)
 	}
-
-	fmt.Printf("DEBUG: File saved successfully to: %s\n", dst)
-
-	// Store relative path for database
-	resumePath := filepath.Join("resumes", filename)
-	fmt.Printf("DEBUG: Resume path for database: %s\n", resumePath)
+	fileSize := file.Size
 
 	app := &Application{
-		JobID:       jobId,
-		StudentID:   studentID,
-		CoverLetter: coverLetter,
-		ResumeFile:  resumePath,
+		JobID:          jobId,
+		StudentID:      studentID,
+		CoverLetter:    coverLetter,
+		ResumeFile:     fileBytes,
+		ResumeFileName: fileName,
+		ResumeFileType: fileType,
+		ResumeFileSize: fileSize,
 	}
 
 	fmt.Printf("DEBUG: Application object created: %+v\n", app)
@@ -153,7 +150,19 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 	}
 
 	fmt.Printf("DEBUG: Application submitted successfully with ID: %s\n", app.ID)
-	c.JSON(http.StatusCreated, gin.H{"success": true, "message": "Application submitted successfully", "application": app})
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "Application submitted successfully",
+		"application": gin.H{
+			"id":               app.ID,
+			"job_id":           app.JobID,
+			"student_id":       app.StudentID,
+			"resume_file_name": app.ResumeFileName,
+			"resume_file_type": app.ResumeFileType,
+			"resume_file_size": app.ResumeFileSize,
+			"file_url":         fmt.Sprintf("/api/files/serve/application-resume/%s", app.ID),
+		},
+	})
 }
 
 // Helper function to validate resume file type
@@ -166,6 +175,21 @@ func IsValidResumeFile(filename string) bool {
 		}
 	}
 	return false
+}
+
+// Helper function to get MIME type from file extension
+func getMimeTypeFromExtension(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".pdf":
+		return "application/pdf"
+	case ".doc":
+		return "application/msword"
+	case ".docx":
+		return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 // GET /applications/my

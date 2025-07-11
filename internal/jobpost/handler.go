@@ -28,7 +28,7 @@ func getJWT(c *gin.Context) string {
 
 // POST /jobs
 func (h *JobPostHandler) Create(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -49,8 +49,8 @@ func (h *JobPostHandler) Create(c *gin.Context) {
 	}
 
 	// Get employer details from context or database
-	employerName := c.GetString("user_name")
-	employerEmail := c.GetString("user_email")
+	employerName := c.GetString("username")
+	employerEmail := c.GetString("email")
 
 	job, err := h.service.CreateJobPost(&req, employerID, employerName, employerEmail)
 	if err != nil {
@@ -63,7 +63,7 @@ func (h *JobPostHandler) Create(c *gin.Context) {
 
 // POST /jobs/draft
 func (h *JobPostHandler) CreateDraft(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -87,8 +87,8 @@ func (h *JobPostHandler) CreateDraft(c *gin.Context) {
 	}
 
 	// Get employer details from context or database
-	employerName := c.GetString("user_name")
-	employerEmail := c.GetString("user_email")
+	employerName := c.GetString("username")
+	employerEmail := c.GetString("email")
 
 	job, err := h.service.CreateDraft(&req, employerID, employerName, employerEmail)
 	if err != nil {
@@ -101,7 +101,7 @@ func (h *JobPostHandler) CreateDraft(c *gin.Context) {
 
 // POST /jobs/publish
 func (h *JobPostHandler) Publish(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -122,8 +122,8 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 	}
 
 	// Get employer details from context or database
-	employerName := c.GetString("user_name")
-	employerEmail := c.GetString("user_email")
+	employerName := c.GetString("username")
+	employerEmail := c.GetString("email")
 
 	job, err := h.service.CreateJobPost(&req, employerID, employerName, employerEmail)
 	if err != nil {
@@ -139,7 +139,7 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 
 // PUT /jobs/:id
 func (h *JobPostHandler) Update(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "update", jobID, jwtToken)
@@ -185,7 +185,7 @@ func (h *JobPostHandler) Update(c *gin.Context) {
 
 // DELETE /jobs/:id
 func (h *JobPostHandler) Delete(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "delete", jobID, jwtToken)
@@ -225,7 +225,7 @@ func (h *JobPostHandler) Delete(c *gin.Context) {
 
 // GET /jobs/:id
 func (h *JobPostHandler) GetByID(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", jobID, jwtToken)
@@ -245,7 +245,7 @@ func (h *JobPostHandler) GetByID(c *gin.Context) {
 
 // GET /jobs/my-posts
 func (h *JobPostHandler) GetByEmployer(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -269,7 +269,7 @@ func (h *JobPostHandler) GetByEmployer(c *gin.Context) {
 
 // GET /jobs - Get all published jobs (for students)
 func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -372,7 +372,7 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 
 // GET /jobs/featured
 func (h *JobPostHandler) GetFeaturedJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -398,7 +398,7 @@ func (h *JobPostHandler) GetFeaturedJobs(c *gin.Context) {
 
 // GET /jobs/recent
 func (h *JobPostHandler) GetRecentJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -424,7 +424,7 @@ func (h *JobPostHandler) GetRecentJobs(c *gin.Context) {
 
 // POST /jobs/search
 func (h *JobPostHandler) Search(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -450,7 +450,7 @@ func (h *JobPostHandler) Search(c *gin.Context) {
 
 // POST /jobs/advanced-search
 func (h *JobPostHandler) AdvancedSearch(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -475,7 +475,7 @@ func (h *JobPostHandler) AdvancedSearch(c *gin.Context) {
 
 // GET /jobs/search-filters
 func (h *JobPostHandler) GetSearchFilters(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -494,7 +494,7 @@ func (h *JobPostHandler) GetSearchFilters(c *gin.Context) {
 
 // GET /jobs/trending
 func (h *JobPostHandler) GetTrendingJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -519,7 +519,7 @@ func (h *JobPostHandler) GetTrendingJobs(c *gin.Context) {
 
 // GET /jobs/:id/similar
 func (h *JobPostHandler) GetSimilarJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", jobID, jwtToken)
@@ -546,7 +546,7 @@ func (h *JobPostHandler) GetSimilarJobs(c *gin.Context) {
 
 // POST /jobs/recommendations
 func (h *JobPostHandler) GetRecommendedJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -578,7 +578,7 @@ func (h *JobPostHandler) GetRecommendedJobs(c *gin.Context) {
 
 // POST /jobs/alerts
 func (h *JobPostHandler) CreateJobAlert(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -610,7 +610,7 @@ func (h *JobPostHandler) CreateJobAlert(c *gin.Context) {
 
 // PUT /jobs/alerts/:id
 func (h *JobPostHandler) UpdateJobAlert(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	alertID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "update", alertID, jwtToken)
@@ -656,7 +656,7 @@ func (h *JobPostHandler) UpdateJobAlert(c *gin.Context) {
 
 // DELETE /jobs/alerts/:id
 func (h *JobPostHandler) DeleteJobAlert(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	alertID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "delete", alertID, jwtToken)
@@ -696,7 +696,7 @@ func (h *JobPostHandler) DeleteJobAlert(c *gin.Context) {
 
 // GET /jobs/alerts/:id
 func (h *JobPostHandler) GetJobAlertByID(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	alertID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "read", alertID, jwtToken)
@@ -730,7 +730,7 @@ func (h *JobPostHandler) GetJobAlertByID(c *gin.Context) {
 
 // GET /jobs/alerts
 func (h *JobPostHandler) GetJobAlertsByUser(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -757,7 +757,7 @@ func (h *JobPostHandler) GetJobAlertsByUser(c *gin.Context) {
 
 // GET /jobs/drafts
 func (h *JobPostHandler) GetDrafts(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -782,7 +782,7 @@ func (h *JobPostHandler) GetDrafts(c *gin.Context) {
 
 // POST /jobs/:id/publish
 func (h *JobPostHandler) PublishDraft(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "update", jobID, jwtToken)

@@ -38,7 +38,7 @@ func VerifyPassword(hashedPassword, password string) error {
 }
 
 type AuthService interface {
-	Login(email, password string) (*User, string, error)
+	Login(username, password string) (*User, string, error)
 	Signup(req *SignupRequest) (*User, string, error)
 	SignupWithID(req *SignupRequest, userID string, phoneNumber string) (*User, string, error)
 	VerifyToken(tokenStr string) (bool, error)
@@ -46,6 +46,7 @@ type AuthService interface {
 	ResetPassword(token, newPassword string) error
 	UpdateProfile(userID string, req *UpdateProfileRequest) (*User, error)
 	GetUserByEmail(email string) (*User, error)
+	GetUserByUsername(username string) (*User, error)
 	GetUserByID(userID string) (*User, error)
 	ListAllUsers() ([]User, error)
 }
@@ -79,11 +80,12 @@ func generateToken(user *User) (string, error) {
 	roles := []string{user.Role}
 
 	claims := jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"role":    user.Role, // Keep single role for backward compatibility
-		"roles":   roles,     // Add roles array for middleware
-		"exp":     time.Now().Add(time.Hour * 72).Unix(),
+		"user_id":  user.ID,
+		"username": user.Username,
+		"email":    user.Email,
+		"role":     user.Role, // Keep single role for backward compatibility
+		"roles":    roles,     // Add roles array for middleware
+		"exp":      time.Now().Add(time.Hour * 72).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(getSecret()))
@@ -120,6 +122,11 @@ func (s *authService) GetUserByEmail(email string) (*User, error) {
 	return s.repo.FindByEmail(email)
 }
 
+// GetUserByUsername retrieves a user by username
+func (s *authService) GetUserByUsername(username string) (*User, error) {
+	return s.repo.FindByUsername(username)
+}
+
 // GetUserByID retrieves a user by ID
 func (s *authService) GetUserByID(userID string) (*User, error) {
 	return s.repo.FindByID(userID)
@@ -133,8 +140,8 @@ func (s *authService) ListAllUsers() ([]User, error) {
 // Password functions removed - now handled by AAA service
 
 // Login
-func (s *authService) Login(email, password string) (*User, string, error) {
-	user, err := s.repo.FindByEmail(email)
+func (s *authService) Login(username, password string) (*User, string, error) {
+	user, err := s.repo.FindByUsername(username)
 	if err != nil {
 		return nil, "", errors.New("invalid credentials")
 	}
@@ -168,7 +175,7 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 	}
 
 	// 3. Create user (store hashed password and role locally as well)
-	fmt.Printf("🔍 Creating user with name: %s, email: %s\n", req.Name, req.Email)
+	fmt.Printf("🔍 Creating user with name: %s, username: %s, email: %s\n", req.Name, req.Username, req.Email)
 
 	// Hash the password using the same method as AAA service
 	hashedPassword, err := HashPassword(req.Password)
@@ -180,6 +187,7 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 
 	user := &User{
 		Name:     req.Name,
+		Username: req.Username,
 		Email:    req.Email,
 		Password: hashedPassword, // Store hashed password locally
 		Role:     req.Role,       // Store role locally
@@ -215,7 +223,7 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		profile := &employerprofile.EmployerProfile{
 			UserID:             user.ID,
 			CompanyName:        req.CompanyName,
-			WebsiteUrl:         req.Website,
+			WebsiteURL:         req.Website,
 			Industry:           req.IndustryType,
 			CompanySize:        req.CompanySize,
 			CompanyDescription: "", // optional
@@ -224,7 +232,7 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			OfficialEmail:      req.Email,
 			PhoneNumber:        "", // optional
 			LinkedinProfile:    "",
-			GstinNumber:        req.GstinNumber,
+			GSTINNumber:        req.GstinNumber,
 			CompanyAddress:     req.CompanyAddress,
 			City:               req.City,
 			State:              req.State,
@@ -258,8 +266,8 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			Email:        user.Email,
 			Location:     location,
 			Skills:       []string{},
-			Resume:       "",
-			ProfilePhoto: "",
+			Resume:       nil, // Binary data, not string
+			ProfilePhoto: nil, // Binary data, not string
 			Experience:   0.0,
 			Education:    "",
 			Portfolio:    "",
@@ -300,7 +308,7 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 	}
 
 	// 3. Create user with the specified ID
-	fmt.Printf("🔍 Creating user with ID: %s, name: %s, email: %s\n", userID, req.Name, req.Email)
+	fmt.Printf("🔍 Creating user with ID: %s, name: %s, username: %s, email: %s\n", userID, req.Name, req.Username, req.Email)
 
 	// Hash the password using the same method as AAA service
 	hashedPassword, err := HashPassword(req.Password)
@@ -312,6 +320,7 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 
 	user := &User{
 		Name:     req.Name,
+		Username: req.Username,
 		Email:    req.Email,
 		Password: hashedPassword, // Store hashed password locally
 		Role:     req.Role,       // Store role locally
@@ -347,7 +356,7 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 		profile := &employerprofile.EmployerProfile{
 			UserID:             user.ID,
 			CompanyName:        req.CompanyName,
-			WebsiteUrl:         req.Website,
+			WebsiteURL:         req.Website,
 			Industry:           req.IndustryType,
 			CompanySize:        req.CompanySize,
 			CompanyDescription: "", // optional
@@ -356,7 +365,7 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 			OfficialEmail:      req.Email,
 			PhoneNumber:        phoneNumber, // <-- set here
 			LinkedinProfile:    "",
-			GstinNumber:        req.GstinNumber,
+			GSTINNumber:        req.GstinNumber,
 			CompanyAddress:     req.CompanyAddress,
 			City:               req.City,
 			State:              req.State,
@@ -391,8 +400,8 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 			Location:     location,
 			PhoneNumber:  phoneNumber, // <-- set here
 			Skills:       []string{},
-			Resume:       "",
-			ProfilePhoto: "",
+			Resume:       nil, // Binary data, not string
+			ProfilePhoto: nil, // Binary data, not string
 			Experience:   0.0,
 			Education:    "",
 			Portfolio:    "",
@@ -504,7 +513,7 @@ func (s *authService) updateEmployerProfile(userID string, req *UpdateProfileReq
 		profile.LinkedinProfile = req.LinkedinProfile
 	}
 	if req.GstinNumber != "" {
-		profile.GstinNumber = req.GstinNumber
+		profile.GSTINNumber = req.GstinNumber
 	}
 	if req.CompanyAddress != "" {
 		profile.CompanyAddress = req.CompanyAddress
@@ -519,7 +528,7 @@ func (s *authService) updateEmployerProfile(userID string, req *UpdateProfileReq
 		profile.Pincode = req.Pincode
 	}
 	if req.Website != "" {
-		profile.WebsiteUrl = req.Website
+		profile.WebsiteURL = req.Website
 	}
 	if len(req.JobCategories) > 0 {
 		profile.JobCategories = req.JobCategories
@@ -558,12 +567,14 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 	if req.LinkedinProfile != "" {
 		profile.Linkedin = req.LinkedinProfile
 	}
-	if req.ProfilePhoto != "" {
-		profile.ProfilePhoto = req.ProfilePhoto
-	}
-	if req.Resume != "" {
-		profile.Resume = req.Resume
-	}
+	// ProfilePhoto and Resume are now binary data, not strings
+	// These should be handled by the file upload handlers, not the auth service
+	// if req.ProfilePhoto != "" {
+	//     profile.ProfilePhoto = req.ProfilePhoto
+	// }
+	// if req.Resume != "" {
+	//     profile.Resume = req.Resume
+	// }
 	if len(req.Skills) > 0 {
 		profile.Skills = req.Skills
 	}

@@ -11,6 +11,7 @@ type StudentProfileRepository interface {
 	Update(profile *StudentProfile) error
 	Create(profile *StudentProfile) error
 	AddCertificate(cert *Certificate) error
+	DeleteCertificate(certID string, userID string) error
 }
 
 type studentProfileRepository struct {
@@ -69,4 +70,19 @@ func (r *studentProfileRepository) AddCertificate(cert *Certificate) error {
 	// Ensure ID is empty so database generates proper UUID
 	cert.ID = ""
 	return r.db.Create(cert).Error
+}
+
+func (r *studentProfileRepository) DeleteCertificate(certID string, userID string) error {
+	// First verify that the certificate belongs to the user
+	var cert Certificate
+	err := r.db.Joins("JOIN student_profiles ON certificates.student_profile_id = student_profiles.id").
+		Where("certificates.id = ? AND student_profiles.user_id = ?", certID, userID).
+		First(&cert).Error
+
+	if err != nil {
+		return err
+	}
+
+	// Delete the certificate
+	return r.db.Delete(&cert).Error
 }

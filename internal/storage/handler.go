@@ -5,6 +5,7 @@ package storage
 import (
 	"asa/pkg/authz"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -125,6 +126,84 @@ func (h *StorageHandler) UploadImage(c *gin.Context) {
 		FileSize: fileInfo.Size,
 		FileType: fileInfo.Type,
 		FileURL:  fileInfo.URL,
+	})
+}
+
+// POST /upload/image/profile-photo - Special endpoint for profile photo upload
+func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Profile photo file is required"})
+		return
+	}
+
+	// Validate file type
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
+	isValid := false
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid image format. Allowed: JPG, PNG, GIF, WebP"})
+		return
+	}
+
+	// Validate file size (5MB max)
+	if fileHeader.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Image size exceeds maximum allowed size (5MB)"})
+		return
+	}
+
+	// Read file into byte array
+	file, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read file"})
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read file"})
+		return
+	}
+
+	// Get file metadata
+	fileName := fileHeader.Filename
+	fileType := fileHeader.Header.Get("Content-Type")
+	if fileType == "" {
+		fileType = getMimeTypeFromExtension(fileName)
+	}
+	fileSize := fileHeader.Size
+
+	// Return the binary data for the frontend to use in profile update
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Profile photo processed successfully",
+		"data": gin.H{
+			"file_data": fileBytes,
+			"file_name": fileName,
+			"file_type": fileType,
+			"file_size": fileSize,
+		},
 	})
 }
 

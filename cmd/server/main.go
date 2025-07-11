@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -21,8 +22,41 @@ import (
 	"asa/internal/studentprofile"
 	"asa/internal/worker"
 
+	"mime/multipart"
+
 	"github.com/gin-gonic/gin"
 )
+
+// Mock storage service for compatibility with existing storage handler
+type mockStorageService struct{}
+
+func (m *mockStorageService) SaveFile(fileHeader *multipart.FileHeader, folder string) (string, error) {
+	return "", fmt.Errorf("file uploads are now handled directly in profile handlers")
+}
+
+func (m *mockStorageService) SaveImage(fileHeader *multipart.FileHeader, folder string) (string, error) {
+	return "", fmt.Errorf("file uploads are now handled directly in profile handlers")
+}
+
+func (m *mockStorageService) SaveDocument(fileHeader *multipart.FileHeader, folder string) (string, error) {
+	return "", fmt.Errorf("file uploads are now handled directly in profile handlers")
+}
+
+func (m *mockStorageService) SaveResume(fileHeader *multipart.FileHeader, folder string) (string, error) {
+	return "", fmt.Errorf("file uploads are now handled directly in profile handlers")
+}
+
+func (m *mockStorageService) DeleteFile(filePath string) error {
+	return fmt.Errorf("file operations are now handled directly in profile handlers")
+}
+
+func (m *mockStorageService) ListFiles(folder string) ([]storage.FileInfo, error) {
+	return []storage.FileInfo{}, nil
+}
+
+func (m *mockStorageService) GetFileInfo(filePath string) (*storage.FileInfo, error) {
+	return nil, fmt.Errorf("file operations are now handled directly in profile handlers")
+}
 
 func main() {
 	// Initialize config and DB
@@ -68,13 +102,13 @@ func main() {
 	studentProfileService := studentprofile.NewStudentProfileService(studentProfileRepo)
 	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService)
 
-	// Use environment variable or config for the base URL instead of hardcoding localhost
-	storageBaseURL := os.Getenv("STORAGE_BASE_URL")
-	if storageBaseURL == "" {
-		log.Fatal("STORAGE_BASE_URL environment variable not set")
-	}
-	storageService := storage.NewLocalStorageService("uploads", storageBaseURL+"/api/files")
-	storageHandler := storage.NewStorageHandler(storageService)
+	// Use binary storage service for file serving from database
+	fileServeHandler := storage.NewFileServeHandler(db)
+
+	// Create a mock storage service since file uploads are now handled directly in profile handlers
+	// The traditional file upload endpoints are not needed for binary storage
+	mockStorageService := &mockStorageService{}
+	storageHandler := storage.NewStorageHandler(mockStorageService)
 
 	// Notification module with preferences
 	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
@@ -108,7 +142,7 @@ func main() {
 	jobpost.RegisterPublicRoutes(api, jobPostHandler)
 
 	// Public file serving routes (no auth required for file access)
-	storage.RegisterPublicRoutes(api, storageHandler)
+	storage.RegisterPublicRoutes(api, storageHandler, fileServeHandler)
 
 	// Middleware for authenticated routes
 	authGroup := api.Group("/")
@@ -136,7 +170,7 @@ func main() {
 	studentprofile.RegisterRoutes(authGroup, studentProfileHandler)
 
 	// File upload routes (require auth)
-	storage.RegisterAuthenticatedRoutes(authGroup, storageHandler)
+	storage.RegisterAuthenticatedRoutes(authGroup, storageHandler, fileServeHandler)
 
 	// Notifications
 	notification.RegisterRoutes(authGroup, notificationHandler)

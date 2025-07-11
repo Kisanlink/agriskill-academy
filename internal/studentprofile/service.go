@@ -7,6 +7,7 @@ type StudentProfileService interface {
 	UpdateProfile(profile *StudentProfile) error
 	CreateProfile(profile *StudentProfile) error
 	AddCertificate(cert *Certificate) error
+	DeleteCertificate(certID string, userID string) error
 }
 
 type studentProfileService struct {
@@ -31,4 +32,8 @@ func (s *studentProfileService) CreateProfile(profile *StudentProfile) error {
 
 func (s *studentProfileService) AddCertificate(cert *Certificate) error {
 	return s.repo.AddCertificate(cert)
+}
+
+func (s *studentProfileService) DeleteCertificate(certID string, userID string) error {
+	return s.repo.DeleteCertificate(certID, userID)
 }

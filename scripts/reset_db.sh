@@ -33,7 +33,10 @@ print_info() {
 echo "=== ASA Backend Database Reset Script ==="
 
 # Load environment variables from .env file
-if [ -f "../.env" ]; then
+if [ -f ".env" ]; then
+    export $(grep -v '^#' .env | xargs)
+    print_status "Loaded configuration from .env file"
+elif [ -f "../.env" ]; then
     export $(grep -v '^#' ../.env | xargs)
     print_status "Loaded configuration from .env file"
 else
@@ -41,11 +44,19 @@ else
 fi
 
 # Get database configuration from environment variables
-DB_HOST=${DB_HOST:-localhost}
-DB_PORT=${DB_PORT:-5432}
-DB_NAME=${DB_NAME:-asa}
-DB_USER=${POSTGRESS_USER:-postgres}
-DB_PASSWORD=${POSTGRESS_PASS:-password}
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_NAME=${DB_NAME}
+DB_USER=${POSTGRESS_USER}
+DB_PASSWORD=${POSTGRESS_PASS}
+
+# Check if all required environment variables are set
+if [ -z "$DB_HOST" ] || [ -z "$DB_PORT" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+    print_error "Missing required database configuration in .env file"
+    echo "Required variables: DB_HOST, DB_PORT, DB_NAME, POSTGRESS_USER, POSTGRESS_PASS"
+    echo "Please create a .env file with all required database configuration."
+    exit 1
+fi
 
 echo "Database: $DB_NAME"
 echo "Host: $DB_HOST:$DB_PORT"

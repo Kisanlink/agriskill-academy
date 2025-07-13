@@ -27,6 +27,19 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
+// @Summary Enqueue Background Job
+// @Description Enqueue a background job for processing
+// @Tags Background Jobs
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body map[string]interface{} true "Job data"
+// @Success 200 {object} map[string]interface{} "Job enqueued successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 503 {object} map[string]interface{} "Queue is full"
+// @Router /api/worker/job [post]
 // POST /worker/job
 func (h *WorkerHandler) EnqueueJob(c *gin.Context) {
 	username := c.GetString("username")

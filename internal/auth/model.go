@@ -1,15 +1,26 @@
 package auth
 
-import "time"
+import (
+	"time"
+)
 
 type User struct {
-	ID        string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `gorm:"uniqueIndex" json:"email"`
-	Password  string    `json:"-"` // Stored locally but not exposed in JSON
-	Role      string    `json:"-"` // Stored locally but not exposed in JSON
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	Name       string    `json:"name"`
+	Email      string    `json:"email" binding:"required,email"`
+	Password   string    `json:"password" binding:"required"`
+	Role       string    `json:"role" binding:"required"`
+	Avatar     []byte    `json:"avatar" gorm:"type:bytea"`
+	AvatarName string    `json:"avatar_name"`
+	AvatarType string    `json:"avatar_type"`
+	AvatarSize int64     `json:"avatar_size"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// TableName specifies the database table name for User
+func (User) TableName() string {
+	return "users"
 }
 
 type SignupRequest struct {
@@ -19,7 +30,7 @@ type SignupRequest struct {
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
 	Role            string `json:"role" binding:"required,oneof=student employer"` // "student" or "employer"
-	PhoneNumber     int64  `json:"phone_number" binding:"required"`                // Changed to int64 for AAA service
+	PhoneNumber     string `json:"phone_number" binding:"required"`                // Changed to string for frontend compatibility
 	CountryCode     string `json:"country_code,omitempty"`                         // Optional, defaults to "+91"
 	AadhaarNumber   string `json:"aadhaar_number,omitempty"`                       // Optional
 

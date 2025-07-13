@@ -1,0 +1,4143 @@
+definitions:
+  admin.AnalyticsResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  admin.CompanyResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  admin.UpdateCompanyRequest:
+    properties:
+      company_description:
+        type: string
+      company_size:
+        type: string
+      industry:
+        type: string
+      location:
+        type: string
+      official_email:
+        type: string
+      phone_number:
+        type: string
+      recruiter_name:
+        type: string
+      status:
+        type: string
+      website_url:
+        type: string
+    type: object
+  admin.UpdateUserRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  admin.UserResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  application.UpdateStatusRequest:
+    properties:
+      notes:
+        type: string
+      status:
+        type: string
+    required:
+    - status
+    type: object
+  auth.LoginRequest:
+    properties:
+      password:
+        type: string
+      user_name:
+        description: Username for AAA service
+        type: string
+    required:
+    - password
+    - user_name
+    type: object
+  auth.SignupRequest:
+    properties:
+      aadhaar_number:
+        description: Optional
+        type: string
+      city:
+        type: string
+      company_address:
+        type: string
+      company_name:
+        description: Employer-only fields (optional)
+        type: string
+      company_size:
+        type: string
+      confirm_password:
+        type: string
+      country_code:
+        description: Optional, defaults to "+91"
+        type: string
+      email:
+        description: Email for our local DB
+        type: string
+      gstin_number:
+        type: string
+      industry_type:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      phone_number:
+        description: Changed to string for frontend compatibility
+        type: string
+      pincode:
+        type: string
+      role:
+        description: '"student" or "employer"'
+        enum:
+        - student
+        - employer
+        type: string
+      state:
+        type: string
+      user_name:
+        description: Username for AAA service
+        type: string
+      website:
+        type: string
+    required:
+    - confirm_password
+    - email
+    - name
+    - password
+    - phone_number
+    - role
+    - user_name
+    type: object
+  auth.UpdateProfileRequest:
+    properties:
+      bio:
+        type: string
+      city:
+        type: string
+      company_address:
+        type: string
+      company_description:
+        type: string
+      company_name:
+        description: For employers
+        type: string
+      company_size:
+        type: string
+      designation:
+        type: string
+      education:
+        type: string
+      email:
+        type: string
+      experience:
+        type: number
+      github:
+        type: string
+      gstin_number:
+        type: string
+      hiring_locations:
+        items:
+          type: string
+        type: array
+      hiring_types:
+        items:
+          type: string
+        type: array
+      industry:
+        type: string
+      job_categories:
+        items:
+          type: string
+        type: array
+      linkedin_profile:
+        description: Social links
+        type: string
+      location:
+        type: string
+      name:
+        description: Basic user information
+        type: string
+      official_email:
+        type: string
+      phone_number:
+        description: Contact information
+        type: string
+      pincode:
+        type: string
+      portfolio:
+        type: string
+      profile_photo:
+        description: Profile information
+        type: string
+      recruiter_name:
+        type: string
+      resume:
+        type: string
+      skills:
+        description: |-
+          Role-specific fields (will be validated based on user role)
+          For students
+        items:
+          type: string
+        type: array
+      state:
+        type: string
+      website:
+        type: string
+    type: object
+  employerprofile.EmployerProfile:
+    type: object
+  jobpost.AdvancedJobSearchRequest:
+    properties:
+      benefits:
+        description: Health insurance, 401k, etc.
+        items:
+          type: string
+        type: array
+      company_size:
+        description: Company size filters
+        items:
+          type: string
+        type: array
+      experience:
+        description: entry, mid, senior
+        items:
+          type: string
+        type: array
+      industry:
+        description: Company industry
+        items:
+          type: string
+        type: array
+      is_hybrid:
+        description: Hybrid work preference
+        type: boolean
+      is_onsite:
+        description: On-site work preference
+        type: boolean
+      is_remote:
+        description: Work preferences
+        type: boolean
+      job_type:
+        description: full-time, part-time, contract, internship
+        items:
+          type: string
+        type: array
+      keywords:
+        description: Basic filters
+        type: string
+      limit:
+        description: 'Default: 20, Max: 100'
+        type: integer
+      location:
+        description: City, state, or remote
+        type: string
+      page:
+        description: 'Default: 1'
+        type: integer
+      posted_within:
+        description: Timing filters
+        type: string
+      salary_range:
+        description: Salary and benefits
+        properties:
+          currency:
+            type: string
+          max:
+            type: number
+          min:
+            type: number
+        type: object
+      skills:
+        description: Required skills
+        items:
+          type: string
+        type: array
+      sort_by:
+        description: Sorting and pagination
+        type: string
+      sort_order:
+        description: asc, desc
+        type: string
+      urgent:
+        description: Urgent hiring positions
+        type: boolean
+    type: object
+  jobpost.CreateDraftRequest:
+    properties:
+      application_deadline:
+        type: string
+      benefits:
+        items:
+          type: string
+        type: array
+      experience:
+        type: string
+      is_remote:
+        type: boolean
+      job_type:
+        type: string
+      location:
+        type: string
+      required_skills:
+        items:
+          type: string
+        type: array
+      requirements:
+        type: string
+      role_overview:
+        type: string
+      salary:
+        $ref: '#/definitions/jobpost.FlexibleSalary'
+      title:
+        type: string
+    type: object
+  jobpost.CreateJobPostRequest:
+    properties:
+      application_deadline:
+        type: string
+      benefits:
+        items:
+          type: string
+        type: array
+      experience:
+        description: entry, mid, senior
+        type: string
+      is_remote:
+        type: boolean
+      job_type:
+        description: full-time, part-time, contract, internship
+        type: string
+      location:
+        type: string
+      required_skills:
+        items:
+          type: string
+        type: array
+      requirements:
+        type: string
+      role_overview:
+        type: string
+      salary:
+        $ref: '#/definitions/jobpost.FlexibleSalary'
+      title:
+        type: string
+    required:
+    - experience
+    - job_type
+    - location
+    - requirements
+    - role_overview
+    - title
+    type: object
+  jobpost.FlexibleSalary:
+    properties:
+      currency:
+        type: string
+      max:
+        type: number
+      min:
+        type: number
+    type: object
+  jobpost.JobAlertRequest:
+    properties:
+      experience:
+        items:
+          type: string
+        type: array
+      frequency:
+        description: daily, weekly, immediate
+        type: string
+      is_active:
+        type: boolean
+      is_remote:
+        type: boolean
+      job_type:
+        items:
+          type: string
+        type: array
+      keywords:
+        items:
+          type: string
+        type: array
+      location:
+        type: string
+      salary_range:
+        properties:
+          currency:
+            type: string
+          max:
+            type: number
+          min:
+            type: number
+        type: object
+      skills:
+        items:
+          type: string
+        type: array
+      user_id:
+        type: string
+    type: object
+  jobpost.JobPostFilter:
+    properties:
+      experience:
+        items:
+          type: string
+        type: array
+      is_remote:
+        type: boolean
+      job_type:
+        items:
+          type: string
+        type: array
+      limit:
+        type: integer
+      location:
+        type: string
+      page:
+        type: integer
+      posted_within:
+        description: all, 24h, 7d, 30d
+        type: string
+      salary_range:
+        properties:
+          max:
+            type: number
+          min:
+            type: number
+        type: object
+      skills:
+        items:
+          type: string
+        type: array
+    type: object
+  jobpost.JobRecommendationRequest:
+    properties:
+      max_results:
+        description: 'Default: 10'
+        type: integer
+      preferred_job_types:
+        items:
+          type: string
+        type: array
+      user_experience:
+        type: string
+      user_id:
+        type: string
+      user_location:
+        type: string
+      user_skills:
+        items:
+          type: string
+        type: array
+    type: object
+  jobpost.UpdateJobPostRequest:
+    properties:
+      application_deadline:
+        type: string
+      benefits:
+        items:
+          type: string
+        type: array
+      experience:
+        type: string
+      is_remote:
+        type: boolean
+      job_type:
+        type: string
+      location:
+        type: string
+      required_skills:
+        items:
+          type: string
+        type: array
+      requirements:
+        type: string
+      role_overview:
+        type: string
+      salary:
+        $ref: '#/definitions/jobpost.FlexibleSalary'
+      title:
+        type: string
+    type: object
+  notification.NotificationPreferences:
+    properties:
+      application_updates:
+        type: boolean
+      company_news:
+        type: boolean
+      created_at:
+        type: string
+      daily_job_matches:
+        type: boolean
+      email_notifications:
+        type: boolean
+      id:
+        type: string
+      job_alerts:
+        type: boolean
+      marketing_emails:
+        type: boolean
+      push_notifications:
+        type: boolean
+      updated_at:
+        type: string
+      user_id:
+        type: string
+      weekly_digest:
+        type: boolean
+    type: object
+  notification.NotificationPreferencesResponse:
+    properties:
+      data:
+        $ref: '#/definitions/notification.NotificationPreferences'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  notification.UpdateNotificationPreferencesRequest:
+    properties:
+      application_updates:
+        type: boolean
+      company_news:
+        type: boolean
+      daily_job_matches:
+        type: boolean
+      email_notifications:
+        type: boolean
+      job_alerts:
+        type: boolean
+      marketing_emails:
+        type: boolean
+      push_notifications:
+        type: boolean
+      weekly_digest:
+        type: boolean
+    type: object
+  storage.FileInfo:
+    properties:
+      name:
+        type: string
+      path:
+        type: string
+      size:
+        type: integer
+      type:
+        type: string
+      uploaded:
+        type: string
+      url:
+        type: string
+    type: object
+  storage.ListFilesResponse:
+    properties:
+      files:
+        items:
+          $ref: '#/definitions/storage.FileInfo'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  storage.UploadResponse:
+    properties:
+      file_name:
+        type: string
+      file_path:
+        type: string
+      file_size:
+        type: integer
+      file_type:
+        type: string
+      file_url:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  studentprofile.Certificate:
+    properties:
+      file:
+        items:
+          type: integer
+        type: array
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      file_type:
+        type: string
+      id:
+        type: string
+      issue_date:
+        type: string
+      name:
+        type: string
+      student_profile_id:
+        type: string
+    required:
+    - issue_date
+    - name
+    type: object
+  studentprofile.StudentProfile:
+    properties:
+      certificates:
+        items:
+          $ref: '#/definitions/studentprofile.Certificate'
+        type: array
+      created_at:
+        type: string
+      education:
+        type: string
+      email:
+        type: string
+      experience:
+        type: number
+      github:
+        type: string
+      id:
+        type: string
+      linkedin:
+        type: string
+      location:
+        type: string
+      name:
+        type: string
+      phone_number:
+        type: string
+      portfolio:
+        type: string
+      profile_photo:
+        items:
+          type: integer
+        type: array
+      profile_photo_name:
+        type: string
+      profile_photo_size:
+        type: integer
+      profile_photo_type:
+        type: string
+      resume:
+        items:
+          type: integer
+        type: array
+      resume_name:
+        type: string
+      resume_size:
+        type: integer
+      resume_type:
+        type: string
+      skills:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    required:
+    - email
+    - name
+    - user_id
+    type: object
+  studentprofile.UpdateCertificateRequest:
+    properties:
+      file:
+        items:
+          type: integer
+        type: array
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      file_type:
+        type: string
+      issue_date:
+        type: string
+      name:
+        type: string
+    required:
+    - file
+    - issue_date
+    - name
+    type: object
+info:
+  contact: {}
+paths:
+  /api/admin/analytics/applications:
+    get:
+      consumes:
+      - application/json
+      description: Get application-related analytics for admin dashboard
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application analytics retrieved successfully
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Application Analytics
+      tags:
+      - Admin Analytics
+  /api/admin/analytics/companies:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve analytics for all companies
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Company analytics retrieved successfully
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+        "500":
+          description: Failed to fetch company analytics
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Company Analytics
+      tags:
+      - Admin Company Management
+  /api/admin/analytics/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Get comprehensive dashboard analytics for admin
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Dashboard analytics retrieved successfully
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Dashboard Analytics
+      tags:
+      - Admin Analytics
+  /api/admin/analytics/jobs:
+    get:
+      consumes:
+      - application/json
+      description: Get job-related analytics for admin dashboard
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job analytics retrieved successfully
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Job Analytics
+      tags:
+      - Admin Analytics
+  /api/admin/analytics/users:
+    get:
+      consumes:
+      - application/json
+      description: Get user-related analytics for admin dashboard
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User analytics retrieved successfully
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/admin.AnalyticsResponse'
+      security:
+      - BearerAuth: []
+      summary: Get User Analytics
+      tags:
+      - Admin Analytics
+  /api/admin/companies:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of companies with optional filters and pagination
+      parameters:
+      - description: Company name filter
+        in: query
+        name: name
+        type: string
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Companies retrieved successfully
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "500":
+          description: Failed to fetch companies
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Companies
+      tags:
+      - Admin Company Management
+  /api/admin/companies/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a company by its unique ID
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Company deleted successfully
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "400":
+          description: Company ID is required
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "404":
+          description: Company not found
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "500":
+          description: Failed to delete company
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete Company
+      tags:
+      - Admin Company Management
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a company by its unique ID
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Company retrieved successfully
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "400":
+          description: Company ID is required
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "404":
+          description: Company not found
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Company by ID
+      tags:
+      - Admin Company Management
+    put:
+      consumes:
+      - application/json
+      description: Update an existing company by its unique ID
+      parameters:
+      - description: Company ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Company update data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/admin.UpdateCompanyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Company updated successfully
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "400":
+          description: Invalid request or Company ID is required
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+        "404":
+          description: Company not found
+          schema:
+            $ref: '#/definitions/admin.CompanyResponse'
+      security:
+      - BearerAuth: []
+      summary: Update Company
+      tags:
+      - Admin Company Management
+  /api/admin/users:
+    get:
+      consumes:
+      - application/json
+      description: Get list of users with pagination and filtering
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by role
+        in: query
+        name: role
+        type: string
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Users retrieved successfully
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Users
+      tags:
+      - Admin User Management
+  /api/admin/users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user by their ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User deleted successfully
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+        "400":
+          description: User ID is required
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+        "500":
+          description: Failed to delete user
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete User
+      tags:
+      - Admin User Management
+    put:
+      consumes:
+      - application/json
+      description: Update a user's information by user ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User update payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/admin.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User updated successfully
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+        "400":
+          description: Invalid request body or missing user ID
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+        "500":
+          description: Failed to update user
+          schema:
+            $ref: '#/definitions/admin.UserResponse'
+      security:
+      - BearerAuth: []
+      summary: Update User
+      tags:
+      - Admin User Management
+  /api/applications/{applicationId}:
+    delete:
+      description: Delete a job application (student only)
+      parameters:
+      - description: Application ID
+        in: path
+        name: applicationId
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Application removed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Could not remove application
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove Application
+      tags:
+      - Applications
+      x-swagger-ui: true
+    get:
+      consumes:
+      - application/json
+      description: Get a job application by its ID (student or employer)
+      parameters:
+      - description: Application ID
+        in: path
+        name: applicationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Application retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Application By ID
+      tags:
+      - Applications
+      x-swagger-ui: true
+  /api/applications/{applicationId}/status:
+    put:
+      description: Update the status of a job application (student only)
+      parameters:
+      - description: Application ID
+        in: path
+        name: applicationId
+        required: true
+        type: string
+      - description: Status update request
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/application.UpdateStatusRequest'
+      responses:
+        "200":
+          description: Application status updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Application Status
+      tags:
+      - Applications
+      x-swagger-ui: true
+  /api/applications/my:
+    get:
+      consumes:
+      - application/json
+      description: Get all applications submitted by the current student
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Applications fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get My Applications
+      tags:
+      - Applications
+  /api/auth/forgot-password:
+    post:
+      consumes:
+      - application/json
+      description: Send password reset email to user
+      parameters:
+      - description: Email for password reset
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset email sent
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid email
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error or AAA service unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Forgot Password
+      tags:
+      - Authentication
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with AAA service and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid credentials
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Authentication failed
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error or AAA service unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: User Login
+      tags:
+      - Authentication
+  /api/auth/profile:
+    put:
+      consumes:
+      - application/json
+      description: Update user profile information
+      parameters:
+      - description: Profile update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request data
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update User Profile
+      tags:
+      - Authentication
+  /api/auth/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Reset user password using reset token
+      parameters:
+      - description: Reset password data
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset successful
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error or AAA service unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Reset Password
+      tags:
+      - Authentication
+  /api/auth/signup:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user (student or employer) with the AAA service
+        and create local profile
+      parameters:
+      - description: User registration data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/auth.SignupRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User registered successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request data
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error or AAA service unavailable
+          schema:
+            additionalProperties: true
+            type: object
+      summary: User Registration
+      tags:
+      - Authentication
+  /api/auth/verify:
+    get:
+      consumes:
+      - application/json
+      description: Verify the validity of a JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token is valid
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Invalid or missing token
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verify JWT Token
+      tags:
+      - Authentication
+  /api/bookmarks/{jobId}:
+    delete:
+      consumes:
+      - application/json
+      description: Remove a job from user's bookmarks
+      parameters:
+      - description: Job ID
+        in: path
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Bookmark removed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Remove Job Bookmark
+      tags:
+      - Bookmarks
+    post:
+      consumes:
+      - application/json
+      description: Save a job to user's bookmarks
+      parameters:
+      - description: Job ID
+        in: path
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job saved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Save Job Bookmark
+      tags:
+      - Bookmarks
+  /api/bookmarks/saved:
+    get:
+      consumes:
+      - application/json
+      description: Get all jobs saved by the user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Saved jobs fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Saved Jobs
+      tags:
+      - Bookmarks
+      x-swagger-ui: true
+  /api/employer/applicants/{studentId}/profile:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve detailed profile information for a specific applicant
+      parameters:
+      - description: Student ID
+        in: path
+        name: studentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Applicant profile retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Applicant not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get applicant profile
+      tags:
+      - employer-applications
+  /api/employer/applications/{applicationId}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all messages for a specific job application
+      parameters:
+      - description: Application ID
+        in: path
+        name: applicationId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Messages retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Not authorized to view messages for this application
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get messages for an application
+      tags:
+      - employer-applications
+    post:
+      consumes:
+      - application/json
+      description: Send a message to an applicant for a specific job application
+      parameters:
+      - description: Application ID
+        in: path
+        name: applicationId
+        required: true
+        type: string
+      - description: Message request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message sent successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request - Invalid message
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Not authorized to send message for this application
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send message to applicant
+      tags:
+      - employer-applications
+  /api/employer/applications/{applicationId}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of a job application (applied, shortlisted, rejected,
+        hired)
+      parameters:
+      - description: Application ID
+        in: path
+        name: applicationId
+        required: true
+        type: string
+      - description: Status update request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request - Invalid status
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update application status
+      tags:
+      - employer-applications
+  /api/employer/applications/my-applications:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all applications submitted by the authenticated student
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Applications retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get applications by student
+      tags:
+      - employer-applications
+  /api/employer/jobs/{jobId}/applications:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all applications for a job posted by the authenticated
+        employer
+      parameters:
+      - description: Job ID
+        in: path
+        name: jobId
+        required: true
+        type: string
+      - description: Filter by application status (applied, shortlisted, rejected,
+          hired)
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Applications retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden - Not authorized to view applications for this job
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get applications for a specific job
+      tags:
+      - employer-applications
+  /api/employer/jobs/{jobId}/applications/debug:
+    get:
+      consumes:
+      - application/json
+      description: Debug endpoint to test database queries for applications
+      parameters:
+      - description: Job ID
+        in: path
+        name: jobId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Debug information
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Debug applications for a job
+      tags:
+      - employer-applications
+  /api/employers/{employerId}/profile:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific employer profile by ID
+      parameters:
+      - description: Employer ID
+        in: path
+        name: employerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Employer Profile
+      tags:
+      - Employer Profile
+    get:
+      consumes:
+      - application/json
+      description: Get a specific employer profile by ID
+      parameters:
+      - description: Employer ID
+        in: path
+        name: employerId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Employer profile not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Employer Profile
+      tags:
+      - Employer Profile
+    put:
+      consumes:
+      - application/json
+      description: Update a specific employer profile by ID
+      parameters:
+      - description: Employer ID
+        in: path
+        name: employerId
+        required: true
+        type: string
+      - description: Profile update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/employerprofile.EmployerProfile'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Employer Profile
+      tags:
+      - Employer Profile
+  /api/employers/me/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get the current user's employer profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Profile not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get My Employer Profile
+      tags:
+      - Employer Profile
+  /api/employers/profile:
+    post:
+      consumes:
+      - application/json
+      description: Create a new employer profile for the current user
+      parameters:
+      - description: Profile creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/employerprofile.EmployerProfile'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Profile created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Employer Profile
+      tags:
+      - Employer Profile
+  /api/files/{filePath}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a file by its path
+      parameters:
+      - description: File path
+        in: path
+        name: filePath
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid file path
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: File not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to delete file
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete File
+      tags:
+      - Files
+      x-swagger-ui: true
+    get:
+      consumes:
+      - application/json
+      description: Serve or download a file from the server
+      parameters:
+      - description: File path
+        in: path
+        name: filePath
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: File served successfully
+          schema:
+            type: file
+        "400":
+          description: Invalid file path
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: File not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to serve file
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Serve/Download File
+      tags:
+      - Files
+      x-swagger-ui: true
+  /api/files/{folder}:
+    get:
+      consumes:
+      - application/json
+      description: List all files in a specific folder
+      parameters:
+      - description: Folder name
+        in: path
+        name: folder
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Files retrieved successfully
+          schema:
+            $ref: '#/definitions/storage.ListFilesResponse'
+        "400":
+          description: Invalid folder name
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to list files
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List Files in Folder
+      tags:
+      - Files
+      x-swagger-ui: true
+  /api/files/info/{filePath}:
+    get:
+      consumes:
+      - application/json
+      description: Get information about a specific file
+      parameters:
+      - description: File path
+        in: path
+        name: filePath
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File info retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid file path
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: File not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to get file info
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get File Info
+      tags:
+      - Files
+      x-swagger-ui: true
+  /api/jobs:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all published job posts (for students)
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Number of jobs per page
+        in: query
+        name: limit
+        type: integer
+      - description: Job location filter
+        in: query
+        name: location
+        type: string
+      - description: Job type filter
+        in: query
+        name: jobType
+        type: string
+      - description: Experience filter
+        in: query
+        name: experience
+        type: string
+      - description: Remote job filter
+        in: query
+        name: isRemote
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Jobs retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch jobs
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all published jobs
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+    post:
+      consumes:
+      - application/json
+      description: Create a new job post (employer only)
+      parameters:
+      - description: Job post data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.CreateJobPostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Job created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Job Post
+      tags:
+      - Job Posts
+  /api/jobs/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a job post (employer only)
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to delete job
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Job Post
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a job post by its ID
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Job Post by ID
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+    put:
+      consumes:
+      - application/json
+      description: Update an existing job post (employer only)
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Job post update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.UpdateJobPostRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Job Post
+      tags:
+      - Job Posts
+  /api/jobs/{id}/applications:
+    get:
+      consumes:
+      - application/json
+      description: Get all applications submitted for a specific job (employer only)
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Applications fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Applications By Job
+      tags:
+      - Applications
+      x-swagger-ui: true
+  /api/jobs/{id}/applications/{applicationId}/status:
+    put:
+      description: Update the status of a job application (employer only)
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Application ID
+        in: path
+        name: applicationId
+        required: true
+        type: string
+      - description: Status update request
+        in: body
+        name: status
+        required: true
+        schema:
+          $ref: '#/definitions/application.UpdateStatusRequest'
+      responses:
+        "200":
+          description: Application status updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Application Status by Employer
+      tags:
+      - Applications
+      x-swagger-ui: true
+  /api/jobs/{id}/apply:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Apply for a job with resume upload (student only)
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Cover letter text
+        in: formData
+        name: cover_letter
+        type: string
+      - description: Resume file (PDF, DOC, DOCX, max 10MB)
+        in: formData
+        name: resume_file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Application submitted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or file format
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Apply for Job
+      tags:
+      - Applications
+  /api/jobs/{id}/publish:
+    post:
+      consumes:
+      - application/json
+      description: Publishes a job draft and makes it visible as a published job post
+        (employer only).
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Draft published successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Failed to publish draft
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing employer ID
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied or not authorized to publish this job
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Publish a job draft
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/{id}/similar:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of jobs similar to the specified job
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Maximum number of similar jobs to return
+        in: query
+        name: maxResults
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Similar jobs retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch similar jobs
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Similar Jobs
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/advanced-search:
+    post:
+      consumes:
+      - application/json
+      description: Perform an advanced search for job posts using complex filters
+      parameters:
+      - description: Advanced search filters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.AdvancedJobSearchRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Advanced search completed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Advanced search failed
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Advanced Job Search
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/alerts:
+    get:
+      description: Retrieves all job alerts for the authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job alerts retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: User not authenticated
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch job alerts
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get job alerts by user
+      tags:
+      - jobs
+      - alerts
+      x-swagger-ui: true
+    post:
+      consumes:
+      - application/json
+      description: Create a new job alert for the authenticated user
+      parameters:
+      - description: Job alert data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.JobAlertRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Job alert created successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: User not authenticated
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to create job alert
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Job Alert
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/alerts/{id}:
+    delete:
+      description: Deletes a job alert by its ID. Only the owner of the alert can
+        delete it.
+      parameters:
+      - description: Job Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Job alert deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: User not authenticated
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied or not authorized to delete this alert
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job alert not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to delete job alert
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Delete a job alert
+      tags:
+      - jobs
+      - alerts
+      x-swagger-ui: true
+    get:
+      description: Retrieves a job alert by its ID. Only the owner of the alert can
+        view it.
+      parameters:
+      - description: Job Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Job alert retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: User not authenticated
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied or not authorized to view this alert
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job alert not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to retrieve job alert
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get a job alert by ID
+      tags:
+      - jobs
+      - alerts
+      x-swagger-ui: true
+    put:
+      consumes:
+      - application/json
+      description: Update an existing job alert for the authenticated user
+      parameters:
+      - description: Job Alert ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Job alert data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.JobAlertRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job alert updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: User not authenticated
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job alert not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to update job alert
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Job Alert
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/draft:
+    post:
+      consumes:
+      - application/json
+      description: Create a draft job post (employer only)
+      parameters:
+      - description: Draft job post data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.CreateDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Draft saved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Job Draft
+      tags:
+      - Job Posts
+  /api/jobs/drafts:
+    get:
+      description: Retrieves all job drafts for the authenticated employer.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Drafts retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Missing employer ID
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch drafts
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get job drafts by employer
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/featured:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of featured job posts
+      parameters:
+      - description: Maximum number of featured jobs to return (default 10)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Featured jobs retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch featured jobs
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Featured Jobs
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/my-posts:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all job posts created by the current employer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Jobs retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch jobs
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Jobs by Employer
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/publish:
+    post:
+      consumes:
+      - application/json
+      description: Publish a job post immediately (employer only)
+      parameters:
+      - description: Job post data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.CreateJobPostRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Job published successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Publish Job Post
+      tags:
+      - Job Posts
+  /api/jobs/recent:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of recent job posts
+      parameters:
+      - description: Maximum number of recent jobs to return (default 20)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Recent jobs retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch recent jobs
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Recent Jobs
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/recommendations:
+    post:
+      consumes:
+      - application/json
+      description: Retrieve a list of recommended jobs for the user
+      parameters:
+      - description: Recommendation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.JobRecommendationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Recommended jobs retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to get recommendations
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Recommended Jobs
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/search:
+    post:
+      consumes:
+      - application/json
+      description: Search for job posts using filters
+      parameters:
+      - description: Search filters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jobpost.JobPostFilter'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search completed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Search failed
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Search Job Posts
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/search-filters:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve available filters for job search (locations, job types,
+        etc.)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Search filters retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to get search filters
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Job Search Filters
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/jobs/trending:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a list of trending job posts
+      parameters:
+      - description: Number of trending jobs to return
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Trending jobs retrieved successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to fetch trending jobs
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Trending Jobs
+      tags:
+      - Job Posts
+      x-swagger-ui: true
+  /api/notifications/email:
+    post:
+      consumes:
+      - application/json
+      description: Send an email notification
+      parameters:
+      - description: Email data
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Email sent successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Send Email
+      tags:
+      - Notifications
+  /api/notifications/preferences:
+    get:
+      consumes:
+      - application/json
+      description: Get notification preferences for the current user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Preferences retrieved successfully
+          schema:
+            $ref: '#/definitions/notification.NotificationPreferencesResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Notification Preferences
+      tags:
+      - Notifications
+    put:
+      consumes:
+      - application/json
+      description: Update notification preferences for the current user
+      parameters:
+      - description: Notification preferences
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/notification.UpdateNotificationPreferencesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Preferences updated successfully
+          schema:
+            $ref: '#/definitions/notification.NotificationPreferencesResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Notification Preferences
+      tags:
+      - Notifications
+  /api/students/{studentId}/certificates:
+    post:
+      consumes:
+      - application/json
+      description: Add a certificate to a specific student profile
+      parameters:
+      - description: Student ID
+        in: path
+        name: studentId
+        required: true
+        type: string
+      - description: Certificate data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/studentprofile.Certificate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Certificate added successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid certificate data
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Student profile not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add Certificate to Student Profile
+      tags:
+      - Student Profile
+  /api/students/{studentId}/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get a specific student profile by ID
+      parameters:
+      - description: Student ID
+        in: path
+        name: studentId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Profile not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Student Profile
+      tags:
+      - Student Profile
+    put:
+      consumes:
+      - application/json
+      description: Update a specific student profile by ID
+      parameters:
+      - description: Student ID
+        in: path
+        name: studentId
+        required: true
+        type: string
+      - description: Profile update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/studentprofile.StudentProfile'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Student Profile
+      tags:
+      - Student Profile
+  /api/students/me/certificate:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a certificate for the current student profile
+      parameters:
+      - description: Certificate file (PDF, DOC, DOCX, JPG, JPEG, PNG)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Certificate name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Issue date (YYYY-MM-DD)
+        in: formData
+        name: issue_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Certificate uploaded successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to save certificate record
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Certificate
+      tags:
+      - Student Profile
+      x-swagger-ui: true
+  /api/students/me/certificates:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a certificate for the current student profile
+      parameters:
+      - description: Certificate file (PDF, DOC, DOCX, JPG, JPEG, PNG)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Certificate name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Issue date (YYYY-MM-DD)
+        in: formData
+        name: issue_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Certificate uploaded successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to save certificate record
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Certificate
+      tags:
+      - Student Profile
+      x-swagger-ui: true
+  /api/students/me/certificates/{certificateId}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a certificate from the current user's profile
+      parameters:
+      - description: Certificate ID
+        in: path
+        name: certificateId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Certificate deleted successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Certificate not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete My Certificate
+      tags:
+      - Student Profile
+  /api/students/me/certificates/add:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Add a certificate to the current student profile
+      parameters:
+      - description: Certificate file (PDF, DOC, DOCX, JPG, JPEG, PNG)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Certificate name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Issue date (YYYY-MM-DD)
+        in: formData
+        name: issue_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Certificate added successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to save certificate record
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add Certificate to Profile
+      tags:
+      - Student Profile
+      x-swagger-ui: true
+  /api/students/me/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get the current user's student profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile fetched successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Profile not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get My Student Profile
+      tags:
+      - Student Profile
+    put:
+      consumes:
+      - multipart/form-data
+      - application/json
+      description: Update the current user's student profile with optional file uploads
+      parameters:
+      - description: Student name
+        in: formData
+        name: name
+        type: string
+      - description: Student email
+        in: formData
+        name: email
+        type: string
+      - description: Student location
+        in: formData
+        name: location
+        type: string
+      - description: Phone number
+        in: formData
+        name: phone_number
+        type: string
+      - description: Education details
+        in: formData
+        name: education
+        type: string
+      - description: Portfolio URL
+        in: formData
+        name: portfolio
+        type: string
+      - description: LinkedIn profile
+        in: formData
+        name: linkedin
+        type: string
+      - description: GitHub profile
+        in: formData
+        name: github
+        type: string
+      - description: Resume file (PDF, DOC, DOCX, max 10MB)
+        in: formData
+        name: resume
+        type: file
+      - description: Profile photo (JPG, PNG, GIF, WebP, max 5MB)
+        in: formData
+        name: profile_photo
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request or file format
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update My Student Profile
+      tags:
+      - Student Profile
+  /api/students/me/resume:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a resume file to the current user's student profile
+      parameters:
+      - description: Resume file (PDF, DOC, DOCX, max 10MB)
+        in: formData
+        name: resume
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Resume uploaded successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid file type or size
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload My Resume
+      tags:
+      - Student Profile
+    put:
+      consumes:
+      - multipart/form-data
+      description: Update the resume file for the current student profile
+      parameters:
+      - description: Resume file (PDF, DOC, DOCX)
+        in: formData
+        name: resume
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Resume updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Failed to update profile
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Resume
+      tags:
+      - Student Profile
+      x-swagger-ui: true
+  /api/upload/{folder}:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a file to a specific folder
+      parameters:
+      - description: Folder name
+        in: path
+        name: folder
+        required: true
+        type: string
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: File uploaded successfully
+          schema:
+            $ref: '#/definitions/storage.UploadResponse'
+        "400":
+          description: Invalid file or folder
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload File
+      tags:
+      - File Storage
+  /api/upload/document/{folder}:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a document file (PDF, DOC, DOCX, TXT, RTF) to a specified
+        folder
+      parameters:
+      - description: Folder name
+        in: path
+        name: folder
+        required: true
+        type: string
+      - description: Document file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Document uploaded successfully
+          schema:
+            $ref: '#/definitions/storage.UploadResponse'
+        "400":
+          description: Invalid request or file
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Document upload failed
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload a document
+      tags:
+      - Storage
+      x-swagger-ui: true
+  /api/upload/image/{folder}:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload an image file to a specific folder
+      parameters:
+      - description: Folder name
+        in: path
+        name: folder
+        required: true
+        type: string
+      - description: Image file (JPG, PNG, GIF, WebP, max 5MB)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Image uploaded successfully
+          schema:
+            $ref: '#/definitions/storage.UploadResponse'
+        "400":
+          description: Invalid image format or size
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Image
+      tags:
+      - File Storage
+  /api/upload/image/profile-photo:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a profile photo for the current user
+      parameters:
+      - description: Profile photo (JPG, PNG, GIF, WebP, max 5MB)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile photo processed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid image format or size
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Profile Photo
+      tags:
+      - File Storage
+  /api/upload/student/certificate:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a certificate file for a student (PDF, DOC, DOCX, JPG, JPEG,
+        PNG, max 10MB)
+      parameters:
+      - description: Certificate file
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Certificate name
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: Issue date (YYYY-MM-DD)
+        in: formData
+        name: issue_date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Certificate uploaded successfully
+          schema:
+            $ref: '#/definitions/storage.UploadResponse'
+        "400":
+          description: Invalid request or file
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Certificate upload failed
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Student Certificate
+      tags:
+      - Storage
+      x-swagger-ui: true
+  /api/upload/student/resume:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a resume file for the current student user
+      parameters:
+      - description: Resume file (PDF, DOC, DOCX)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Resume uploaded successfully
+          schema:
+            $ref: '#/definitions/storage.UploadResponse'
+        "400":
+          description: Invalid request or file
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Student Resume
+      tags:
+      - Storage
+      x-swagger-ui: true
+  /api/worker/job:
+    post:
+      consumes:
+      - application/json
+      description: Enqueue a background job for processing
+      parameters:
+      - description: Job data
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job enqueued successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Queue is full
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Enqueue Background Job
+      tags:
+      - Background Jobs
+swagger: "2.0"

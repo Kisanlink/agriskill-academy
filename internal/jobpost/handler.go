@@ -26,9 +26,21 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
+// @Summary Create Job Post
+// @Description Create a new job post (employer only)
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateJobPostRequest true "Job post data"
+// @Success 201 {object} map[string]interface{} "Job created successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/jobs [post]
 // POST /jobs
 func (h *JobPostHandler) Create(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -49,8 +61,8 @@ func (h *JobPostHandler) Create(c *gin.Context) {
 	}
 
 	// Get employer details from context or database
-	employerName := c.GetString("user_name")
-	employerEmail := c.GetString("user_email")
+	employerName := c.GetString("username")
+	employerEmail := c.GetString("email")
 
 	job, err := h.service.CreateJobPost(&req, employerID, employerName, employerEmail)
 	if err != nil {
@@ -61,9 +73,21 @@ func (h *JobPostHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"success": true, "message": "Job created successfully", "jobPost": job})
 }
 
+// @Summary Create Job Draft
+// @Description Create a draft job post (employer only)
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateDraftRequest true "Draft job post data"
+// @Success 201 {object} map[string]interface{} "Draft saved successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/jobs/draft [post]
 // POST /jobs/draft
 func (h *JobPostHandler) CreateDraft(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -87,8 +111,8 @@ func (h *JobPostHandler) CreateDraft(c *gin.Context) {
 	}
 
 	// Get employer details from context or database
-	employerName := c.GetString("user_name")
-	employerEmail := c.GetString("user_email")
+	employerName := c.GetString("username")
+	employerEmail := c.GetString("email")
 
 	job, err := h.service.CreateDraft(&req, employerID, employerName, employerEmail)
 	if err != nil {
@@ -99,9 +123,21 @@ func (h *JobPostHandler) CreateDraft(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"success": true, "message": "Draft saved successfully", "jobPost": job})
 }
 
+// @Summary Publish Job Post
+// @Description Publish a job post immediately (employer only)
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateJobPostRequest true "Job post data"
+// @Success 201 {object} map[string]interface{} "Job published successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/jobs/publish [post]
 // POST /jobs/publish
 func (h *JobPostHandler) Publish(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -122,24 +158,36 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 	}
 
 	// Get employer details from context or database
-	employerName := c.GetString("user_name")
-	employerEmail := c.GetString("user_email")
+	employerName := c.GetString("username")
+	employerEmail := c.GetString("email")
 
-	job, err := h.service.CreateJobPost(&req, employerID, employerName, employerEmail)
+	// Create job with published status directly
+	job, err := h.service.CreateJobPostWithStatus(&req, employerID, employerName, employerEmail, "published")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to publish job: " + err.Error()})
 		return
 	}
 
-	// Set status to published
-	job.Status = "published"
-
 	c.JSON(http.StatusCreated, gin.H{"success": true, "message": "Job published successfully", "jobPost": job})
 }
 
+// @Summary Update Job Post
+// @Description Update an existing job post (employer only)
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Param request body UpdateJobPostRequest true "Job post update data"
+// @Success 200 {object} map[string]interface{} "Job updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Router /api/jobs/{id} [put]
 // PUT /jobs/:id
 func (h *JobPostHandler) Update(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "update", jobID, jwtToken)
@@ -184,8 +232,22 @@ func (h *JobPostHandler) Update(c *gin.Context) {
 }
 
 // DELETE /jobs/:id
+// @Summary Delete Job Post
+// @Description Delete a job post (employer only)
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Job deleted successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Failure 500 {object} map[string]interface{} "Failed to delete job"
+// @Router /api/jobs/{id} [delete]
+// @x-swagger-ui true
 func (h *JobPostHandler) Delete(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "delete", jobID, jwtToken)
@@ -224,8 +286,23 @@ func (h *JobPostHandler) Delete(c *gin.Context) {
 }
 
 // GET /jobs/:id
+// GET /jobs/:id
+// @Summary Get Job Post by ID
+// @Description Retrieve a job post by its ID
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Job retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/jobs/{id} [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetByID(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", jobID, jwtToken)
@@ -244,8 +321,20 @@ func (h *JobPostHandler) GetByID(c *gin.Context) {
 }
 
 // GET /jobs/my-posts
+// @Summary Get Jobs by Employer
+// @Description Retrieve all job posts created by the current employer
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Jobs retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch jobs"
+// @Router /api/jobs/my-posts [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetByEmployer(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -268,8 +357,27 @@ func (h *JobPostHandler) GetByEmployer(c *gin.Context) {
 }
 
 // GET /jobs - Get all published jobs (for students)
+// GET /jobs - Get all published jobs (for students)
+// @Summary Get all published jobs
+// @Description Retrieve all published job posts (for students)
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number"
+// @Param limit query int false "Number of jobs per page"
+// @Param location query string false "Job location filter"
+// @Param jobType query string false "Job type filter"
+// @Param experience query string false "Experience filter"
+// @Param isRemote query bool false "Remote job filter"
+// @Success 200 {object} map[string]interface{} "Jobs retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch jobs"
+// @Router /api/jobs [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -371,8 +479,21 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 }
 
 // GET /jobs/featured
+// GET /jobs/featured
+// @Summary Get Featured Jobs
+// @Description Retrieve a list of featured job posts
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param limit query int false "Maximum number of featured jobs to return (default 10)"
+// @Success 200 {object} map[string]interface{} "Featured jobs retrieved successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch featured jobs"
+// @Router /api/jobs/featured [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetFeaturedJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -397,8 +518,20 @@ func (h *JobPostHandler) GetFeaturedJobs(c *gin.Context) {
 }
 
 // GET /jobs/recent
+// @Summary Get Recent Jobs
+// @Description Retrieve a list of recent job posts
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param limit query int false "Maximum number of recent jobs to return (default 20)"
+// @Success 200 {object} map[string]interface{} "Recent jobs retrieved successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch recent jobs"
+// @Router /api/jobs/recent [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetRecentJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -423,8 +556,21 @@ func (h *JobPostHandler) GetRecentJobs(c *gin.Context) {
 }
 
 // POST /jobs/search
+// @Summary Search Job Posts
+// @Description Search for job posts using filters
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body JobPostFilter true "Search filters"
+// @Success 200 {object} map[string]interface{} "Search completed successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Search failed"
+// @Router /api/jobs/search [post]
+// @x-swagger-ui true
 func (h *JobPostHandler) Search(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -449,8 +595,21 @@ func (h *JobPostHandler) Search(c *gin.Context) {
 // Enhanced Search and Discovery Endpoints
 
 // POST /jobs/advanced-search
+// @Summary Advanced Job Search
+// @Description Perform an advanced search for job posts using complex filters
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body AdvancedJobSearchRequest true "Advanced search filters"
+// @Success 200 {object} map[string]interface{} "Advanced search completed successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Advanced search failed"
+// @Router /api/jobs/advanced-search [post]
+// @x-swagger-ui true
 func (h *JobPostHandler) AdvancedSearch(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -474,8 +633,19 @@ func (h *JobPostHandler) AdvancedSearch(c *gin.Context) {
 }
 
 // GET /jobs/search-filters
+// @Summary Get Job Search Filters
+// @Description Retrieve available filters for job search (locations, job types, etc.)
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Search filters retrieved successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to get search filters"
+// @Router /api/jobs/search-filters [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetSearchFilters(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -493,8 +663,20 @@ func (h *JobPostHandler) GetSearchFilters(c *gin.Context) {
 }
 
 // GET /jobs/trending
+// @Summary Get Trending Jobs
+// @Description Retrieve a list of trending job posts
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param limit query int false "Number of trending jobs to return"
+// @Success 200 {object} map[string]interface{} "Trending jobs retrieved successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch trending jobs"
+// @Router /api/jobs/trending [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetTrendingJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -518,8 +700,21 @@ func (h *JobPostHandler) GetTrendingJobs(c *gin.Context) {
 }
 
 // GET /jobs/:id/similar
+// @Summary Get Similar Jobs
+// @Description Retrieve a list of jobs similar to the specified job
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Param maxResults query int false "Maximum number of similar jobs to return"
+// @Success 200 {object} map[string]interface{} "Similar jobs retrieved successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch similar jobs"
+// @Router /api/jobs/{id}/similar [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetSimilarJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", jobID, jwtToken)
@@ -545,8 +740,21 @@ func (h *JobPostHandler) GetSimilarJobs(c *gin.Context) {
 }
 
 // POST /jobs/recommendations
+// @Summary Get Recommended Jobs
+// @Description Retrieve a list of recommended jobs for the user
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body JobRecommendationRequest true "Recommendation request"
+// @Success 200 {object} map[string]interface{} "Recommended jobs retrieved successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to get recommendations"
+// @Router /api/jobs/recommendations [post]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetRecommendedJobs(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -577,8 +785,22 @@ func (h *JobPostHandler) GetRecommendedJobs(c *gin.Context) {
 // Job Alerts Endpoints
 
 // POST /jobs/alerts
+// @Summary Create Job Alert
+// @Description Create a new job alert for the authenticated user
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body JobAlertRequest true "Job alert data"
+// @Success 201 {object} map[string]interface{} "Job alert created successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "User not authenticated"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to create job alert"
+// @Router /api/jobs/alerts [post]
+// @x-swagger-ui true
 func (h *JobPostHandler) CreateJobAlert(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "create", "", jwtToken)
 	if err != nil || !allowed {
@@ -609,8 +831,24 @@ func (h *JobPostHandler) CreateJobAlert(c *gin.Context) {
 }
 
 // PUT /jobs/alerts/:id
+// @Summary Update Job Alert
+// @Description Update an existing job alert for the authenticated user
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job Alert ID"
+// @Param request body JobAlertRequest true "Job alert data"
+// @Success 200 {object} map[string]interface{} "Job alert updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "User not authenticated"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "Job alert not found"
+// @Failure 500 {object} map[string]interface{} "Failed to update job alert"
+// @Router /api/jobs/alerts/{id} [put]
+// @x-swagger-ui true
 func (h *JobPostHandler) UpdateJobAlert(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	alertID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "update", alertID, jwtToken)
@@ -655,8 +893,19 @@ func (h *JobPostHandler) UpdateJobAlert(c *gin.Context) {
 }
 
 // DELETE /jobs/alerts/:id
+// @Summary Delete a job alert
+// @Description Deletes a job alert by its ID. Only the owner of the alert can delete it.
+// @Tags jobs, alerts
+// @Param id path string true "Job Alert ID"
+// @Success 200 {object} map[string]interface{} "Job alert deleted successfully"
+// @Failure 401 {object} map[string]interface{} "User not authenticated"
+// @Failure 403 {object} map[string]interface{} "Permission denied or not authorized to delete this alert"
+// @Failure 404 {object} map[string]interface{} "Job alert not found"
+// @Failure 500 {object} map[string]interface{} "Failed to delete job alert"
+// @Router /api/jobs/alerts/{id} [delete]
+// @x-swagger-ui true
 func (h *JobPostHandler) DeleteJobAlert(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	alertID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "delete", alertID, jwtToken)
@@ -695,8 +944,19 @@ func (h *JobPostHandler) DeleteJobAlert(c *gin.Context) {
 }
 
 // GET /jobs/alerts/:id
+// @Summary Get a job alert by ID
+// @Description Retrieves a job alert by its ID. Only the owner of the alert can view it.
+// @Tags jobs, alerts
+// @Param id path string true "Job Alert ID"
+// @Success 200 {object} map[string]interface{} "Job alert retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "User not authenticated"
+// @Failure 403 {object} map[string]interface{} "Permission denied or not authorized to view this alert"
+// @Failure 404 {object} map[string]interface{} "Job alert not found"
+// @Failure 500 {object} map[string]interface{} "Failed to retrieve job alert"
+// @Router /api/jobs/alerts/{id} [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetJobAlertByID(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	alertID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "read", alertID, jwtToken)
@@ -729,8 +989,19 @@ func (h *JobPostHandler) GetJobAlertByID(c *gin.Context) {
 }
 
 // GET /jobs/alerts
+// @Summary Get job alerts by user
+// @Description Retrieves all job alerts for the authenticated user.
+// @Tags jobs, alerts
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Job alerts retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "User not authenticated"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch job alerts"
+// @Router /api/jobs/alerts [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetJobAlertsByUser(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_alerts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -756,8 +1027,19 @@ func (h *JobPostHandler) GetJobAlertsByUser(c *gin.Context) {
 // Draft-specific endpoints
 
 // GET /jobs/drafts
+// @Summary Get job drafts by employer
+// @Description Retrieves all job drafts for the authenticated employer.
+// @Tags Job Posts
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Drafts retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Missing employer ID"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch drafts"
+// @Router /api/jobs/drafts [get]
+// @x-swagger-ui true
 func (h *JobPostHandler) GetDrafts(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "read", "", jwtToken)
 	if err != nil || !allowed {
@@ -781,8 +1063,22 @@ func (h *JobPostHandler) GetDrafts(c *gin.Context) {
 }
 
 // POST /jobs/:id/publish
+// @Summary Publish a job draft
+// @Description Publishes a job draft and makes it visible as a published job post (employer only).
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Draft published successfully"
+// @Failure 400 {object} map[string]interface{} "Failed to publish draft"
+// @Failure 401 {object} map[string]interface{} "Missing employer ID"
+// @Failure 403 {object} map[string]interface{} "Permission denied or not authorized to publish this job"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Router /api/jobs/{id}/publish [post]
+// @x-swagger-ui true
 func (h *JobPostHandler) PublishDraft(c *gin.Context) {
-	username := c.GetString("email")
+	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_job_posts", "update", jobID, jwtToken)

@@ -26,6 +26,17 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
+// @Summary Get Notification Preferences
+// @Description Get notification preferences for the current user
+// @Tags Notifications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} NotificationPreferencesResponse "Preferences retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/notifications/preferences [get]
 // GET /notifications/preferences
 func (h *NotificationHandler) GetPreferences(c *gin.Context) {
 	username := c.GetString("email")
@@ -50,6 +61,19 @@ func (h *NotificationHandler) GetPreferences(c *gin.Context) {
 	})
 }
 
+// @Summary Update Notification Preferences
+// @Description Update notification preferences for the current user
+// @Tags Notifications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateNotificationPreferencesRequest true "Notification preferences"
+// @Success 200 {object} NotificationPreferencesResponse "Preferences updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/notifications/preferences [put]
 // PUT /notifications/preferences
 func (h *NotificationHandler) UpdatePreferences(c *gin.Context) {
 	username := c.GetString("email")
@@ -80,6 +104,19 @@ func (h *NotificationHandler) UpdatePreferences(c *gin.Context) {
 	})
 }
 
+// @Summary Send Email
+// @Description Send an email notification
+// @Tags Notifications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body map[string]interface{} true "Email data"
+// @Success 200 {object} map[string]interface{} "Email sent successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/notifications/email [post]
 // POST /notifications/send-email
 func (h *NotificationHandler) SendEmail(c *gin.Context) {
 	username := c.GetString("email")

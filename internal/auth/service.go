@@ -81,7 +81,7 @@ func generateToken(user *User) (string, error) {
 
 	claims := jwt.MapClaims{
 		"user_id":  user.ID,
-		"username": user.Username,
+		"username": user.Email, // Use email as username since we don't store username separately
 		"email":    user.Email,
 		"role":     user.Role, // Keep single role for backward compatibility
 		"roles":    roles,     // Add roles array for middleware
@@ -122,9 +122,9 @@ func (s *authService) GetUserByEmail(email string) (*User, error) {
 	return s.repo.FindByEmail(email)
 }
 
-// GetUserByUsername retrieves a user by username
+// GetUserByUsername retrieves a user by username (using email)
 func (s *authService) GetUserByUsername(username string) (*User, error) {
-	return s.repo.FindByUsername(username)
+	return s.repo.FindByEmail(username)
 }
 
 // GetUserByID retrieves a user by ID
@@ -141,7 +141,7 @@ func (s *authService) ListAllUsers() ([]User, error) {
 
 // Login
 func (s *authService) Login(username, password string) (*User, string, error) {
-	user, err := s.repo.FindByUsername(username)
+	user, err := s.repo.FindByEmail(username) // Use email as username
 	if err != nil {
 		return nil, "", errors.New("invalid credentials")
 	}
@@ -187,7 +187,6 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 
 	user := &User{
 		Name:     req.Name,
-		Username: req.Username,
 		Email:    req.Email,
 		Password: hashedPassword, // Store hashed password locally
 		Role:     req.Role,       // Store role locally
@@ -320,7 +319,6 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 
 	user := &User{
 		Name:     req.Name,
-		Username: req.Username,
 		Email:    req.Email,
 		Password: hashedPassword, // Store hashed password locally
 		Role:     req.Role,       // Store role locally

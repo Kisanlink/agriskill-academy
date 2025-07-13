@@ -29,6 +29,17 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
+// @Summary Get Student Profile
+// @Description Get a specific student profile by ID
+// @Tags Student Profile
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param studentId path string true "Student ID"
+// @Success 200 {object} map[string]interface{} "Profile fetched successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "Profile not found"
+// @Router /api/students/{studentId}/profile [get]
 // GET /students/:studentId/profile
 func (h *StudentProfileHandler) GetProfile(c *gin.Context) {
 	username := c.GetString("username")
@@ -54,6 +65,18 @@ func (h *StudentProfileHandler) GetProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile fetched", "data": profile})
 }
 
+// @Summary Update Student Profile
+// @Description Update a specific student profile by ID
+// @Tags Student Profile
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param studentId path string true "Student ID"
+// @Param request body StudentProfile true "Profile update data"
+// @Success 200 {object} map[string]interface{} "Profile updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/students/{studentId}/profile [put]
 // PUT /students/:studentId/profile
 func (h *StudentProfileHandler) UpdateProfile(c *gin.Context) {
 	username := c.GetString("username")
@@ -85,6 +108,17 @@ func (h *StudentProfileHandler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile updated", "data": req})
 }
 
+// @Summary Get My Student Profile
+// @Description Get the current user's student profile
+// @Tags Student Profile
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Profile fetched successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "Profile not found"
+// @Router /api/students/me/profile [get]
 // GET /students/me/profile
 func (h *StudentProfileHandler) GetMyProfile(c *gin.Context) {
 	username := c.GetString("username")
@@ -114,6 +148,19 @@ func (h *StudentProfileHandler) GetMyProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile fetched", "data": profile})
 }
 
+// @Summary Add Certificate to Student Profile
+// @Description Add a certificate to a specific student profile
+// @Tags Student Profile
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param studentId path string true "Student ID"
+// @Param request body Certificate true "Certificate data"
+// @Success 200 {object} map[string]interface{} "Certificate added successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid certificate data"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "Student profile not found"
+// @Router /api/students/{studentId}/certificates [post]
 // POST /students/:studentId/certificates
 func (h *StudentProfileHandler) AddCertificate(c *gin.Context) {
 	username := c.GetString("username")
@@ -156,6 +203,18 @@ func (h *StudentProfileHandler) AddCertificate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Certificate added", "data": cert})
 }
 
+// @Summary Delete My Certificate
+// @Description Delete a certificate from the current user's profile
+// @Tags Student Profile
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param certificateId path string true "Certificate ID"
+// @Success 200 {object} map[string]interface{} "Certificate deleted successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "Certificate not found"
+// @Router /api/students/me/certificates/{certificateId} [delete]
 // DELETE /students/me/certificates/:certificateId
 func (h *StudentProfileHandler) DeleteMyCertificate(c *gin.Context) {
 	username := c.GetString("username")
@@ -182,6 +241,28 @@ func (h *StudentProfileHandler) DeleteMyCertificate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Certificate deleted successfully"})
 }
 
+// @Summary Update My Student Profile
+// @Description Update the current user's student profile with optional file uploads
+// @Tags Student Profile
+// @Accept multipart/form-data
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param name formData string false "Student name"
+// @Param email formData string false "Student email"
+// @Param location formData string false "Student location"
+// @Param phone_number formData string false "Phone number"
+// @Param education formData string false "Education details"
+// @Param portfolio formData string false "Portfolio URL"
+// @Param linkedin formData string false "LinkedIn profile"
+// @Param github formData string false "GitHub profile"
+// @Param resume formData file false "Resume file (PDF, DOC, DOCX, max 10MB)"
+// @Param profile_photo formData file false "Profile photo (JPG, PNG, GIF, WebP, max 5MB)"
+// @Success 200 {object} map[string]interface{} "Profile updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request or file format"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/students/me/profile [put]
 // PUT /students/me/profile
 func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	username := c.GetString("username")
@@ -457,6 +538,18 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	})
 }
 
+// @Summary Add Certificate to My Profile
+// @Description Add a certificate to the current user's student profile
+// @Tags Student Profile
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateCertificateRequest true "Certificate data"
+// @Success 200 {object} map[string]interface{} "Certificate added successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/students/me/certificates [post]
 // POST /students/me/certificates
 func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	fmt.Printf("DEBUG: AddMyCertificate called\n")
@@ -530,6 +623,18 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	})
 }
 
+// @Summary Upload My Resume
+// @Description Upload a resume file to the current user's student profile
+// @Tags Student Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param resume formData file true "Resume file (PDF, DOC, DOCX, max 10MB)"
+// @Success 200 {object} map[string]interface{} "Resume uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid file type or size"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/students/me/resume [post]
 // POST /students/me/resume
 func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 	username := c.GetString("username")
@@ -649,6 +754,22 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 }
 
 // POST /students/me/certificate
+// @Summary Upload Certificate
+// @Description Upload a certificate for the current student profile
+// @Tags Student Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Certificate file (PDF, DOC, DOCX, JPG, JPEG, PNG)"
+// @Param name formData string true "Certificate name"
+// @Param issue_date formData string true "Issue date (YYYY-MM-DD)"
+// @Success 200 {object} map[string]interface{} "Certificate uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to save certificate record"
+// @Router /api/students/me/certificate [post]
+// @x-swagger-ui true
 func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 	fmt.Printf("DEBUG: UploadMyCertificate called\n")
 	username := c.GetString("username")
@@ -815,6 +936,20 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 }
 
 // PUT /students/me/resume - Update resume field only
+// @Summary Update Resume
+// @Description Update the resume file for the current student profile
+// @Tags Student Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param resume formData file true "Resume file (PDF, DOC, DOCX)"
+// @Success 200 {object} map[string]interface{} "Resume updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to update profile"
+// @Router /api/students/me/resume [put]
+// @x-swagger-ui true
 func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
@@ -923,6 +1058,22 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 }
 
 // POST /students/me/certificates
+// @Summary Upload Certificate
+// @Description Upload a certificate for the current student profile
+// @Tags Student Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Certificate file (PDF, DOC, DOCX, JPG, JPEG, PNG)"
+// @Param name formData string true "Certificate name"
+// @Param issue_date formData string true "Issue date (YYYY-MM-DD)"
+// @Success 200 {object} map[string]interface{} "Certificate uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to save certificate record"
+// @Router /api/students/me/certificates [post]
+// @x-swagger-ui true
 func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
@@ -1102,6 +1253,22 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 }
 
 // POST /students/me/certificates/add
+// @Summary Add Certificate to Profile
+// @Description Add a certificate to the current student profile
+// @Tags Student Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Certificate file (PDF, DOC, DOCX, JPG, JPEG, PNG)"
+// @Param name formData string true "Certificate name"
+// @Param issue_date formData string true "Issue date (YYYY-MM-DD)"
+// @Success 200 {object} map[string]interface{} "Certificate added successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Failed to save certificate record"
+// @Router /api/students/me/certificates/add [post]
+// @x-swagger-ui true
 func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	fmt.Printf("DEBUG: AddCertificateToProfile called\n")
 	username := c.GetString("username")

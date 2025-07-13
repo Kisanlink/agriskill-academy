@@ -22,6 +22,16 @@ func NewAuthHandler(authService AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
+// @Summary User Registration
+// @Description Register a new user (student or employer) with the AAA service and create local profile
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body SignupRequest true "User registration data"
+// @Success 201 {object} map[string]interface{} "User registered successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request data"
+// @Failure 500 {object} map[string]interface{} "Internal server error or AAA service unavailable"
+// @Router /api/auth/signup [post]
 // POST /auth/signup
 func (h *AuthHandler) Signup(c *gin.Context) {
 	log.Printf("=== AAA SIGNUP DEBUG START ===")
@@ -268,6 +278,17 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	})
 }
 
+// @Summary User Login
+// @Description Authenticate user with AAA service and return JWT token
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body LoginRequest true "Login credentials"
+// @Success 200 {object} map[string]interface{} "Login successful"
+// @Failure 400 {object} map[string]interface{} "Invalid credentials"
+// @Failure 401 {object} map[string]interface{} "Authentication failed"
+// @Failure 500 {object} map[string]interface{} "Internal server error or AAA service unavailable"
+// @Router /api/auth/login [post]
 // POST /auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
 	log.Printf("=== AAA LOGIN DEBUG START ===")
@@ -536,6 +557,15 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+// @Summary Verify JWT Token
+// @Description Verify the validity of a JWT token
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Token is valid"
+// @Failure 401 {object} map[string]interface{} "Invalid or missing token"
+// @Router /api/auth/verify [get]
 // GET /auth/verify
 func (h *AuthHandler) Verify(c *gin.Context) {
 	token := c.GetHeader("Authorization")
@@ -555,6 +585,16 @@ func (h *AuthHandler) Verify(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Token is valid", "data": claims})
 }
 
+// @Summary Forgot Password
+// @Description Send password reset email to user
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body map[string]interface{} true "Email for password reset"
+// @Success 200 {object} map[string]interface{} "Password reset email sent"
+// @Failure 400 {object} map[string]interface{} "Invalid email"
+// @Failure 500 {object} map[string]interface{} "Internal server error or AAA service unavailable"
+// @Router /api/auth/forgot-password [post]
 // POST /auth/forgot-password
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var req struct {
@@ -575,6 +615,16 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	c.Data(resp.StatusCode, "application/json", responseBody)
 }
 
+// @Summary Reset Password
+// @Description Reset user password using reset token
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body map[string]interface{} true "Reset password data"
+// @Success 200 {object} map[string]interface{} "Password reset successful"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 500 {object} map[string]interface{} "Internal server error or AAA service unavailable"
+// @Router /api/auth/reset-password [post]
 // POST /auth/reset-password
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req struct {
@@ -596,6 +646,17 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	c.Data(resp.StatusCode, "application/json", responseBody)
 }
 
+// @Summary Update User Profile
+// @Description Update user profile information
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body UpdateProfileRequest true "Profile update data"
+// @Success 200 {object} map[string]interface{} "Profile updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request data"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Router /api/auth/profile [put]
 // PUT /auth/profile
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	userID := c.GetString("user_id")

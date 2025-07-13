@@ -31,6 +31,20 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
+// @Summary Apply for Job
+// @Description Apply for a job with resume upload (student only)
+// @Tags Applications
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Param cover_letter formData string false "Cover letter text"
+// @Param resume_file formData file true "Resume file (PDF, DOC, DOCX, max 10MB)"
+// @Success 201 {object} map[string]interface{} "Application submitted successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request or file format"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/jobs/{id}/apply [post]
 // POST /jobs/:id/apply
 func (h *ApplicationHandler) Apply(c *gin.Context) {
 	username := c.GetString("email")
@@ -192,6 +206,16 @@ func getMimeTypeFromExtension(filename string) string {
 	}
 }
 
+// @Summary Get My Applications
+// @Description Get all applications submitted by the current student
+// @Tags Applications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Applications fetched successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/applications/my [get]
 // GET /applications/my
 func (h *ApplicationHandler) GetMyApplications(c *gin.Context) {
 	username := c.GetString("username")
@@ -210,6 +234,18 @@ func (h *ApplicationHandler) GetMyApplications(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Applications retrieved successfully", "applications": apps})
 }
 
+// @Summary Get Applications By Job
+// @Description Get all applications submitted for a specific job (employer only)
+// @Tags Applications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Applications fetched successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/jobs/{id}/applications [get]
+// @x-swagger-ui true
 // GET /jobs/:id/applications
 func (h *ApplicationHandler) GetApplicationsByJob(c *gin.Context) {
 	username := c.GetString("username")
@@ -238,7 +274,18 @@ func (h *ApplicationHandler) GetApplicationsByJob(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Applications retrieved successfully", "applications": apps})
 }
 
-// GET /applications/:applicationId
+// @Summary Get Application By ID
+// @Description Get a job application by its ID (student or employer)
+// @Tags Applications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param applicationId path string true "Application ID"
+// @Success 200 {object} map[string]interface{} "Application retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/applications/{applicationId} [get]
+// @x-swagger-ui true
 func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 	username := c.GetString("username")
 	appID := c.Param("applicationId")
@@ -270,7 +317,16 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Application retrieved successfully", "application": app})
 }
 
-// DELETE /applications/:applicationId
+// @Summary Remove Application
+// @Description Delete a job application (student only)
+// @Tags Applications
+// @Security BearerAuth
+// @Param applicationId path string true "Application ID"
+// @Success 200 {object} map[string]interface{} "Application removed successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Could not remove application"
+// @Router /api/applications/{applicationId} [delete]
+// @x-swagger-ui true
 func (h *ApplicationHandler) Remove(c *gin.Context) {
 	username := c.GetString("username")
 	appID := c.Param("applicationId")
@@ -289,7 +345,17 @@ func (h *ApplicationHandler) Remove(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Application removed successfully"})
 }
 
-// PUT /applications/:applicationId/status (Student can only withdraw)
+// @Summary Update Application Status
+// @Description Update the status of a job application (student only)
+// @Tags Applications
+// @Security BearerAuth
+// @Param applicationId path string true "Application ID"
+// @Param status body UpdateStatusRequest true "Status update request"
+// @Success 200 {object} map[string]interface{} "Application status updated successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Router /api/applications/{applicationId}/status [put]
+// @x-swagger-ui true
 func (h *ApplicationHandler) UpdateStatus(c *gin.Context) {
 	username := c.GetString("username")
 	appID := c.Param("applicationId")
@@ -315,7 +381,18 @@ func (h *ApplicationHandler) UpdateStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Application status updated successfully"})
 }
 
-// PUT /jobs/:id/applications/:applicationId/status (Employer can update status)
+// @Summary Update Application Status by Employer
+// @Description Update the status of a job application (employer only)
+// @Tags Applications
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Param applicationId path string true "Application ID"
+// @Param status body UpdateStatusRequest true "Status update request"
+// @Success 200 {object} map[string]interface{} "Application status updated successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Router /api/jobs/{id}/applications/{applicationId}/status [put]
+// @x-swagger-ui true
 func (h *ApplicationHandler) UpdateStatusByEmployer(c *gin.Context) {
 	username := c.GetString("username")
 	appID := c.Param("applicationId")

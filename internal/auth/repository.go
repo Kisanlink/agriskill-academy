@@ -9,7 +9,6 @@ import (
 
 type UserRepository interface {
 	FindByEmail(email string) (*User, error)
-	FindByUsername(username string) (*User, error)
 	FindByID(id string) (*User, error)
 	Create(user *User) error
 	CreateWithID(user *User, id string) error
@@ -38,15 +37,6 @@ func (r *userRepository) FindByEmail(email string) (*User, error) {
 		return nil, err
 	}
 	fmt.Printf("✅ Repository.FindByEmail: Found user - ID: %s, Name: %s, Email: %s\n", user.ID, user.Name, user.Email)
-	return &user, err
-}
-
-func (r *userRepository) FindByUsername(username string) (*User, error) {
-	var user User
-	err := r.db.Where("username = ?", username).First(&user).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errors.New("user not found")
-	}
 	return &user, err
 }
 

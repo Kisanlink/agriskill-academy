@@ -15,7 +15,7 @@ type JobApplicationWithApplicant struct {
 
 	JobTitle    string `json:"job_title" gorm:"column:job_title"`
 	Company     string `json:"company" gorm:"column:company"`
-	JobLocation string `json:"location" gorm:"column:job_location"`
+	JobLocation string `json:"job_location" gorm:"column:job_location"`
 	JobType     string `json:"job_type" gorm:"column:job_type"`
 
 	// Applicant fields with proper column mapping
@@ -25,7 +25,7 @@ type JobApplicationWithApplicant struct {
 	Avatar      string `json:"avatar" gorm:"column:avatar"`
 	ResumeURL   string `json:"resume_url" gorm:"column:resume_url"`
 	Skills      string `json:"skills" gorm:"column:skills"` // Changed from []string to string
-	Location    string `json:"location" gorm:"column:user_location"`
+	Location    string `json:"user_location" gorm:"column:user_location"`
 	Experience  string `json:"experience" gorm:"column:user_experience"`
 	Education   string `json:"education" gorm:"column:education"`
 	Portfolio   string `json:"portfolio" gorm:"column:portfolio"`

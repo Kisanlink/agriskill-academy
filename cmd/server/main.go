@@ -24,7 +24,11 @@ import (
 
 	"mime/multipart"
 
+	_ "asa/docs" // Import swagger docs
+
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // Mock storage service for compatibility with existing storage handler
@@ -131,6 +135,9 @@ func main() {
 			"timestamp": time.Now().Unix(),
 		})
 	})
+
+	// Swagger documentation endpoint (no auth required)
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// API routes
 	api := router.Group("/api")

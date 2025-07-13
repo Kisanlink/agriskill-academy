@@ -26,6 +26,21 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
+// GetApplicationsForJob godoc
+// @Summary Get applications for a specific job
+// @Description Retrieve all applications for a job posted by the authenticated employer
+// @Tags employer-applications
+// @Accept json
+// @Produce json
+// @Param jobId path string true "Job ID"
+// @Param status query string false "Filter by application status (applied, shortlisted, rejected, hired)"
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Applications retrieved successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden - Not authorized to view applications for this job"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/employer/jobs/{jobId}/applications [get]
 func (h *EmployerApplicationHandler) GetApplicationsForJob(c *gin.Context) {
 	username := c.GetString("email")
 	jobID := c.Param("jobId")
@@ -74,7 +89,17 @@ func (h *EmployerApplicationHandler) GetApplicationsForJob(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// Debug endpoint to test database queries
+// DebugApplications godoc
+// @Summary Debug applications for a job
+// @Description Debug endpoint to test database queries for applications
+// @Tags employer-applications
+// @Accept json
+// @Produce json
+// @Param jobId path string true "Job ID"
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Debug information"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/employer/jobs/{jobId}/applications/debug [get]
 func (h *EmployerApplicationHandler) DebugApplications(c *gin.Context) {
 	fmt.Printf("DEBUG: ===== DebugApplications HANDLER CALLED =====\n")
 
@@ -98,6 +123,21 @@ func (h *EmployerApplicationHandler) DebugApplications(c *gin.Context) {
 	})
 }
 
+// UpdateStatus godoc
+// @Summary Update application status
+// @Description Update the status of a job application (applied, shortlisted, rejected, hired)
+// @Tags employer-applications
+// @Accept json
+// @Produce json
+// @Param applicationId path string true "Application ID"
+// @Param request body map[string]string true "Status update request"
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Status updated successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request - Invalid status"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden - Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/employer/applications/{applicationId}/status [put]
 func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 	username := c.GetString("email")
 	applicationID := c.Param("applicationId")
@@ -122,6 +162,20 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Status updated"})
 }
 
+// GetApplicantProfile godoc
+// @Summary Get applicant profile
+// @Description Retrieve detailed profile information for a specific applicant
+// @Tags employer-applications
+// @Accept json
+// @Produce json
+// @Param studentId path string true "Student ID"
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Applicant profile retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden - Permission denied"
+// @Failure 404 {object} map[string]interface{} "Applicant not found"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/employer/applicants/{studentId}/profile [get]
 func (h *EmployerApplicationHandler) GetApplicantProfile(c *gin.Context) {
 	username := c.GetString("email")
 	studentID := c.Param("studentId")
@@ -140,6 +194,21 @@ func (h *EmployerApplicationHandler) GetApplicantProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "profile": profile})
 }
 
+// SendMessage godoc
+// @Summary Send message to applicant
+// @Description Send a message to an applicant for a specific job application
+// @Tags employer-applications
+// @Accept json
+// @Produce json
+// @Param applicationId path string true "Application ID"
+// @Param request body map[string]string true "Message request"
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Message sent successfully"
+// @Failure 400 {object} map[string]interface{} "Bad request - Invalid message"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden - Not authorized to send message for this application"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/employer/applications/{applicationId}/messages [post]
 func (h *EmployerApplicationHandler) SendMessage(c *gin.Context) {
 	username := c.GetString("email")
 	applicationID := c.Param("applicationId")
@@ -185,6 +254,19 @@ func (h *EmployerApplicationHandler) SendMessage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Message sent"})
 }
 
+// GetMessages godoc
+// @Summary Get messages for an application
+// @Description Retrieve all messages for a specific job application
+// @Tags employer-applications
+// @Accept json
+// @Produce json
+// @Param applicationId path string true "Application ID"
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Messages retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden - Not authorized to view messages for this application"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/employer/applications/{applicationId}/messages [get]
 func (h *EmployerApplicationHandler) GetMessages(c *gin.Context) {
 	username := c.GetString("email")
 	applicationID := c.Param("applicationId")
@@ -216,6 +298,18 @@ func (h *EmployerApplicationHandler) GetMessages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "messages": messages})
 }
 
+// GetApplicationsByStudent godoc
+// @Summary Get applications by student
+// @Description Retrieve all applications submitted by the authenticated student
+// @Tags employer-applications
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Applications retrieved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Forbidden - Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/employer/applications/my-applications [get]
 func (h *EmployerApplicationHandler) GetApplicationsByStudent(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)

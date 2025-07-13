@@ -29,6 +29,19 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
+// @Summary Upload File
+// @Description Upload a file to a specific folder
+// @Tags File Storage
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param folder path string true "Folder name"
+// @Param file formData file true "File to upload"
+// @Success 200 {object} UploadResponse "File uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid file or folder"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/upload/{folder} [post]
 // POST /upload/:folder
 func (h *StorageHandler) UploadFile(c *gin.Context) {
 	username := c.GetString("email")
@@ -79,6 +92,19 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 	})
 }
 
+// @Summary Upload Image
+// @Description Upload an image file to a specific folder
+// @Tags File Storage
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param folder path string true "Folder name"
+// @Param file formData file true "Image file (JPG, PNG, GIF, WebP, max 5MB)"
+// @Success 200 {object} UploadResponse "Image uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid image format or size"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/upload/image/{folder} [post]
 // POST /upload/image/:folder
 func (h *StorageHandler) UploadImage(c *gin.Context) {
 	username := c.GetString("email")
@@ -129,6 +155,18 @@ func (h *StorageHandler) UploadImage(c *gin.Context) {
 	})
 }
 
+// @Summary Upload Profile Photo
+// @Description Upload a profile photo for the current user
+// @Tags File Storage
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Profile photo (JPG, PNG, GIF, WebP, max 5MB)"
+// @Success 200 {object} map[string]interface{} "Profile photo processed successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid image format or size"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/upload/image/profile-photo [post]
 // POST /upload/image/profile-photo - Special endpoint for profile photo upload
 func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 	username := c.GetString("email")
@@ -208,6 +246,20 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 }
 
 // POST /upload/document/:folder
+// @Summary Upload a document
+// @Description Upload a document file (PDF, DOC, DOCX, TXT, RTF) to a specified folder
+// @Tags Storage
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param folder path string true "Folder name"
+// @Param file formData file true "Document file"
+// @Success 200 {object} UploadResponse "Document uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request or file"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Document upload failed"
+// @Router /api/upload/document/{folder} [post]
+// @x-swagger-ui true
 func (h *StorageHandler) UploadDocument(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
@@ -258,6 +310,13 @@ func (h *StorageHandler) UploadDocument(c *gin.Context) {
 }
 
 // POST /upload/resume/:folder
+// @Summary Upload a resume
+// @Description Upload a resume file (PDF, DOC, DOCX) to a specified folder
+// @Tags Storage
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @x-swagger-ui true
 func (h *StorageHandler) UploadResume(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
@@ -317,6 +376,20 @@ func (h *StorageHandler) UploadResume(c *gin.Context) {
 }
 
 // POST /upload/student/resume - Special endpoint for student resume upload
+// @Summary Upload Student Resume
+// @Description Upload a resume file for the current student user
+// @Tags Storage
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Resume file (PDF, DOC, DOCX)"
+// @Success 200 {object} UploadResponse "Resume uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request or file"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/upload/student/resume [post]
+// @x-swagger-ui true
 func (h *StorageHandler) UploadStudentResume(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
@@ -396,6 +469,22 @@ func (h *StorageHandler) UploadStudentResume(c *gin.Context) {
 }
 
 // POST /upload/student/certificate
+// @Summary Upload Student Certificate
+// @Description Upload a certificate file for a student (PDF, DOC, DOCX, JPG, JPEG, PNG, max 10MB)
+// @Tags Storage
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Certificate file"
+// @Param name formData string true "Certificate name"
+// @Param issue_date formData string true "Issue date (YYYY-MM-DD)"
+// @Success 200 {object} UploadResponse "Certificate uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid request or file"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Certificate upload failed"
+// @Router /api/upload/student/certificate [post]
+// @x-swagger-ui true
 func (h *StorageHandler) UploadStudentCertificate(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
@@ -489,6 +578,20 @@ func (h *StorageHandler) UploadStudentCertificate(c *gin.Context) {
 }
 
 // DELETE /files/:filePath
+// @Summary Delete File
+// @Description Delete a file by its path
+// @Tags Files
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param filePath path string true "File path"
+// @Success 200 {object} map[string]interface{} "File deleted successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "File not found"
+// @Failure 400 {object} map[string]interface{} "Invalid file path"
+// @Failure 500 {object} map[string]interface{} "Failed to delete file"
+// @Router /api/files/{filePath} [delete]
+// @x-swagger-ui true
 func (h *StorageHandler) DeleteFile(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
@@ -520,6 +623,19 @@ func (h *StorageHandler) DeleteFile(c *gin.Context) {
 }
 
 // GET /files/:folder
+// @Summary List Files in Folder
+// @Description List all files in a specific folder
+// @Tags Files
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param folder path string true "Folder name"
+// @Success 200 {object} ListFilesResponse "Files retrieved successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 400 {object} map[string]interface{} "Invalid folder name"
+// @Failure 500 {object} map[string]interface{} "Failed to list files"
+// @Router /api/files/{folder} [get]
+// @x-swagger-ui true
 func (h *StorageHandler) ListFiles(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
@@ -550,6 +666,20 @@ func (h *StorageHandler) ListFiles(c *gin.Context) {
 }
 
 // GET /files/info/:filePath
+// @Summary Get File Info
+// @Description Get information about a specific file
+// @Tags Files
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param filePath path string true "File path"
+// @Success 200 {object} map[string]interface{} "File info retrieved successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "File not found"
+// @Failure 400 {object} map[string]interface{} "Invalid file path"
+// @Failure 500 {object} map[string]interface{} "Failed to get file info"
+// @Router /api/files/info/{filePath} [get]
+// @x-swagger-ui true
 func (h *StorageHandler) GetFileInfo(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
@@ -585,6 +715,20 @@ func (h *StorageHandler) GetFileInfo(c *gin.Context) {
 }
 
 // GET /files/*filePath - Serve/Download file
+// @Summary Serve/Download File
+// @Description Serve or download a file from the server
+// @Tags Files
+// @Accept json
+// @Produce octet-stream
+// @Security BearerAuth
+// @Param filePath path string true "File path"
+// @Success 200 {file} file "File served successfully"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 404 {object} map[string]interface{} "File not found"
+// @Failure 400 {object} map[string]interface{} "Invalid file path"
+// @Failure 500 {object} map[string]interface{} "Failed to serve file"
+// @Router /api/files/{filePath} [get]
+// @x-swagger-ui true
 func (h *StorageHandler) ServeFile(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)

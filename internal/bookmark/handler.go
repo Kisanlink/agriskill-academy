@@ -24,6 +24,18 @@ func getJWT(c *gin.Context) string {
 	return ""
 }
 
+// @Summary Save Job Bookmark
+// @Description Save a job to user's bookmarks
+// @Tags Bookmarks
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param jobId path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Job saved successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/bookmarks/{jobId} [post]
 // POST /jobs/:jobId/save
 func (h *BookmarkHandler) Save(c *gin.Context) {
 	username := c.GetString("email")
@@ -43,6 +55,18 @@ func (h *BookmarkHandler) Save(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Job saved"})
 }
 
+// @Summary Remove Job Bookmark
+// @Description Remove a job from user's bookmarks
+// @Tags Bookmarks
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param jobId path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Bookmark removed successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/bookmarks/{jobId} [delete]
 // DELETE /jobs/:jobId/unsave
 func (h *BookmarkHandler) Remove(c *gin.Context) {
 	username := c.GetString("email")
@@ -62,7 +86,18 @@ func (h *BookmarkHandler) Remove(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Removed from bookmarks"})
 }
 
-// GET /jobs/saved
+// @Summary Get Saved Jobs
+// @Description Get all jobs saved by the user
+// @Tags Bookmarks
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} map[string]interface{} "Saved jobs fetched successfully"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Router /api/bookmarks/saved [get]
+// @x-swagger-ui true
 func (h *BookmarkHandler) GetSaved(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)

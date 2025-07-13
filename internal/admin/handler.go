@@ -14,6 +14,15 @@ func NewAdminHandler(s AdminService) *AdminHandler {
 	return &AdminHandler{s}
 }
 
+// @Summary Get Job Analytics
+// @Description Get job-related analytics for admin dashboard
+// @Tags Admin Analytics
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} AnalyticsResponse "Job analytics retrieved successfully"
+// @Failure 500 {object} AnalyticsResponse "Internal server error"
+// @Router /api/admin/analytics/jobs [get]
 // GET /admin/analytics/jobs
 func (h *AdminHandler) GetJobAnalytics(c *gin.Context) {
 	analytics, err := h.service.GetJobAnalytics()
@@ -32,6 +41,15 @@ func (h *AdminHandler) GetJobAnalytics(c *gin.Context) {
 	})
 }
 
+// @Summary Get User Analytics
+// @Description Get user-related analytics for admin dashboard
+// @Tags Admin Analytics
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} AnalyticsResponse "User analytics retrieved successfully"
+// @Failure 500 {object} AnalyticsResponse "Internal server error"
+// @Router /api/admin/analytics/users [get]
 // GET /admin/analytics/users
 func (h *AdminHandler) GetUserAnalytics(c *gin.Context) {
 	analytics, err := h.service.GetUserAnalytics()
@@ -50,6 +68,15 @@ func (h *AdminHandler) GetUserAnalytics(c *gin.Context) {
 	})
 }
 
+// @Summary Get Application Analytics
+// @Description Get application-related analytics for admin dashboard
+// @Tags Admin Analytics
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} AnalyticsResponse "Application analytics retrieved successfully"
+// @Failure 500 {object} AnalyticsResponse "Internal server error"
+// @Router /api/admin/analytics/applications [get]
 // GET /admin/analytics/applications
 func (h *AdminHandler) GetApplicationAnalytics(c *gin.Context) {
 	analytics, err := h.service.GetApplicationAnalytics()
@@ -68,6 +95,15 @@ func (h *AdminHandler) GetApplicationAnalytics(c *gin.Context) {
 	})
 }
 
+// @Summary Get Dashboard Analytics
+// @Description Get comprehensive dashboard analytics for admin
+// @Tags Admin Analytics
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} AnalyticsResponse "Dashboard analytics retrieved successfully"
+// @Failure 500 {object} AnalyticsResponse "Internal server error"
+// @Router /api/admin/analytics/dashboard [get]
 // GET /admin/analytics/dashboard
 func (h *AdminHandler) GetDashboardAnalytics(c *gin.Context) {
 	analytics, err := h.service.GetDashboardAnalytics()
@@ -88,6 +124,20 @@ func (h *AdminHandler) GetDashboardAnalytics(c *gin.Context) {
 
 // User Management Handlers
 
+// @Summary Get Users
+// @Description Get list of users with pagination and filtering
+// @Tags Admin User Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number"
+// @Param limit query int false "Items per page"
+// @Param role query string false "Filter by role"
+// @Param search query string false "Search term"
+// @Success 200 {object} UserResponse "Users retrieved successfully"
+// @Failure 400 {object} UserResponse "Invalid query parameters"
+// @Failure 500 {object} UserResponse "Internal server error"
+// @Router /api/admin/users [get]
 // GET /admin/users
 func (h *AdminHandler) GetUsers(c *gin.Context) {
 	var req UserListRequest
@@ -143,6 +193,18 @@ func (h *AdminHandler) GetUserByID(c *gin.Context) {
 }
 
 // PUT /admin/users/:id
+// @Summary Update User
+// @Description Update a user's information by user ID
+// @Tags Admin User Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "User ID"
+// @Param body body UpdateUserRequest true "User update payload"
+// @Success 200 {object} UserResponse "User updated successfully"
+// @Failure 400 {object} UserResponse "Invalid request body or missing user ID"
+// @Failure 500 {object} UserResponse "Failed to update user"
+// @Router /api/admin/users/{id} [put]
 func (h *AdminHandler) UpdateUser(c *gin.Context) {
 	userID := c.Param("id")
 	if userID == "" {
@@ -178,6 +240,17 @@ func (h *AdminHandler) UpdateUser(c *gin.Context) {
 }
 
 // DELETE /admin/users/:id
+// @Summary Delete User
+// @Description Delete a user by their ID
+// @Tags Admin User Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "User ID"
+// @Success 200 {object} UserResponse "User deleted successfully"
+// @Failure 400 {object} UserResponse "User ID is required"
+// @Failure 500 {object} UserResponse "Failed to delete user"
+// @Router /api/admin/users/{id} [delete]
 func (h *AdminHandler) DeleteUser(c *gin.Context) {
 	userID := c.Param("id")
 	if userID == "" {
@@ -206,6 +279,19 @@ func (h *AdminHandler) DeleteUser(c *gin.Context) {
 // Company Management Handlers
 
 // GET /admin/companies
+// @Summary Get Companies
+// @Description Retrieve a list of companies with optional filters and pagination
+// @Tags Admin Company Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param name query string false "Company name filter"
+// @Param page query int false "Page number"
+// @Param page_size query int false "Page size"
+// @Success 200 {object} CompanyResponse "Companies retrieved successfully"
+// @Failure 400 {object} CompanyResponse "Invalid query parameters"
+// @Failure 500 {object} CompanyResponse "Failed to fetch companies"
+// @Router /api/admin/companies [get]
 func (h *AdminHandler) GetCompanies(c *gin.Context) {
 	var req CompanyListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
@@ -233,6 +319,17 @@ func (h *AdminHandler) GetCompanies(c *gin.Context) {
 }
 
 // GET /admin/companies/:id
+// @Summary Get Company by ID
+// @Description Retrieve a company by its unique ID
+// @Tags Admin Company Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Company ID"
+// @Success 200 {object} CompanyResponse "Company retrieved successfully"
+// @Failure 400 {object} CompanyResponse "Company ID is required"
+// @Failure 404 {object} CompanyResponse "Company not found"
+// @Router /api/admin/companies/{id} [get]
 func (h *AdminHandler) GetCompanyByID(c *gin.Context) {
 	companyID := c.Param("id")
 	if companyID == "" {
@@ -260,6 +357,18 @@ func (h *AdminHandler) GetCompanyByID(c *gin.Context) {
 }
 
 // PUT /admin/companies/:id
+// @Summary Update Company
+// @Description Update an existing company by its unique ID
+// @Tags Admin Company Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Company ID"
+// @Param body body UpdateCompanyRequest true "Company update data"
+// @Success 200 {object} CompanyResponse "Company updated successfully"
+// @Failure 400 {object} CompanyResponse "Invalid request or Company ID is required"
+// @Failure 404 {object} CompanyResponse "Company not found"
+// @Router /api/admin/companies/{id} [put]
 func (h *AdminHandler) UpdateCompany(c *gin.Context) {
 	companyID := c.Param("id")
 	if companyID == "" {
@@ -295,6 +404,18 @@ func (h *AdminHandler) UpdateCompany(c *gin.Context) {
 }
 
 // DELETE /admin/companies/:id
+// @Summary Delete Company
+// @Description Delete a company by its unique ID
+// @Tags Admin Company Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Company ID"
+// @Success 200 {object} CompanyResponse "Company deleted successfully"
+// @Failure 400 {object} CompanyResponse "Company ID is required"
+// @Failure 404 {object} CompanyResponse "Company not found"
+// @Failure 500 {object} CompanyResponse "Failed to delete company"
+// @Router /api/admin/companies/{id} [delete]
 func (h *AdminHandler) DeleteCompany(c *gin.Context) {
 	companyID := c.Param("id")
 	if companyID == "" {
@@ -321,6 +442,15 @@ func (h *AdminHandler) DeleteCompany(c *gin.Context) {
 }
 
 // GET /admin/analytics/companies
+// @Summary Get Company Analytics
+// @Description Retrieve analytics for all companies
+// @Tags Admin Company Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} AnalyticsResponse "Company analytics retrieved successfully"
+// @Failure 500 {object} AnalyticsResponse "Failed to fetch company analytics"
+// @Router /api/admin/analytics/companies [get]
 func (h *AdminHandler) GetCompanyAnalytics(c *gin.Context) {
 	analytics, err := h.service.GetCompanyAnalytics()
 	if err != nil {

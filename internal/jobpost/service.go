@@ -10,6 +10,7 @@ import (
 
 type JobPostService interface {
 	CreateJobPost(req *CreateJobPostRequest, employerID, employerName, employerEmail string) (*JobPost, error)
+	CreateJobPostWithStatus(req *CreateJobPostRequest, employerID, employerName, employerEmail, status string) (*JobPost, error)
 	UpdateJobPost(id string, req *UpdateJobPostRequest) (*JobPost, error)
 	Delete(id string) error
 	GetByID(id string) (*JobPost, error)
@@ -131,6 +132,105 @@ func (s *jobPostService) CreateJobPost(req *CreateJobPostRequest, employerID, em
 		EmployerName:        employerName,
 		EmployerEmail:       employerEmail,
 		Status:              "draft", // Default status
+		ApplicationDeadline: req.ApplicationDeadline,
+		JobType:             req.JobType,
+		Experience:          req.Experience,
+		Salary:              salary,
+		SalaryMin:           salary.Min,
+		SalaryMax:           salary.Max,
+		SalaryCurrency:      salary.Currency,
+		Benefits:            req.Benefits,
+		IsRemote:            req.IsRemote,
+		ApplicationsCount:   0,
+	}
+
+	err := s.repo.Create(job)
+	if err != nil {
+		return nil, err
+	}
+
+	return job, nil
+}
+
+func (s *jobPostService) CreateJobPostWithStatus(req *CreateJobPostRequest, employerID, employerName, employerEmail, status string) (*JobPost, error) {
+	// Validate required fields
+	if req.Title == "" {
+		return nil, errors.New("title is required")
+	}
+	if req.RoleOverview == "" {
+		return nil, errors.New("role overview is required")
+	}
+	if req.Requirements == "" {
+		return nil, errors.New("requirements are required")
+	}
+	if req.Location == "" {
+		return nil, errors.New("location is required")
+	}
+	if req.JobType == "" {
+		return nil, errors.New("job type is required")
+	}
+	if req.Experience == "" {
+		return nil, errors.New("experience level is required")
+	}
+
+	// Validate text field lengths (ensure they can handle substantial content)
+	if len(req.RoleOverview) < 10 {
+		return nil, errors.New("role overview should be at least 10 characters long")
+	}
+	if len(req.Requirements) < 10 {
+		return nil, errors.New("requirements should be at least 10 characters long")
+	}
+
+	// Fetch employer details if not provided
+	if employerName == "" || employerEmail == "" {
+		employerProfile, err := s.employerRepo.GetByUserID(employerID)
+		if err == nil && employerProfile != nil {
+			if employerName == "" {
+				employerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
+			}
+			if employerEmail == "" {
+				employerEmail = employerProfile.OfficialEmail
+			}
+		}
+	}
+
+	// Validate salary
+	var salary Salary
+	if req.Salary.Salary != nil {
+		salary = *req.Salary.Salary
+		if salary.Min < 0 || salary.Max < 0 {
+			return nil, errors.New("salary values cannot be negative")
+		}
+		if salary.Min > salary.Max {
+			return nil, errors.New("minimum salary cannot be greater than maximum salary")
+		}
+		if salary.Currency == "" {
+			salary.Currency = "USD" // Default currency
+		}
+	} else {
+		// If no salary provided, set default values
+		salary = Salary{
+			Min:      0,
+			Max:      0,
+			Currency: "USD",
+		}
+	}
+
+	// Validate application deadline
+	if req.ApplicationDeadline.Before(time.Now()) {
+		return nil, errors.New("application deadline cannot be in the past")
+	}
+
+	job := &JobPost{
+		Title:               req.Title,
+		RoleOverview:        req.RoleOverview,
+		Requirements:        req.Requirements,
+		Location:            req.Location,
+		RequiredSkills:      req.RequiredSkills,
+		EmployerID:          employerID,
+		EmployerName:        employerName,
+		EmployerEmail:       employerEmail,
+		Status:              status, // Use the provided status
 		ApplicationDeadline: req.ApplicationDeadline,
 		JobType:             req.JobType,
 		Experience:          req.Experience,

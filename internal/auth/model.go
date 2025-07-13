@@ -7,7 +7,6 @@ import (
 type User struct {
 	ID         string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	Name       string    `json:"name"`
-	Username   string    `json:"username" gorm:"uniqueIndex"`
 	Email      string    `json:"email" binding:"required,email"`
 	Password   string    `json:"password" binding:"required"`
 	Role       string    `json:"role" binding:"required"`
@@ -26,8 +25,8 @@ func (User) TableName() string {
 
 type SignupRequest struct {
 	Name            string `json:"name" binding:"required"`
-	Username        string `json:"username" binding:"required"` // Username for AAA service
-	Email           string `json:"email" binding:"required"`    // Email for our local DB
+	Username        string `json:"user_name" binding:"required"` // Username for AAA service
+	Email           string `json:"email" binding:"required"`     // Email for our local DB
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
 	Role            string `json:"role" binding:"required,oneof=student employer"` // "student" or "employer"

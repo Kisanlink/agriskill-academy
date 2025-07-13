@@ -31,28 +31,38 @@ print_info() {
 
 echo "=== ASA Backend - Binary File Storage Migration ==="
 
-# Load environment variables
+# Load environment variables from .env file
 if [ -f ".env" ]; then
-    export $(cat .env | grep -v '^#' | xargs)
-    print_info "Loaded environment variables from .env"
+    export $(grep -v '^#' .env | xargs)
+    print_status "Loaded configuration from .env file"
+elif [ -f "../.env" ]; then
+    export $(grep -v '^#' ../.env | xargs)
+    print_status "Loaded configuration from .env file"
 else
     print_warning ".env file not found, using default values"
 fi
 
-# Database connection parameters
-DB_HOST=${DB_HOST:-localhost}
-DB_PORT=${DB_PORT:-5432}
-DB_NAME=${DB_NAME:-asa_db}
-DB_USER=${POSTGRES_USER:-postgres}
-DB_PASS=${POSTGRES_PASS:-postgres}
-DB_SSLMODE=${DB_SSLMODE:-disable}
+# Get database configuration from environment variables
+DB_HOST=${DB_HOST}
+DB_PORT=${DB_PORT}
+DB_NAME=${DB_NAME}
+DB_USER=${POSTGRESS_USER}
+DB_PASSWORD=${POSTGRESS_PASS}
+
+# Check if all required environment variables are set
+if [ -z "$DB_HOST" ] || [ -z "$DB_PORT" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+    print_error "Missing required database configuration in .env file"
+    echo "Required variables: DB_HOST, DB_PORT, DB_NAME, POSTGRESS_USER, POSTGRESS_PASS"
+    echo "Please create a .env file with all required database configuration."
+    exit 1
+fi
 
 print_info "Database: $DB_HOST:$DB_PORT/$DB_NAME"
 print_info "User: $DB_USER"
 
 # Test database connection
 echo "Testing database connection..."
-if ! PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 1;" > /dev/null 2>&1; then
+if ! PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "SELECT 1;" > /dev/null 2>&1; then
     print_error "Failed to connect to database"
     print_error "Please check your database configuration in .env file"
     exit 1
@@ -66,7 +76,7 @@ echo "Starting binary file storage migration..."
 print_info "Converting file columns to BYTEA..."
 
 # Users table - avatar
-PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
 ALTER TABLE users ALTER COLUMN avatar TYPE BYTEA;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_name VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_type VARCHAR(100);
@@ -74,7 +84,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_size BIGINT;
 " 2>/dev/null || print_warning "Users table avatar columns already updated"
 
 # Employer profiles table - logo
-PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
 ALTER TABLE employer_profiles ALTER COLUMN logo TYPE BYTEA;
 ALTER TABLE employer_profiles ADD COLUMN IF NOT EXISTS logo_name VARCHAR(255);
 ALTER TABLE employer_profiles ADD COLUMN IF NOT EXISTS logo_type VARCHAR(100);
@@ -82,7 +92,7 @@ ALTER TABLE employer_profiles ADD COLUMN IF NOT EXISTS logo_size BIGINT;
 " 2>/dev/null || print_warning "Employer profiles table logo columns already updated"
 
 # Student profiles table - profile_photo and resume
-PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
 ALTER TABLE student_profiles ALTER COLUMN profile_photo TYPE BYTEA;
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS profile_photo_name VARCHAR(255);
 ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS profile_photo_type VARCHAR(100);
@@ -94,7 +104,7 @@ ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS resume_size BIGINT;
 " 2>/dev/null || print_warning "Student profiles table file columns already updated"
 
 # Applications table - resume_file
-PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
 ALTER TABLE applications ALTER COLUMN resume_file TYPE BYTEA;
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS resume_file_name VARCHAR(255);
 ALTER TABLE applications ADD COLUMN IF NOT EXISTS resume_file_type VARCHAR(100);
@@ -102,7 +112,7 @@ ALTER TABLE applications ADD COLUMN IF NOT EXISTS resume_file_size BIGINT;
 " 2>/dev/null || print_warning "Applications table resume_file columns already updated"
 
 # Certificates table - file
-PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
 ALTER TABLE certificates ALTER COLUMN file TYPE BYTEA;
 ALTER TABLE certificates ADD COLUMN IF NOT EXISTS file_name VARCHAR(255);
 ALTER TABLE certificates ADD COLUMN IF NOT EXISTS file_type VARCHAR(100);
@@ -114,7 +124,7 @@ print_status "File columns converted to BYTEA"
 # Add indexes for better performance
 print_info "Adding indexes for file metadata..."
 
-PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
 CREATE INDEX IF NOT EXISTS idx_users_avatar_name ON users(avatar_name);
 CREATE INDEX IF NOT EXISTS idx_employer_profiles_logo_name ON employer_profiles(logo_name);
 CREATE INDEX IF NOT EXISTS idx_student_profiles_resume_name ON student_profiles(resume_name);
@@ -126,7 +136,7 @@ print_status "Indexes created"
 # Add comments to document the changes
 print_info "Adding column comments..."
 
-PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
+PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -c "
 COMMENT ON COLUMN users.avatar IS 'Binary file data for user avatar/profile photo';
 COMMENT ON COLUMN users.avatar_name IS 'Original filename of the avatar';
 COMMENT ON COLUMN users.avatar_type IS 'MIME type of the avatar file';
@@ -164,7 +174,7 @@ print_status "Column comments added"
 print_info "Verifying migration..."
 
 # Check if columns exist and are of correct type
-COLUMN_CHECK=$(PGPASSWORD=$DB_PASS psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+COLUMN_CHECK=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
 SELECT 
     table_name,
     column_name,

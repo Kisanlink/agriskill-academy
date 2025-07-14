@@ -60,12 +60,8 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 			} else if strings.Contains(app.ResumeURL, "uploads/") {
 				// Always use the /api/files/serve/ path for anything in uploads/
 				trimmed := app.ResumeURL
-				if strings.HasPrefix(trimmed, "/") {
-					trimmed = trimmed[1:]
-				}
-				if strings.HasPrefix(trimmed, "uploads/") {
-					trimmed = trimmed[len("uploads/"):]
-				}
+				trimmed = strings.TrimPrefix(trimmed, "/")
+				trimmed = strings.TrimPrefix(trimmed, "uploads/")
 				resumeURL = "http://localhost:3000/api/files/serve/" + trimmed
 			} else {
 				resumeURL = "http://localhost:3000/api/files/serve/" + strings.TrimPrefix(app.ResumeURL, "/")
@@ -145,12 +141,8 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 			} else if strings.Contains(app.ResumeURL, "uploads/") {
 				// Always use the /api/files/serve/ path for anything in uploads/
 				trimmed := app.ResumeURL
-				if strings.HasPrefix(trimmed, "/") {
-					trimmed = trimmed[1:]
-				}
-				if strings.HasPrefix(trimmed, "uploads/") {
-					trimmed = trimmed[len("uploads/"):]
-				}
+				trimmed = strings.TrimPrefix(trimmed, "/")
+				trimmed = strings.TrimPrefix(trimmed, "uploads/")
 				resumeURL = "http://localhost:3000/api/files/serve/" + trimmed
 			} else {
 				resumeURL = "http://localhost:3000/api/files/serve/" + strings.TrimPrefix(app.ResumeURL, "/")

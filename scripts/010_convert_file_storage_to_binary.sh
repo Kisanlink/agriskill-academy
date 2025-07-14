@@ -173,7 +173,32 @@ print_status "Column comments added"
 # Verify the migration
 print_info "Verifying migration..."
 
+# First, check if all required tables exist
+print_info "Checking table existence..."
+TABLE_CHECK=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+AND table_name IN ('users', 'employer_profiles', 'student_profiles', 'applications', 'certificates')
+ORDER BY table_name;
+")
+
+if [ -z "$TABLE_CHECK" ]; then
+    print_error "Some required tables are missing. Available tables:"
+    PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+    SELECT table_name 
+    FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    ORDER BY table_name;
+    "
+    exit 1
+fi
+
+print_status "All required tables exist:"
+echo "$TABLE_CHECK"
+
 # Check if columns exist and are of correct type
+print_info "Checking column types..."
 COLUMN_CHECK=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
 SELECT 
     table_name,
@@ -182,15 +207,37 @@ SELECT
 FROM information_schema.columns 
 WHERE table_schema = 'public' 
 AND column_name IN ('avatar', 'logo', 'profile_photo', 'resume', 'resume_file', 'file')
-AND data_type = 'bytea'
 ORDER BY table_name, column_name;
 ")
 
 if [ -n "$COLUMN_CHECK" ]; then
-    print_status "Migration verification successful"
+    print_status "Found file columns:"
     echo "$COLUMN_CHECK"
+    
+    # Check which columns are already BYTEA
+    BYTEA_CHECK=$(PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -p $DB_PORT -U $DB_USER -d $DB_NAME -t -c "
+    SELECT 
+        table_name,
+        column_name,
+        data_type
+    FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND column_name IN ('avatar', 'logo', 'profile_photo', 'resume', 'resume_file', 'file')
+    AND data_type = 'bytea'
+    ORDER BY table_name, column_name;
+    ")
+    
+    if [ -n "$BYTEA_CHECK" ]; then
+        print_status "Migration verification successful - BYTEA columns found:"
+        echo "$BYTEA_CHECK"
+    else
+        print_error "Migration verification failed - no columns were converted to BYTEA"
+        print_error "This might indicate that the ALTER TABLE statements failed"
+        exit 1
+    fi
 else
-    print_error "Migration verification failed - some columns may not have been converted"
+    print_error "Migration verification failed - no file columns found"
+    print_error "This might indicate that the tables don't exist or columns have different names"
     exit 1
 fi
 

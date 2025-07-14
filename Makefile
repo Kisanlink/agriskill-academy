@@ -15,6 +15,7 @@ help:
 	@echo "Database:"
 	@echo "  make migrate      - Apply all database migrations"
 	@echo "  make migrate-reset- Reset database and apply all migrations"
+	@echo "  make debug-migration - Debug migration issues"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make test         - Run tests"
@@ -79,6 +80,14 @@ migrate:
 		./scripts/010_convert_file_storage_to_binary.sh; \
 	fi
 	@echo "Migrations applied successfully!"
+
+# Debug migration issues
+debug-migration:
+	@echo "Running migration debug script..."
+	@if [ -f "scripts/debug_migration.sh" ]; then \
+		chmod +x scripts/debug_migration.sh; \
+		./scripts/debug_migration.sh; \
+	fi
 
 # Reset database and apply all migrations
 migrate-reset:

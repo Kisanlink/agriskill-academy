@@ -115,15 +115,23 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 	userID := c.Param("employerId")
 	var req EmployerProfile
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request format"})
 		return
 	}
+
+	// Set the user ID from the URL parameter
 	req.UserID = userID
+
 	if err := h.service.UpdateProfile(&req); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Update failed"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": req})
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Profile updated successfully",
+		"data":    req,
+	})
 }
 
 // @Summary Create Employer Profile

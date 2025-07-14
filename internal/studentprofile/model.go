@@ -67,29 +67,39 @@ func (Certificate) TableName() string {
 }
 
 type StudentProfile struct {
-	ID               string        `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	UserID           string        `gorm:"type:varchar(255)" json:"user_id" binding:"required"`
-	Name             string        `json:"name" binding:"required"`
-	Email            string        `json:"email" binding:"required,email"`
-	Location         string        `json:"location"`
-	PhoneNumber      string        `json:"phone_number"`
-	ProfilePhoto     []byte        `json:"profile_photo" gorm:"type:bytea"`
-	ProfilePhotoName string        `json:"profile_photo_name"`
-	ProfilePhotoType string        `json:"profile_photo_type"`
-	ProfilePhotoSize int64         `json:"profile_photo_size"`
-	Resume           []byte        `json:"resume" gorm:"type:bytea"`
-	ResumeName       string        `json:"resume_name"`
-	ResumeType       string        `json:"resume_type"`
-	ResumeSize       int64         `json:"resume_size"`
-	Certificates     []Certificate `gorm:"foreignKey:StudentProfileID" json:"certificates"`
-	Skills           Skills        `gorm:"type:text[]" json:"skills"`
-	Experience       float64       `json:"experience"`
-	Education        string        `json:"education"`
-	Portfolio        string        `json:"portfolio"`
-	Linkedin         string        `json:"linkedin"`
-	Github           string        `json:"github"`
-	CreatedAt        time.Time     `json:"created_at"`
-	UpdatedAt        time.Time     `json:"updated_at"`
+	ID     string `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	UserID string `gorm:"type:varchar(255);not null" json:"user_id" binding:"required"`
+
+	// Required basic information
+	Name  string `gorm:"not null" json:"name" binding:"required"`
+	Email string `gorm:"not null" json:"email" binding:"required,email"`
+
+	// Optional contact and location
+	Location    string `json:"location,omitempty"`
+	PhoneNumber string `json:"phone_number,omitempty"`
+
+	// Optional profile media
+	ProfilePhoto     []byte `gorm:"type:bytea" json:"profile_photo,omitempty"`
+	ProfilePhotoName string `json:"profile_photo_name,omitempty"`
+	ProfilePhotoType string `json:"profile_photo_type,omitempty"`
+	ProfilePhotoSize int64  `json:"profile_photo_size,omitempty"`
+	Resume           []byte `gorm:"type:bytea" json:"resume,omitempty"`
+	ResumeName       string `json:"resume_name,omitempty"`
+	ResumeType       string `json:"resume_type,omitempty"`
+	ResumeSize       int64  `json:"resume_size,omitempty"`
+
+	// Optional professional information
+	Certificates []Certificate `gorm:"foreignKey:StudentProfileID" json:"certificates,omitempty"`
+	Skills       Skills        `gorm:"type:text[]" json:"skills,omitempty"`
+	Experience   float64       `json:"experience,omitempty"`
+	Education    string        `json:"education,omitempty"`
+	Portfolio    string        `json:"portfolio,omitempty"`
+	Linkedin     string        `json:"linkedin,omitempty"`
+	Github       string        `json:"github,omitempty"`
+
+	// System managed fields
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // TableName specifies the database table name for StudentProfile

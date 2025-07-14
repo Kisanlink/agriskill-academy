@@ -13,6 +13,7 @@ import (
 	"mime/multipart"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type ApplicationHandler struct {
@@ -146,6 +147,7 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 	fileSize := file.Size
 
 	app := &Application{
+		ID:             uuid.New().String(),
 		JobID:          jobId,
 		StudentID:      studentID,
 		CoverLetter:    coverLetter,

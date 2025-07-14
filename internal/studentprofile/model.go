@@ -23,20 +23,46 @@ func (s Skills) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler
 func (s *Skills) UnmarshalJSON(data []byte) error {
+	// First try to unmarshal as an array
 	var skills []string
-	if err := json.Unmarshal(data, &skills); err != nil {
-		return err
+	if err := json.Unmarshal(data, &skills); err == nil {
+		*s = Skills(skills)
+		return nil
 	}
-	*s = Skills(skills)
-	return nil
+
+	// If that fails, try to unmarshal as a single string
+	var singleSkill string
+	if err := json.Unmarshal(data, &singleSkill); err == nil {
+		if singleSkill != "" {
+			*s = Skills([]string{singleSkill})
+		} else {
+			*s = nil
+		}
+		return nil
+	}
+
+	return fmt.Errorf("skills must be either a string or an array of strings")
 }
 
 // Value implements driver.Valuer for database storage
 func (s Skills) Value() (interface{}, error) {
-	if s == nil {
+	if s == nil || len(s) == 0 {
 		return nil, nil
 	}
-	return pq.StringArray(s), nil
+
+	// Filter out empty strings
+	var filteredSkills []string
+	for _, skill := range s {
+		if skill != "" {
+			filteredSkills = append(filteredSkills, skill)
+		}
+	}
+
+	if len(filteredSkills) == 0 {
+		return nil, nil
+	}
+
+	return pq.StringArray(filteredSkills), nil
 }
 
 // Scan implements sql.Scanner for database retrieval
@@ -132,6 +158,29 @@ func (s *StudentProfile) BeforeCreate(tx *gorm.DB) error {
 			return fmt.Errorf("invalid UUID format for StudentProfile ID: %w", err)
 		}
 	}
+	return nil
+}
+
+// BeforeUpdate is a GORM hook to handle Skills field conversion
+func (s *StudentProfile) BeforeUpdate(tx *gorm.DB) error {
+	// Ensure Skills is properly formatted as an array
+	// This handles cases where the frontend might send a single string
+	if len(s.Skills) == 1 && s.Skills[0] == "" {
+		// If it's an empty string, set to nil/empty array
+		s.Skills = nil
+	}
+
+	// Filter out empty strings from skills
+	if len(s.Skills) > 0 {
+		var filteredSkills []string
+		for _, skill := range s.Skills {
+			if skill != "" {
+				filteredSkills = append(filteredSkills, skill)
+			}
+		}
+		s.Skills = Skills(filteredSkills)
+	}
+
 	return nil
 }
 

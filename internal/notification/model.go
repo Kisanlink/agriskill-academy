@@ -6,8 +6,8 @@ import (
 
 // Notification Preferences Models
 type NotificationPreferences struct {
-	ID                 string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID             string    `gorm:"type:uuid;not null;uniqueIndex" json:"user_id"`
+	ID                 string    `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	UserID             string    `gorm:"type:varchar(255);not null;uniqueIndex" json:"user_id"`
 	EmailNotifications bool      `json:"email_notifications" gorm:"default:true"`
 	PushNotifications  bool      `json:"push_notifications" gorm:"default:true"`
 	JobAlerts          bool      `json:"job_alerts" gorm:"default:true"`

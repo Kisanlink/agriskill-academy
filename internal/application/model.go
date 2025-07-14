@@ -29,9 +29,9 @@ var ValidStatuses = []string{
 }
 
 type Application struct {
-	ID             string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	JobID          string    `json:"job_id" binding:"required"`
-	StudentID      string    `json:"student_id" binding:"required"`
+	ID             string    `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	JobID          string    `gorm:"type:varchar(255)" json:"job_id" binding:"required"`
+	StudentID      string    `gorm:"type:varchar(255)" json:"student_id" binding:"required"`
 	AppliedAt      time.Time `json:"applied_at"`
 	Status         string    `json:"status"`
 	CoverLetter    string    `json:"cover_letter"`

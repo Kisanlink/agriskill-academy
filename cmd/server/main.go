@@ -29,7 +29,44 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"gorm.io/gorm"
 )
+
+// runAutoMigrate runs GORM AutoMigrate for all models
+func runAutoMigrate(db *gorm.DB) error {
+	log.Println("Running GORM AutoMigrate...")
+
+	// Enable UUID extension for generating UUIDs if needed
+	err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"").Error
+	if err != nil {
+		log.Printf("Warning: Could not create uuid-ossp extension: %v", err)
+	}
+
+	// List of all models to migrate
+	models := []interface{}{
+		&auth.User{},
+		&employerprofile.EmployerProfile{},
+		&studentprofile.StudentProfile{},
+		&studentprofile.Certificate{},
+		&jobpost.JobPost{},
+		&jobpost.JobAlert{},
+		&application.Application{},
+		&bookmark.Bookmark{},
+		&notification.NotificationPreferences{},
+		&employerapplication.Message{},
+	}
+
+	// Run AutoMigrate for each model
+	for _, model := range models {
+		if err := db.AutoMigrate(model); err != nil {
+			return fmt.Errorf("failed to migrate model %T: %w", model, err)
+		}
+		log.Printf("Successfully migrated: %T", model)
+	}
+
+	log.Println("AutoMigrate completed successfully!")
+	return nil
+}
 
 // Mock storage service for compatibility with existing storage handler
 type mockStorageService struct{}
@@ -69,6 +106,11 @@ func main() {
 		log.Fatalf("Failed to initialize DB: %v", err)
 	}
 	defer config.CloseDB(db)
+
+	// Run AutoMigrate to create/update all tables
+	if err := runAutoMigrate(db); err != nil {
+		log.Fatalf("Failed to run auto migration: %v", err)
+	}
 
 	router := gin.Default()
 	router.Use(middleware.CORSMiddleware())

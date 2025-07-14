@@ -88,9 +88,9 @@ type ApplicantProfile struct {
 }
 
 type Message struct {
-	ID            string     `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	ApplicationID string     `json:"application_id" gorm:"column:application_id"`
-	SenderID      string     `json:"sender_id" gorm:"column:sender_id"`
+	ID            string     `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	ApplicationID string     `gorm:"type:varchar(255)" json:"application_id" gorm:"column:application_id"`
+	SenderID      string     `gorm:"type:varchar(255)" json:"sender_id" gorm:"column:sender_id"`
 	Message       string     `json:"message" gorm:"column:message"`
 	SentAt        *time.Time `json:"sent_at" gorm:"column:sent_at;autoCreateTime"`
 }

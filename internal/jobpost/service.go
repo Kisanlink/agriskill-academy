@@ -554,15 +554,9 @@ func (s *jobPostService) CreateJobAlert(request *JobAlertRequest) (*JobAlert, er
 
 	// Set salary range if provided
 	if request.SalaryRange != nil {
-		alert.SalaryRange = &struct {
-			Min      float64 `json:"min"`
-			Max      float64 `json:"max"`
-			Currency string  `json:"currency"`
-		}{
-			Min:      request.SalaryRange.Min,
-			Max:      request.SalaryRange.Max,
-			Currency: request.SalaryRange.Currency,
-		}
+		alert.SalaryMin = &request.SalaryRange.Min
+		alert.SalaryMax = &request.SalaryRange.Max
+		alert.SalaryCurrency = request.SalaryRange.Currency
 	}
 
 	err := s.repo.CreateJobAlert(alert)
@@ -597,15 +591,9 @@ func (s *jobPostService) UpdateJobAlert(alertID string, request *JobAlertRequest
 		alert.Skills = request.Skills
 	}
 	if request.SalaryRange != nil {
-		alert.SalaryRange = &struct {
-			Min      float64 `json:"min"`
-			Max      float64 `json:"max"`
-			Currency string  `json:"currency"`
-		}{
-			Min:      request.SalaryRange.Min,
-			Max:      request.SalaryRange.Max,
-			Currency: request.SalaryRange.Currency,
-		}
+		alert.SalaryMin = &request.SalaryRange.Min
+		alert.SalaryMax = &request.SalaryRange.Max
+		alert.SalaryCurrency = request.SalaryRange.Currency
 	}
 	if request.IsRemote != nil {
 		alert.IsRemote = request.IsRemote

@@ -581,9 +581,9 @@ func (r *jobPostRepository) GetJobsMatchingAlert(alert *JobAlert) ([]JobPost, er
 	}
 
 	// Salary range filter
-	if alert.SalaryRange != nil {
+	if alert.SalaryMin != nil && alert.SalaryMax != nil {
 		query = query.Where("salary_min >= ? AND salary_max <= ?",
-			alert.SalaryRange.Min, alert.SalaryRange.Max)
+			*alert.SalaryMin, *alert.SalaryMax)
 	}
 
 	// Remote filter

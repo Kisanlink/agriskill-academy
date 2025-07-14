@@ -50,13 +50,13 @@ func (fs *FlexibleSalary) MarshalJSON() ([]byte, error) {
 }
 
 type JobPost struct {
-	ID                  string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	ID                  string         `gorm:"primaryKey;type:varchar(255)" json:"id"`
 	Title               string         `json:"title"`
 	RoleOverview        string         `json:"role_overview"`
 	Requirements        string         `json:"requirements"`
 	Location            string         `json:"location"`
 	RequiredSkills      pq.StringArray `gorm:"type:text[]" json:"required_skills"`
-	EmployerID          string         `json:"employer_id"`
+	EmployerID          string         `gorm:"type:varchar(255)" json:"employer_id"`
 	EmployerName        string         `json:"employer_name"`
 	EmployerEmail       string         `json:"employer_email"`
 	Status              string         `json:"status"` // draft, published, closed, completed
@@ -256,24 +256,28 @@ type JobAlertResponse struct {
 	Alerts  []JobAlert `json:"alerts,omitempty"`
 }
 
+// JobAlert represents the job_alerts table structure
 type JobAlert struct {
-	ID          string   `json:"id"`
-	UserID      string   `json:"user_id"`
-	Keywords    []string `json:"keywords"`
-	Location    string   `json:"location"`
-	JobType     []string `json:"job_type"`
-	Experience  []string `json:"experience"`
-	Skills      []string `json:"skills"`
-	SalaryRange *struct {
-		Min      float64 `json:"min"`
-		Max      float64 `json:"max"`
-		Currency string  `json:"currency"`
-	} `json:"salary_range"`
-	IsRemote  *bool     `json:"is_remote"`
-	Frequency string    `json:"frequency"`
-	IsActive  bool      `json:"is_active"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID             string         `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	UserID         string         `gorm:"type:varchar(255);not null" json:"user_id"`
+	Keywords       pq.StringArray `gorm:"type:text[]" json:"keywords"`
+	Location       string         `gorm:"type:varchar(255)" json:"location"`
+	JobType        pq.StringArray `gorm:"type:text[]" json:"job_type"`
+	Experience     pq.StringArray `gorm:"type:text[]" json:"experience"`
+	Skills         pq.StringArray `gorm:"type:text[]" json:"skills"`
+	SalaryMin      *float64       `gorm:"type:numeric(10,2)" json:"salary_min"`
+	SalaryMax      *float64       `gorm:"type:numeric(10,2)" json:"salary_max"`
+	SalaryCurrency string         `gorm:"type:varchar(10);default:'USD'" json:"salary_currency"`
+	IsRemote       *bool          `json:"is_remote"`
+	Frequency      string         `gorm:"type:varchar(20);not null;default:'weekly';check:frequency IN ('daily', 'weekly', 'immediate')" json:"frequency"`
+	IsActive       bool           `gorm:"not null;default:true" json:"is_active"`
+	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt      time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+// TableName specifies the database table name for JobAlert
+func (JobAlert) TableName() string {
+	return "job_alerts"
 }
 
 // Job Discovery Models

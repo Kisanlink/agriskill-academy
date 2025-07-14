@@ -96,7 +96,7 @@ func (h *EmployerProfileHandler) GetMyProfile(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param employerId path string true "Employer ID"
-// @Param request body EmployerProfile true "Profile update data"
+// @Param request body UpdateEmployerProfileRequest true "Profile update data"
 // @Success 200 {object} map[string]interface{} "Profile updated successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
@@ -113,16 +113,41 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	userID := c.Param("employerId")
-	var req EmployerProfile
+	var req UpdateEmployerProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request format"})
 		return
 	}
 
-	// Set the user ID from the URL parameter
-	req.UserID = userID
+	// Convert request to full profile model
+	profile := &EmployerProfile{
+		ID:                 employerID,
+		UserID:             userID,
+		CompanyName:        req.CompanyName,
+		Industry:           req.Industry,
+		CompanySize:        req.CompanySize,
+		Logo:               req.Logo,
+		LogoName:           req.LogoName,
+		LogoType:           req.LogoType,
+		LogoSize:           req.LogoSize,
+		WebsiteURL:         req.WebsiteURL,
+		CompanyDescription: req.CompanyDescription,
+		RecruiterName:      req.RecruiterName,
+		Designation:        req.Designation,
+		OfficialEmail:      req.OfficialEmail,
+		PhoneNumber:        req.PhoneNumber,
+		LinkedinProfile:    req.LinkedinProfile,
+		JobCategories:      req.JobCategories,
+		HiringLocations:    req.HiringLocations,
+		HiringTypes:        req.HiringTypes,
+		GSTINNumber:        req.GSTINNumber,
+		CompanyAddress:     req.CompanyAddress,
+		City:               req.City,
+		State:              req.State,
+		Pincode:            req.Pincode,
+	}
 
-	if err := h.service.UpdateProfile(&req); err != nil {
+	if err := h.service.UpdateProfile(profile); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Update failed"})
 		return
 	}
@@ -130,7 +155,7 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Profile updated successfully",
-		"data":    req,
+		"data":    profile,
 	})
 }
 

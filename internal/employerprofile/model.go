@@ -47,6 +47,41 @@ type EmployerProfile struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
+// UpdateEmployerProfileRequest is used for update operations where UserID comes from URL parameter
+type UpdateEmployerProfileRequest struct {
+	// Company information (all optional for updates)
+	CompanyName string `json:"company_name,omitempty"`
+	Industry    string `json:"industry,omitempty"`
+	CompanySize string `json:"company_size,omitempty"`
+
+	// Optional company branding and details
+	Logo               []byte `json:"logo,omitempty"`
+	LogoName           string `json:"logo_name,omitempty"`
+	LogoType           string `json:"logo_type,omitempty"`
+	LogoSize           int64  `json:"logo_size,omitempty"`
+	WebsiteURL         string `json:"website_url,omitempty"`
+	CompanyDescription string `json:"company_description,omitempty"`
+
+	// Optional recruiter information
+	RecruiterName   string `json:"recruiter_name,omitempty"`
+	Designation     string `json:"designation,omitempty"`
+	OfficialEmail   string `json:"official_email,omitempty"`
+	PhoneNumber     string `json:"phone_number,omitempty"`
+	LinkedinProfile string `json:"linkedin_profile,omitempty"`
+
+	// Optional hiring preferences (can be set later)
+	JobCategories   pq.StringArray `json:"job_categories,omitempty"`
+	HiringLocations pq.StringArray `json:"hiring_locations,omitempty"`
+	HiringTypes     pq.StringArray `json:"hiring_types,omitempty"`
+
+	// Optional business information
+	GSTINNumber    string `json:"gstin_number,omitempty"`
+	CompanyAddress string `json:"company_address,omitempty"`
+	City           string `json:"city,omitempty"`
+	State          string `json:"state,omitempty"`
+	Pincode        string `json:"pincode,omitempty"`
+}
+
 // TableName specifies the database table name for EmployerProfile
 func (EmployerProfile) TableName() string {
 	return "employer_profiles"

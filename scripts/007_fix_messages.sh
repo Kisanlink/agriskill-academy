@@ -106,7 +106,7 @@ fi
 # Apply the messages timestamp fix
 echo ""
 echo "Applying messages timestamp fix..."
-execute_sql_file "../migrations/007_fix_messages_timestamp.sql" "Fix Messages Timestamp"
+execute_sql_file "migrations/007_fix_messages_timestamp.sql" "Fix Messages Timestamp"
 
 echo ""
 echo "=== Messages Fix Migration Summary ==="

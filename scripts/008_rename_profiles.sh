@@ -106,7 +106,7 @@ fi
 # Apply the student profiles rename
 echo ""
 echo "Applying student profiles rename..."
-execute_sql_file "../migrations/008_rename_user_profiles_to_student_profiles.sql" "Rename User Profiles to Student Profiles"
+execute_sql_file "migrations/008_rename_user_profiles_to_student_profiles.sql" "Rename User Profiles to Student Profiles"
 
 echo ""
 echo "=== Student Profiles Rename Migration Summary ==="

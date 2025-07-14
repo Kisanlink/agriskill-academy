@@ -106,7 +106,7 @@ fi
 # Apply the complete database schema
 echo ""
 echo "Applying complete database schema..."
-execute_sql_file "../migrations/001_complete_database_schema.sql" "Complete Database Schema"
+execute_sql_file "migrations/001_complete_database_schema.sql" "Complete Database Schema"
 
 echo ""
 echo "=== Schema Migration Summary ==="

@@ -119,35 +119,86 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 
-	// Convert request to full profile model
-	profile := &EmployerProfile{
-		ID:                 employerID,
-		UserID:             userID,
-		CompanyName:        req.CompanyName,
-		Industry:           req.Industry,
-		CompanySize:        req.CompanySize,
-		Logo:               req.Logo,
-		LogoName:           req.LogoName,
-		LogoType:           req.LogoType,
-		LogoSize:           req.LogoSize,
-		WebsiteURL:         req.WebsiteURL,
-		CompanyDescription: req.CompanyDescription,
-		RecruiterName:      req.RecruiterName,
-		Designation:        req.Designation,
-		OfficialEmail:      req.OfficialEmail,
-		PhoneNumber:        req.PhoneNumber,
-		LinkedinProfile:    req.LinkedinProfile,
-		JobCategories:      req.JobCategories,
-		HiringLocations:    req.HiringLocations,
-		HiringTypes:        req.HiringTypes,
-		GSTINNumber:        req.GSTINNumber,
-		CompanyAddress:     req.CompanyAddress,
-		City:               req.City,
-		State:              req.State,
-		Pincode:            req.Pincode,
+	// Get existing profile first
+	existingProfile, err := h.service.GetProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Profile not found"})
+		return
 	}
 
-	if err := h.service.UpdateProfile(profile); err != nil {
+	// Update only the fields that are provided in the request (non-empty values)
+	if req.CompanyName != "" {
+		existingProfile.CompanyName = req.CompanyName
+	}
+	if req.Industry != "" {
+		existingProfile.Industry = req.Industry
+	}
+	if req.CompanySize != "" {
+		existingProfile.CompanySize = req.CompanySize
+	}
+	if req.WebsiteURL != "" {
+		existingProfile.WebsiteURL = req.WebsiteURL
+	}
+	if req.CompanyDescription != "" {
+		existingProfile.CompanyDescription = req.CompanyDescription
+	}
+	if req.RecruiterName != "" {
+		existingProfile.RecruiterName = req.RecruiterName
+	}
+	if req.Designation != "" {
+		existingProfile.Designation = req.Designation
+	}
+	if req.OfficialEmail != "" {
+		existingProfile.OfficialEmail = req.OfficialEmail
+	}
+	if req.PhoneNumber != "" {
+		existingProfile.PhoneNumber = req.PhoneNumber
+	}
+	if req.LinkedinProfile != "" {
+		existingProfile.LinkedinProfile = req.LinkedinProfile
+	}
+	if req.GSTINNumber != "" {
+		existingProfile.GSTINNumber = req.GSTINNumber
+	}
+	if req.CompanyAddress != "" {
+		existingProfile.CompanyAddress = req.CompanyAddress
+	}
+	if req.City != "" {
+		existingProfile.City = req.City
+	}
+	if req.State != "" {
+		existingProfile.State = req.State
+	}
+	if req.Pincode != "" {
+		existingProfile.Pincode = req.Pincode
+	}
+
+	// Handle arrays - only update if provided (non-nil)
+	if req.JobCategories != nil {
+		existingProfile.JobCategories = req.JobCategories
+	}
+	if req.HiringLocations != nil {
+		existingProfile.HiringLocations = req.HiringLocations
+	}
+	if req.HiringTypes != nil {
+		existingProfile.HiringTypes = req.HiringTypes
+	}
+
+	// Handle logo fields - only update if provided
+	if req.Logo != nil {
+		existingProfile.Logo = req.Logo
+	}
+	if req.LogoName != "" {
+		existingProfile.LogoName = req.LogoName
+	}
+	if req.LogoType != "" {
+		existingProfile.LogoType = req.LogoType
+	}
+	if req.LogoSize != 0 {
+		existingProfile.LogoSize = req.LogoSize
+	}
+
+	if err := h.service.UpdateProfile(existingProfile); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Update failed"})
 		return
 	}
@@ -155,7 +206,7 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Profile updated successfully",
-		"data":    profile,
+		"data":    existingProfile,
 	})
 }
 

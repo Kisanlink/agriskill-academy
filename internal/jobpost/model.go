@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
+	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"gorm.io/gorm"
 )
 
 type Salary struct {
@@ -278,6 +282,18 @@ type JobAlert struct {
 // TableName specifies the database table name for JobAlert
 func (JobAlert) TableName() string {
 	return "job_alerts"
+}
+
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (j *JobAlert) BeforeCreate(tx *gorm.DB) error {
+	if j.ID == "" {
+		j.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(j.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for JobAlert ID: %w", err)
+		}
+	}
+	return nil
 }
 
 // Job Discovery Models

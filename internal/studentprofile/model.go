@@ -6,7 +6,11 @@ import (
 	"encoding/json"
 	"time"
 
+	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/lib/pq" // Import pq package for PostgreSQL arrays
+	"gorm.io/gorm"
 )
 
 // Skills is a custom type to handle JSON marshaling/unmarshaling for PostgreSQL string arrays
@@ -66,6 +70,18 @@ func (Certificate) TableName() string {
 	return "certificates"
 }
 
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (c *Certificate) BeforeCreate(tx *gorm.DB) error {
+	if c.ID == "" {
+		c.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(c.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for Certificate ID: %w", err)
+		}
+	}
+	return nil
+}
+
 type StudentProfile struct {
 	ID     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	UserID string `gorm:"type:uuid;not null" json:"user_id" binding:"required"`
@@ -105,6 +121,18 @@ type StudentProfile struct {
 // TableName specifies the database table name for StudentProfile
 func (StudentProfile) TableName() string {
 	return "student_profiles"
+}
+
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (s *StudentProfile) BeforeCreate(tx *gorm.DB) error {
+	if s.ID == "" {
+		s.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(s.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for StudentProfile ID: %w", err)
+		}
+	}
+	return nil
 }
 
 // UpdateStudentProfileRequest - For profile updates (all fields optional except validation)

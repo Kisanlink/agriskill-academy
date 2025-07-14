@@ -2,6 +2,11 @@ package auth
 
 import (
 	"time"
+
+	"fmt"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type User struct {
@@ -21,6 +26,18 @@ type User struct {
 // TableName specifies the database table name for User
 func (User) TableName() string {
 	return "users"
+}
+
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (u *User) BeforeCreate(tx *gorm.DB) error {
+	if u.ID == "" {
+		u.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(u.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for User ID: %w", err)
+		}
+	}
+	return nil
 }
 
 type SignupRequest struct {

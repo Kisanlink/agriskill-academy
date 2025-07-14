@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -102,9 +103,9 @@ func TestUpdateEmployerProfileRequest_FieldValidation(t *testing.T) {
 	assert.Equal(t, "AgriTech / Smart Farming", req.Industry)
 	assert.Equal(t, "11-50 employees", req.CompanySize)
 	assert.Equal(t, "Meher Prasad", req.RecruiterName)
-	assert.Equal(t, []string{"AgriTech Development"}, req.JobCategories)
-	assert.Equal(t, []string{"Hyderabad"}, req.HiringLocations)
-	assert.Equal(t, []string{}, req.HiringTypes)
+	assert.Equal(t, pq.StringArray{"AgriTech Development"}, req.JobCategories)
+	assert.Equal(t, pq.StringArray{"Hyderabad"}, req.HiringLocations)
+	assert.Equal(t, pq.StringArray{}, req.HiringTypes)
 }
 
 func TestUpdateEmployerProfileRequest_EmptyFields(t *testing.T) {

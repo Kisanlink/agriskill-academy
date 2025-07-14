@@ -50,13 +50,13 @@ func (fs *FlexibleSalary) MarshalJSON() ([]byte, error) {
 }
 
 type JobPost struct {
-	ID                  string         `gorm:"primaryKey;type:varchar(255)" json:"id"`
+	ID                  string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	Title               string         `json:"title"`
 	RoleOverview        string         `json:"role_overview"`
 	Requirements        string         `json:"requirements"`
 	Location            string         `json:"location"`
 	RequiredSkills      pq.StringArray `gorm:"type:text[]" json:"required_skills"`
-	EmployerID          string         `gorm:"type:varchar(255)" json:"employer_id"`
+	EmployerID          string         `gorm:"type:uuid" json:"employer_id"`
 	EmployerName        string         `json:"employer_name"`
 	EmployerEmail       string         `json:"employer_email"`
 	Status              string         `json:"status"` // draft, published, closed, completed
@@ -258,8 +258,8 @@ type JobAlertResponse struct {
 
 // JobAlert represents the job_alerts table structure
 type JobAlert struct {
-	ID             string         `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	UserID         string         `gorm:"type:varchar(255);not null" json:"user_id"`
+	ID             string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	UserID         string         `gorm:"type:uuid;not null" json:"user_id"`
 	Keywords       pq.StringArray `gorm:"type:text[]" json:"keywords"`
 	Location       string         `gorm:"type:varchar(255)" json:"location"`
 	JobType        pq.StringArray `gorm:"type:text[]" json:"job_type"`

@@ -5,8 +5,8 @@ import (
 )
 
 type Bookmark struct {
-	ID        string    `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	UserID    string    `gorm:"type:varchar(255)" json:"user_id"`
-	JobID     string    `gorm:"type:varchar(255)" json:"job_id"`
+	ID        string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	UserID    string    `gorm:"type:uuid" json:"user_id"`
+	JobID     string    `gorm:"type:uuid" json:"job_id"`
 	CreatedAt time.Time `json:"created_at"`
 }

@@ -7,8 +7,8 @@ import (
 )
 
 type EmployerProfile struct {
-	ID     string `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	UserID string `gorm:"type:varchar(255);not null" json:"user_id" binding:"required"`
+	ID     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	UserID string `gorm:"type:uuid;not null" json:"user_id" binding:"required"`
 
 	// Required company information
 	CompanyName string `gorm:"not null" json:"company_name" binding:"required"`

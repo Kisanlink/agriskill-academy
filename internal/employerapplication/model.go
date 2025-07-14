@@ -5,9 +5,9 @@ import (
 )
 
 type JobApplicationWithApplicant struct {
-	ApplicationID     string    `json:"application_id" gorm:"column:application_id"`
-	JobID             string    `json:"job_id" gorm:"column:job_id"`
-	StudentID         string    `json:"student_id" gorm:"column:student_id"`
+	ApplicationID     string    `json:"application_id" gorm:"column:application_id;type:uuid"`
+	JobID             string    `json:"job_id" gorm:"column:job_id;type:uuid"`
+	StudentID         string    `json:"student_id" gorm:"column:student_id;type:uuid"`
 	AppliedAt         time.Time `json:"applied_at" gorm:"column:applied_at"`
 	ApplicationStatus string    `json:"status" gorm:"column:application_status"`
 	CoverLetter       string    `json:"cover_letter" gorm:"column:cover_letter"`
@@ -88,9 +88,9 @@ type ApplicantProfile struct {
 }
 
 type Message struct {
-	ID            string     `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	ApplicationID string     `gorm:"type:varchar(255)" json:"application_id" gorm:"column:application_id"`
-	SenderID      string     `gorm:"type:varchar(255)" json:"sender_id" gorm:"column:sender_id"`
+	ID            string     `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	ApplicationID string     `gorm:"type:uuid" json:"application_id" gorm:"column:application_id"`
+	SenderID      string     `gorm:"type:uuid" json:"sender_id" gorm:"column:sender_id"`
 	Message       string     `json:"message" gorm:"column:message"`
 	SentAt        *time.Time `json:"sent_at" gorm:"column:sent_at;autoCreateTime"`
 }

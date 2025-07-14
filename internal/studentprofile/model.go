@@ -51,8 +51,8 @@ func (s *Skills) Scan(value interface{}) error {
 }
 
 type Certificate struct {
-	ID               string `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	StudentProfileID string `gorm:"type:varchar(255)" json:"student_profile_id,omitempty"`
+	ID               string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	StudentProfileID string `gorm:"type:uuid" json:"student_profile_id,omitempty"`
 	Name             string `json:"name" binding:"required"`
 	File             []byte `json:"file" gorm:"type:bytea"`
 	FileName         string `json:"file_name"`
@@ -67,8 +67,8 @@ func (Certificate) TableName() string {
 }
 
 type StudentProfile struct {
-	ID     string `gorm:"primaryKey;type:varchar(255)" json:"id"`
-	UserID string `gorm:"type:varchar(255);not null" json:"user_id" binding:"required"`
+	ID     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	UserID string `gorm:"type:uuid;not null" json:"user_id" binding:"required"`
 
 	// Required basic information
 	Name  string `gorm:"not null" json:"name" binding:"required"`

@@ -1,8 +1,8 @@
 package employerapplication
 
 import (
+	"asa/internal/middleware"
 	"encoding/json"
-	"fmt"
 	"strings"
 )
 
@@ -27,11 +27,11 @@ func NewEmployerApplicationService(repo EmployerApplicationRepository) EmployerA
 }
 
 func (s *employerApplicationService) GetApplicationsForJob(jobID, status string) ([]JobApplicationResponse, error) {
-	fmt.Printf("DEBUG: Service GetApplicationsForJob - JobID: %s, Status: '%s'\n", jobID, status)
+	middleware.DebugLog("DEBUG: Service GetApplicationsForJob - JobID: %s, Status: '%s'\n", jobID, status)
 
 	apps, err := s.repo.GetApplicationsForJob(jobID, status)
 	if err != nil {
-		fmt.Printf("DEBUG: Service GetApplicationsForJob error: %v\n", err)
+		middleware.DebugLog("DEBUG: Service GetApplicationsForJob error: %v\n", err)
 		return nil, err
 	}
 
@@ -84,17 +84,17 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 		responses = append(responses, response)
 	}
 
-	fmt.Printf("DEBUG: Service GetApplicationsForJob success - Found %d applications\n", len(responses))
-	fmt.Printf("DEBUG: Service returning applications: %+v\n", responses)
+	middleware.DebugLog("DEBUG: Service GetApplicationsForJob success - Found %d applications\n", len(responses))
+	middleware.DebugLog("DEBUG: Service returning applications: %+v\n", responses)
 	return responses, err
 }
 
 func (s *employerApplicationService) GetApplicationsByStudent(studentID string) ([]JobApplicationResponse, error) {
-	fmt.Printf("DEBUG: Service GetApplicationsByStudent - StudentID: %s\n", studentID)
+	middleware.DebugLog("DEBUG: Service GetApplicationsByStudent - StudentID: %s\n", studentID)
 
 	apps, err := s.repo.GetApplicationsByStudent(studentID)
 	if err != nil {
-		fmt.Printf("DEBUG: Service GetApplicationsByStudent error: %v\n", err)
+		middleware.DebugLog("DEBUG: Service GetApplicationsByStudent error: %v\n", err)
 		return nil, err
 	}
 
@@ -147,8 +147,8 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 		responses = append(responses, response)
 	}
 
-	fmt.Printf("DEBUG: Service GetApplicationsByStudent success - Found %d applications\n", len(responses))
-	fmt.Printf("DEBUG: Service returning applications: %+v\n", responses)
+	middleware.DebugLog("DEBUG: Service GetApplicationsByStudent success - Found %d applications\n", len(responses))
+	middleware.DebugLog("DEBUG: Service returning applications: %+v\n", responses)
 	return responses, err
 }
 
@@ -177,10 +177,10 @@ func (s *employerApplicationService) IsUserAuthorizedForApplication(applicationI
 }
 
 func (s *employerApplicationService) GetJobEmployerID(jobID string) (string, error) {
-	fmt.Printf("DEBUG: Service GetJobEmployerID - JobID: %s\n", jobID)
+	middleware.DebugLog("DEBUG: Service GetJobEmployerID - JobID: %s\n", jobID)
 
 	employerID, err := s.repo.GetJobEmployerID(jobID)
 
-	fmt.Printf("DEBUG: Service GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
+	middleware.DebugLog("DEBUG: Service GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
 	return employerID, err
 }

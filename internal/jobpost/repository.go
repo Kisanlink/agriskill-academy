@@ -1,7 +1,7 @@
 package jobpost
 
 import (
-	"fmt"
+	"asa/internal/middleware"
 	"time"
 
 	"github.com/lib/pq"
@@ -58,7 +58,7 @@ func (job *JobPost) BeforeCreate(tx *gorm.DB) error {
 	job.SalaryCurrency = job.Salary.Currency
 
 	// Debug logging
-	fmt.Printf("DEBUG: BeforeCreate hook - Salary: %+v, Min: %f, Max: %f, Currency: %s\n",
+	middleware.DebugLog("DEBUG: BeforeCreate hook - Salary: %+v, Min: %f, Max: %f, Currency: %s\n",
 		job.Salary, job.SalaryMin, job.SalaryMax, job.SalaryCurrency)
 
 	return nil
@@ -112,15 +112,15 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 	var jobs []JobPost
 	query := r.db.Model(&JobPost{}).Where("status = ?", "published") // Only published jobs
 
-	fmt.Printf("🔍 Job Search Debug - Filters applied:\n")
-	fmt.Printf("  - Location: %s\n", filter.Location)
-	fmt.Printf("  - JobType: %v\n", filter.JobType)
-	fmt.Printf("  - Experience: %v\n", filter.Experience)
-	fmt.Printf("  - Skills: %v\n", filter.Skills)
-	fmt.Printf("  - IsRemote: %v\n", filter.IsRemote)
-	fmt.Printf("  - PostedWithin: %s\n", filter.PostedWithin)
+	middleware.DebugLog("🔍 Job Search Debug - Filters applied:\n")
+	middleware.DebugLog("  - Location: %s\n", filter.Location)
+	middleware.DebugLog("  - JobType: %v\n", filter.JobType)
+	middleware.DebugLog("  - Experience: %v\n", filter.Experience)
+	middleware.DebugLog("  - Skills: %v\n", filter.Skills)
+	middleware.DebugLog("  - IsRemote: %v\n", filter.IsRemote)
+	middleware.DebugLog("  - PostedWithin: %s\n", filter.PostedWithin)
 	if filter.SalaryRange != nil {
-		fmt.Printf("  - SalaryRange: %v - %v\n", filter.SalaryRange.Min, filter.SalaryRange.Max)
+		middleware.DebugLog("  - SalaryRange: %v - %v\n", filter.SalaryRange.Min, filter.SalaryRange.Max)
 	}
 
 	if filter.Location != "" {
@@ -182,7 +182,7 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 	query = query.Order("created_at DESC")
 
 	err := query.Find(&jobs).Error
-	fmt.Printf("🔍 Job Search Debug - Found %d jobs\n", len(jobs))
+	middleware.DebugLog("🔍 Job Search Debug - Found %d jobs\n", len(jobs))
 	return jobs, err
 }
 

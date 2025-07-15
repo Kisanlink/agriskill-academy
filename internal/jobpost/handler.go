@@ -1,8 +1,8 @@
 package jobpost
 
 import (
+	"asa/internal/middleware"
 	"asa/pkg/authz"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -102,7 +102,7 @@ func (h *JobPostHandler) CreateDraft(c *gin.Context) {
 	}
 
 	// Debug logging
-	fmt.Printf("DEBUG: CreateDraft request received - Salary: %+v\n", req.Salary)
+	middleware.DebugLog("DEBUG: CreateDraft request received - Salary: %+v\n", req.Salary)
 
 	employerID := c.GetString("user_id")
 	if employerID == "" {

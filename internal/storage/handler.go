@@ -3,8 +3,8 @@
 package storage
 
 import (
+	"asa/internal/middleware"
 	"asa/pkg/authz"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -419,7 +419,7 @@ func (h *StorageHandler) UploadResume(c *gin.Context) {
 
 	// If this is a student uploading a resume to the resumes folder, also update their profile
 	if userID != "" && folder == "resumes" {
-		fmt.Printf("DEBUG: Resume uploaded for user %s, path: %s - Profile update needed\n", userID, path)
+		middleware.DebugLog("DEBUG: Resume uploaded for user %s, path: %s - Profile update needed\n", userID, path)
 		// Note: In a production environment, you would inject the student profile service here
 		// For now, we'll just log that the profile needs to be updated
 		// The frontend should make a separate call to update the profile with this file path
@@ -523,7 +523,7 @@ func (h *StorageHandler) UploadStudentResume(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Student resume uploaded successfully - UserID: %s, Path: %s\n", userID, path)
+	middleware.DebugLog("DEBUG: Student resume uploaded successfully - UserID: %s, Path: %s\n", userID, path)
 
 	c.JSON(http.StatusOK, UploadResponse{
 		Success:  true,
@@ -632,7 +632,7 @@ func (h *StorageHandler) UploadStudentCertificate(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Student certificate uploaded successfully - UserID: %s, Path: %s, Name: %s\n", userID, path, certificateName)
+	middleware.DebugLog("DEBUG: Student certificate uploaded successfully - UserID: %s, Path: %s, Name: %s\n", userID, path, certificateName)
 
 	c.JSON(http.StatusOK, UploadResponse{
 		Success:  true,

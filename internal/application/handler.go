@@ -155,7 +155,7 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 		ResumeFileSize: fileSize,
 	}
 
-	fmt.Printf("DEBUG: Application object created: %+v\n", app)
+	fmt.Printf("DEBUG: Application object created - JobID: %s, StudentID: %s, ResumeFileName: %s, ResumeFileSize: %d\n", app.JobID, app.StudentID, app.ResumeFileName, app.ResumeFileSize)
 
 	if err := h.service.Apply(app); err != nil {
 		fmt.Printf("DEBUG: Service Apply error: %v\n", err)

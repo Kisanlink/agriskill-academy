@@ -112,6 +112,17 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 	var jobs []JobPost
 	query := r.db.Model(&JobPost{}).Where("status = ?", "published") // Only published jobs
 
+	fmt.Printf("🔍 Job Search Debug - Filters applied:\n")
+	fmt.Printf("  - Location: %s\n", filter.Location)
+	fmt.Printf("  - JobType: %v\n", filter.JobType)
+	fmt.Printf("  - Experience: %v\n", filter.Experience)
+	fmt.Printf("  - Skills: %v\n", filter.Skills)
+	fmt.Printf("  - IsRemote: %v\n", filter.IsRemote)
+	fmt.Printf("  - PostedWithin: %s\n", filter.PostedWithin)
+	if filter.SalaryRange != nil {
+		fmt.Printf("  - SalaryRange: %v - %v\n", filter.SalaryRange.Min, filter.SalaryRange.Max)
+	}
+
 	if filter.Location != "" {
 		query = query.Where("location ILIKE ?", "%"+filter.Location+"%")
 	}
@@ -125,7 +136,7 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 	}
 
 	if filter.SalaryRange != nil {
-		query = query.Where("salary_min >= ? AND salary_max <= ?", filter.SalaryRange.Min, filter.SalaryRange.Max)
+		query = query.Where("salary_min <= ? AND salary_max >= ?", filter.SalaryRange.Max, filter.SalaryRange.Min)
 	}
 
 	if filter.IsRemote != nil {
@@ -134,8 +145,10 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 
 	if len(filter.Skills) > 0 {
 		// Search for jobs that have any of the required skills
+		// Use a more robust approach for PostgreSQL array search
 		for _, skill := range filter.Skills {
-			query = query.Where("required_skills @> ?", pq.Array([]string{skill}))
+			query = query.Where("required_skills @> ? OR required_skills ILIKE ?",
+				pq.Array([]string{skill}), "%"+skill+"%")
 		}
 	}
 
@@ -169,6 +182,7 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 	query = query.Order("created_at DESC")
 
 	err := query.Find(&jobs).Error
+	fmt.Printf("🔍 Job Search Debug - Found %d jobs\n", len(jobs))
 	return jobs, err
 }
 
@@ -254,14 +268,15 @@ func (r *jobPostRepository) AdvancedSearch(request *AdvancedJobSearchRequest) ([
 	// Skills filter
 	if len(request.Skills) > 0 {
 		for _, skill := range request.Skills {
-			query = query.Where("required_skills @> ?", pq.Array([]string{skill}))
+			query = query.Where("required_skills @> ? OR required_skills ILIKE ?",
+				pq.Array([]string{skill}), "%"+skill+"%")
 		}
 	}
 
 	// Salary range filter
 	if request.SalaryRange != nil {
-		query = query.Where("salary_min >= ? AND salary_max <= ?",
-			request.SalaryRange.Min, request.SalaryRange.Max)
+		query = query.Where("salary_min <= ? AND salary_max >= ?",
+			request.SalaryRange.Max, request.SalaryRange.Min)
 	}
 
 	// Benefits filter

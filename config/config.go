@@ -14,6 +14,8 @@ var (
 	DB                *gorm.DB
 	AAAServiceBaseURL string
 	AAASecret         string
+	// New gRPC configuration
+	AAAGrpcEndpoint string
 )
 
 func LoadEnv() {
@@ -24,6 +26,11 @@ func LoadEnv() {
 
 	AAAServiceBaseURL = os.Getenv("AAA_SERVICE_URL")
 	AAASecret = os.Getenv("SECRET_KEY")
+	// Load gRPC endpoint
+	AAAGrpcEndpoint = os.Getenv("AAA_GRPC_ENDPOINT")
+	if AAAGrpcEndpoint == "" {
+		AAAGrpcEndpoint = "localhost:50052" // Default gRPC endpoint
+	}
 }
 
 func InitDB() (*gorm.DB, error) {

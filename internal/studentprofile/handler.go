@@ -265,16 +265,24 @@ func (h *StudentProfileHandler) DeleteMyCertificate(c *gin.Context) {
 // @Router /api/students/me/profile [put]
 // PUT /students/me/profile
 func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
+	fmt.Printf("🔍 DEBUG: UpdateMyProfile called\n")
+
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
+
+	fmt.Printf("🔍 DEBUG: Username: %s, UserID: %s\n", username, userID)
+
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
+		fmt.Printf("❌ DEBUG: Permission denied - Error: %v, Allowed: %v\n", err, allowed)
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
 	}
+	fmt.Printf("✅ DEBUG: Permission check passed\n")
 
 	if userID == "" {
+		fmt.Printf("❌ DEBUG: UserID is empty\n")
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
 		return
 	}
@@ -282,81 +290,18 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	var req UpdateStudentProfileRequest
 	contentType := c.GetHeader("Content-Type")
 
-	fmt.Printf("DEBUG: Content-Type: %s\n", contentType)
-	fmt.Printf("DEBUG: User ID: %s\n", userID)
+	fmt.Printf("🔍 DEBUG: Content-Type: %s\n", contentType)
+	fmt.Printf("🔍 DEBUG: User ID: %s\n", userID)
 
 	if strings.Contains(contentType, "multipart/form-data") {
-		fmt.Printf("DEBUG: Handling multipart form data\n")
-		// Handle multipart form data (file upload)
-		if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
-			fmt.Printf("DEBUG: ParseMultipartForm error: %v\n", err)
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"message": "Failed to parse form data",
-				"error":   err.Error(),
-			})
-			return
-		}
-
-		// Handle resume file upload
-		if resumeFile, err := c.FormFile("resume"); err == nil {
-			fmt.Printf("DEBUG: Resume file found - Name: %s, Size: %d\n", resumeFile.Filename, resumeFile.Size)
-			// Validate file type
-			if !IsValidResumeFile(resumeFile.Filename) {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "Invalid file type. Allowed: PDF, DOC, DOCX",
-				})
-				return
-			}
-
-			// Validate file size (10MB max)
-			if resumeFile.Size > 10*1024*1024 {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "File size exceeds maximum allowed size (10MB)",
-				})
-				return
-			}
-
-			// Read file into bytes
-			file, err := resumeFile.Open()
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "Failed to read file",
-				})
-				return
-			}
-			defer file.Close()
-
-			fileBytes, err := io.ReadAll(file)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"success": false,
-					"message": "Failed to read file",
-				})
-				return
-			}
-
-			// Set resume data in request
-			req.Resume = fileBytes
-			req.ResumeName = resumeFile.Filename
-			req.ResumeType = resumeFile.Header.Get("Content-Type")
-			if req.ResumeType == "" {
-				req.ResumeType = getMimeTypeFromExtension(resumeFile.Filename)
-			}
-			req.ResumeSize = resumeFile.Size
-			fmt.Printf("DEBUG: Resume data set - Size: %d bytes, Type: %s\n", len(fileBytes), req.ResumeType)
-		} else {
-			fmt.Printf("DEBUG: No resume file found: %v\n", err)
-		}
+		fmt.Printf("🔍 DEBUG: Processing multipart form data\n")
 
 		// Handle profile photo upload
 		if profilePhotoFile, err := c.FormFile("profile_photo"); err == nil {
-			fmt.Printf("DEBUG: Profile photo found - Name: %s, Size: %d\n", profilePhotoFile.Filename, profilePhotoFile.Size)
+			fmt.Printf("🔍 DEBUG: Profile photo found - Name: %s, Size: %d\n", profilePhotoFile.Filename, profilePhotoFile.Size)
 			// Validate file type
 			if !IsValidImageFile(profilePhotoFile.Filename) {
+				fmt.Printf("❌ DEBUG: Invalid image type: %s\n", profilePhotoFile.Filename)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
 					"message": "Invalid image type. Allowed: JPG, PNG, GIF, WebP",
@@ -366,6 +311,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 
 			// Validate file size (5MB max for images)
 			if profilePhotoFile.Size > 5*1024*1024 {
+				fmt.Printf("❌ DEBUG: Image size too large: %d bytes\n", profilePhotoFile.Size)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
 					"message": "Image size exceeds maximum allowed size (5MB)",
@@ -376,6 +322,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 			// Read file into bytes
 			file, err := profilePhotoFile.Open()
 			if err != nil {
+				fmt.Printf("❌ DEBUG: Failed to open image file: %v\n", err)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
 					"message": "Failed to read image file",
@@ -386,6 +333,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 
 			fileBytes, err := io.ReadAll(file)
 			if err != nil {
+				fmt.Printf("❌ DEBUG: Failed to read image file bytes: %v\n", err)
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
 					"message": "Failed to read image file",
@@ -401,46 +349,47 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 				req.ProfilePhotoType = getMimeTypeFromExtension(profilePhotoFile.Filename)
 			}
 			req.ProfilePhotoSize = profilePhotoFile.Size
-			fmt.Printf("DEBUG: Profile photo data set - Size: %d bytes, Type: %s\n", len(fileBytes), req.ProfilePhotoType)
+			fmt.Printf("✅ DEBUG: Profile photo data set - Size: %d bytes, Type: %s, Name: %s\n", len(fileBytes), req.ProfilePhotoType, req.ProfilePhotoName)
 		}
 
 		// Handle other form fields
 		if name := c.PostForm("name"); name != "" {
 			req.Name = name
-			fmt.Printf("DEBUG: Name from form: %s\n", name)
+			fmt.Printf("🔍 DEBUG: Name from form: %s\n", name)
 		}
 		if email := c.PostForm("email"); email != "" {
 			req.Email = email
-			fmt.Printf("DEBUG: Email from form: %s\n", email)
+			fmt.Printf("🔍 DEBUG: Email from form: %s\n", email)
 		}
 		if location := c.PostForm("location"); location != "" {
 			req.Location = location
-			fmt.Printf("DEBUG: Location from form: %s\n", location)
+			fmt.Printf("🔍 DEBUG: Location from form: %s\n", location)
 		}
 		if phoneNumber := c.PostForm("phone_number"); phoneNumber != "" {
 			req.PhoneNumber = phoneNumber
-			fmt.Printf("DEBUG: Phone number from form: %s\n", phoneNumber)
+			fmt.Printf("🔍 DEBUG: Phone number from form: %s\n", phoneNumber)
 		}
 		if education := c.PostForm("education"); education != "" {
 			req.Education = education
-			fmt.Printf("DEBUG: Education from form: %s\n", education)
+			fmt.Printf("🔍 DEBUG: Education from form: %s\n", education)
 		}
 		if portfolio := c.PostForm("portfolio"); portfolio != "" {
 			req.Portfolio = portfolio
-			fmt.Printf("DEBUG: Portfolio from form: %s\n", portfolio)
+			fmt.Printf("🔍 DEBUG: Portfolio from form: %s\n", portfolio)
 		}
 		if linkedin := c.PostForm("linkedin"); linkedin != "" {
 			req.Linkedin = linkedin
-			fmt.Printf("DEBUG: LinkedIn from form: %s\n", linkedin)
+			fmt.Printf("🔍 DEBUG: LinkedIn from form: %s\n", linkedin)
 		}
 		if github := c.PostForm("github"); github != "" {
 			req.Github = github
-			fmt.Printf("DEBUG: GitHub from form: %s\n", github)
+			fmt.Printf("🔍 DEBUG: GitHub from form: %s\n", github)
 		}
 	} else {
 		// Handle JSON request
+		fmt.Printf("🔍 DEBUG: Processing JSON request\n")
 		if err := c.ShouldBindJSON(&req); err != nil {
-			fmt.Printf("DEBUG: JSON binding error: %v\n", err)
+			fmt.Printf("❌ DEBUG: JSON binding error: %v\n", err)
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
 				"message": "Invalid request format",
@@ -448,54 +397,71 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 			})
 			return
 		}
+		fmt.Printf("✅ DEBUG: JSON request parsed successfully\n")
 	}
 
 	// Set user ID
 	req.UserID = userID
 
-	fmt.Printf("DEBUG: Final request: %+v\n", req)
+	fmt.Printf("🔍 DEBUG: Final request metadata - Name: %s, Email: %s, ProfilePhotoSize: %d, ResumeSize: %d, CertificatesCount: %d\n", req.Name, req.Email, req.ProfilePhotoSize, req.ResumeSize, len(req.Certificates))
 
 	// Get existing profile or create new one
+	fmt.Printf("🔍 DEBUG: Getting profile for user ID: %s\n", userID)
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
+		fmt.Printf("🔍 DEBUG: Profile not found, creating new one for user: %s\n", userID)
 		// Create new profile
 		profile = &StudentProfile{
 			UserID: userID,
 			Name:   req.Name,
 			Email:  req.Email,
 		}
+		fmt.Printf("🔍 DEBUG: New profile created: %+v\n", profile)
+	} else {
+		fmt.Printf("✅ DEBUG: Existing profile found: %+v\n", profile)
 	}
 
 	// Update profile fields from request
+	fmt.Printf("🔍 DEBUG: Updating profile fields\n")
 	if req.Name != "" {
 		profile.Name = req.Name
+		fmt.Printf("🔍 DEBUG: Updated name: %s\n", req.Name)
 	}
 	if req.Email != "" {
 		profile.Email = req.Email
+		fmt.Printf("🔍 DEBUG: Updated email: %s\n", req.Email)
 	}
 	if req.Location != "" {
 		profile.Location = req.Location
+		fmt.Printf("🔍 DEBUG: Updated location: %s\n", req.Location)
 	}
 	if req.PhoneNumber != "" {
 		profile.PhoneNumber = req.PhoneNumber
+		fmt.Printf("🔍 DEBUG: Updated phone number: %s\n", req.PhoneNumber)
 	}
 	if req.Education != "" {
 		profile.Education = req.Education
+		fmt.Printf("🔍 DEBUG: Updated education: %s\n", req.Education)
 	}
 	if req.Portfolio != "" {
 		profile.Portfolio = req.Portfolio
+		fmt.Printf("🔍 DEBUG: Updated portfolio: %s\n", req.Portfolio)
 	}
 	if req.Linkedin != "" {
 		profile.Linkedin = req.Linkedin
+		fmt.Printf("🔍 DEBUG: Updated linkedin: %s\n", req.Linkedin)
 	}
 	if req.Github != "" {
 		profile.Github = req.Github
+		fmt.Printf("🔍 DEBUG: Updated github: %s\n", req.Github)
 	}
 	if req.Experience != nil {
 		profile.Experience = *req.Experience
+		fmt.Printf("🔍 DEBUG: Updated experience: %f\n", *req.Experience)
 	}
 	if req.Skills != nil {
 		profile.Skills = req.Skills
+		fmt.Printf("🔍 DEBUG: Updated skills: %v\n", req.Skills)
 	}
 
 	// Update file fields
@@ -504,23 +470,38 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		profile.ResumeName = req.ResumeName
 		profile.ResumeType = req.ResumeType
 		profile.ResumeSize = req.ResumeSize
+		fmt.Printf("🔍 DEBUG: Updated resume - Name: %s, Size: %d\n", req.ResumeName, req.ResumeSize)
 	}
 	if req.ProfilePhoto != nil {
 		profile.ProfilePhoto = req.ProfilePhoto
 		profile.ProfilePhotoName = req.ProfilePhotoName
 		profile.ProfilePhotoType = req.ProfilePhotoType
 		profile.ProfilePhotoSize = req.ProfilePhotoSize
+		fmt.Printf("🔍 DEBUG: Updated profile photo - Name: %s, Size: %d\n", req.ProfilePhotoName, req.ProfilePhotoSize)
 	}
 
 	// Update profile
+	fmt.Printf("🔍 DEBUG: Profile ID: %s\n", profile.ID)
 	if profile.ID == "" {
+		fmt.Printf("🔍 DEBUG: Creating new profile\n")
 		err = h.service.CreateProfile(profile)
+		if err != nil {
+			fmt.Printf("❌ DEBUG: CreateProfile error: %v\n", err)
+		} else {
+			fmt.Printf("✅ DEBUG: Profile created successfully\n")
+		}
 	} else {
+		fmt.Printf("🔍 DEBUG: Updating existing profile\n")
 		err = h.service.UpdateProfile(profile)
+		if err != nil {
+			fmt.Printf("❌ DEBUG: UpdateProfile error: %v\n", err)
+		} else {
+			fmt.Printf("✅ DEBUG: Profile updated successfully\n")
+		}
 	}
 
 	if err != nil {
-		fmt.Printf("DEBUG: Service error: %v\n", err)
+		fmt.Printf("❌ DEBUG: Service error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to update profile",
@@ -529,13 +510,14 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Profile updated successfully: %+v\n", profile)
+	fmt.Printf("✅ DEBUG: Profile operation completed successfully - ID: %s, Name: %s, ProfilePhotoSize: %d, ResumeSize: %d, CertificatesCount: %d\n", profile.ID, profile.Name, profile.ProfilePhotoSize, profile.ResumeSize, len(profile.Certificates))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Profile updated successfully",
 		"data":    profile,
 	})
+	fmt.Printf("✅ DEBUG: Response sent successfully\n")
 }
 
 // @Summary Add Certificate to My Profile

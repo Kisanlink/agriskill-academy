@@ -2,12 +2,19 @@ package auth
 
 import (
 	"asa/internal/employerprofile"
+	"asa/internal/grpc"
 	"asa/internal/studentprofile"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"asa/config"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -55,13 +62,15 @@ type authService struct {
 	repo               UserRepository
 	employerRepo       employerprofile.EmployerProfileRepository
 	studentProfileRepo studentprofile.StudentProfileRepository
+	grpcClient         *grpc.AAAGrpcClient
 }
 
-func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository) AuthService {
+func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository, grpcClient *grpc.AAAGrpcClient) AuthService {
 	return &authService{
 		repo:               repo,
 		employerRepo:       employerRepo,
 		studentProfileRepo: studentProfileRepo,
+		grpcClient:         grpcClient,
 	}
 }
 
@@ -283,6 +292,14 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		fmt.Printf("⚠️ Unknown role: %s, no profile created\n", req.Role)
 	}
 
+	// Assign role to user in AAA service
+	if err := s.assignRoleToUser(user.ID, req.Role); err != nil {
+		fmt.Printf("❌ Failed to assign role '%s' to user '%s' in AAA service: %v\n", req.Role, user.ID, err)
+		// Decide how to handle this - maybe return an error or continue?
+		// For now, we'll return the original error.
+		return nil, "", fmt.Errorf("failed to assign role to AAA service: %w", err)
+	}
+
 	return user, token, nil
 }
 
@@ -414,6 +431,14 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 		fmt.Printf("✅ Student profile created successfully\n")
 	} else {
 		fmt.Printf("⚠️ Unknown role: %s, no profile created\n", req.Role)
+	}
+
+	// Assign role to user in AAA service
+	if err := s.assignRoleToUser(user.ID, req.Role); err != nil {
+		fmt.Printf("❌ Failed to assign role '%s' to user '%s' in AAA service: %v\n", req.Role, user.ID, err)
+		// Decide how to handle this - maybe return an error or continue?
+		// For now, we'll return the original error.
+		return nil, "", fmt.Errorf("failed to assign role to AAA service: %w", err)
 	}
 
 	return user, token, nil
@@ -591,3 +616,51 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 
 	return s.studentProfileRepo.Update(profile)
 }
+
+// assignRoleToUser assigns a role to a user in AAA service via HTTP
+func (s *authService) assignRoleToUser(userID, roleName string) error {
+	fmt.Printf("🔐 Assigning role '%s' to user '%s' in AAA service\n", roleName, userID)
+
+	// Prepare payload for AAA service - use correct field names
+	payload := map[string]interface{}{
+		"user_id": userID,
+		"role":    roleName,
+	}
+
+	// Try the first format
+	body, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Printf("❌ Failed to marshal assign role payload: %v\n", err)
+		return fmt.Errorf("failed to marshal assign role payload: %w", err)
+	}
+
+	fmt.Printf("📤 AAA assign role request body: %s\n", string(body))
+
+	// Make HTTP request to AAA service
+	resp, err := http.Post(config.AAAServiceBaseURL+"/api/v1/assign-role", "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		fmt.Printf("❌ AAA assign role request failed: %v\n", err)
+		return fmt.Errorf("AAA assign role request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	responseBody, _ := io.ReadAll(resp.Body)
+	fmt.Printf("📥 AAA assign role response status: %d\n", resp.StatusCode)
+	fmt.Printf("📥 AAA assign role response body: %s\n", string(responseBody))
+
+	// Check if request was successful
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		fmt.Printf("❌ AAA assign role failed with status %d\n", resp.StatusCode)
+		return fmt.Errorf("AAA assign role failed with status %d: %s", resp.StatusCode, string(responseBody))
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		fmt.Printf("❌ AAA assign role failed with status %d\n", resp.StatusCode)
+		return fmt.Errorf("AAA assign role failed with status %d: %s", resp.StatusCode, string(responseBody))
+	}
+
+	fmt.Printf("✅ Role '%s' assigned successfully to user '%s'\n", roleName, userID)
+	return nil
+}
+
+// gRPC methods removed - using HTTP AAA service integration instead

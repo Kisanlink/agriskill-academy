@@ -3,50 +3,95 @@
 package studentprofile
 
 import (
+	"database/sql/driver"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
-
-	"github.com/lib/pq" // Import pq package for PostgreSQL arrays
 )
 
-// Skills is a custom type to handle JSON marshaling/unmarshaling for PostgreSQL string arrays
-type Skills []string
+// PostgreSQLTextArray is a custom type for PostgreSQL text arrays
+type PostgreSQLTextArray []string
 
-// MarshalJSON implements json.Marshaler
-func (s Skills) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]string(s))
-}
-
-// UnmarshalJSON implements json.Unmarshaler
-func (s *Skills) UnmarshalJSON(data []byte) error {
-	var skills []string
-	if err := json.Unmarshal(data, &skills); err != nil {
-		return err
-	}
-	*s = Skills(skills)
-	return nil
-}
-
-// Value implements driver.Valuer for database storage
-func (s Skills) Value() (interface{}, error) {
-	if s == nil {
+// Value implements the driver.Valuer interface
+func (a PostgreSQLTextArray) Value() (driver.Value, error) {
+	if a == nil {
 		return nil, nil
 	}
-	return pq.StringArray(s), nil
+	if len(a) == 0 {
+		return "{}", nil
+	}
+
+	// Convert to PostgreSQL array format: {"item1","item2","item3"}
+	quoted := make([]string, len(a))
+	for i, item := range a {
+		// Escape quotes and wrap in quotes
+		escaped := strings.ReplaceAll(item, `"`, `\"`)
+		quoted[i] = `"` + escaped + `"`
+	}
+	return "{" + strings.Join(quoted, ",") + "}", nil
 }
 
-// Scan implements sql.Scanner for database retrieval
-func (s *Skills) Scan(value interface{}) error {
+// Scan implements the sql.Scanner interface
+func (a *PostgreSQLTextArray) Scan(value interface{}) error {
 	if value == nil {
-		*s = nil
+		*a = nil
 		return nil
 	}
 
-	var pqArray pq.StringArray
-	if err := pqArray.Scan(value); err != nil {
+	var str string
+	switch v := value.(type) {
+	case string:
+		str = v
+	case []byte:
+		str = string(v)
+	default:
+		return fmt.Errorf("cannot scan %T into PostgreSQLTextArray", value)
+	}
+
+	// Handle empty array
+	if str == "{}" {
+		*a = PostgreSQLTextArray{}
+		return nil
+	}
+
+	// Remove outer braces and split by comma
+	str = strings.Trim(str, "{}")
+	if str == "" {
+		*a = PostgreSQLTextArray{}
+		return nil
+	}
+
+	// Split by comma and unquote each item
+	parts := strings.Split(str, ",")
+	result := make([]string, len(parts))
+	for i, part := range parts {
+		part = strings.TrimSpace(part)
+		// Remove quotes if present
+		if strings.HasPrefix(part, `"`) && strings.HasSuffix(part, `"`) {
+			part = part[1 : len(part)-1]
+			// Unescape quotes
+			part = strings.ReplaceAll(part, `\"`, `"`)
+		}
+		result[i] = part
+	}
+
+	*a = PostgreSQLTextArray(result)
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler
+func (a PostgreSQLTextArray) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]string(a))
+}
+
+// UnmarshalJSON implements json.Unmarshaler
+func (a *PostgreSQLTextArray) UnmarshalJSON(data []byte) error {
+	var arr []string
+	if err := json.Unmarshal(data, &arr); err != nil {
 		return err
 	}
-	*s = Skills(pqArray)
+	*a = PostgreSQLTextArray(arr)
 	return nil
 }
 
@@ -89,13 +134,13 @@ type StudentProfile struct {
 	ResumeSize       int64  `json:"resume_size,omitempty"`
 
 	// Optional professional information
-	Certificates []Certificate `gorm:"foreignKey:StudentProfileID" json:"certificates,omitempty"`
-	Skills       Skills        `gorm:"type:text[]" json:"skills,omitempty"`
-	Experience   float64       `json:"experience,omitempty"`
-	Education    string        `json:"education,omitempty"`
-	Portfolio    string        `json:"portfolio,omitempty"`
-	Linkedin     string        `json:"linkedin,omitempty"`
-	Github       string        `json:"github,omitempty"`
+	Certificates []Certificate       `gorm:"foreignKey:StudentProfileID" json:"certificates,omitempty"`
+	Skills       PostgreSQLTextArray `gorm:"type:text[]" json:"skills,omitempty"`
+	Experience   float64             `json:"experience,omitempty"`
+	Education    string              `json:"education,omitempty"`
+	Portfolio    string              `json:"portfolio,omitempty"`
+	Linkedin     string              `json:"linkedin,omitempty"`
+	Github       string              `json:"github,omitempty"`
 
 	// System managed fields
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
@@ -109,26 +154,26 @@ func (StudentProfile) TableName() string {
 
 // UpdateStudentProfileRequest - For profile updates (all fields optional except validation)
 type UpdateStudentProfileRequest struct {
-	UserID           string        `json:"user_id,omitempty"`
-	Name             string        `json:"name,omitempty"`
-	Email            string        `json:"email,omitempty"`
-	Location         string        `json:"location,omitempty"`
-	PhoneNumber      string        `json:"phone_number,omitempty"`
-	ProfilePhoto     []byte        `json:"profile_photo,omitempty"`
-	ProfilePhotoName string        `json:"profile_photo_name,omitempty"`
-	ProfilePhotoType string        `json:"profile_photo_type,omitempty"`
-	ProfilePhotoSize int64         `json:"profile_photo_size,omitempty"`
-	Resume           []byte        `json:"resume,omitempty"`
-	ResumeName       string        `json:"resume_name,omitempty"`
-	ResumeType       string        `json:"resume_type,omitempty"`
-	ResumeSize       int64         `json:"resume_size,omitempty"`
-	Skills           Skills        `json:"skills,omitempty"`
-	Experience       *float64      `json:"experience,omitempty"`
-	Education        string        `json:"education,omitempty"`
-	Portfolio        string        `json:"portfolio,omitempty"`
-	Linkedin         string        `json:"linkedin,omitempty"`
-	Github           string        `json:"github,omitempty"`
-	Certificates     []Certificate `json:"certificates,omitempty"`
+	UserID           string              `json:"user_id,omitempty"`
+	Name             string              `json:"name,omitempty"`
+	Email            string              `json:"email,omitempty"`
+	Location         string              `json:"location,omitempty"`
+	PhoneNumber      string              `json:"phone_number,omitempty"`
+	ProfilePhoto     []byte              `json:"profile_photo,omitempty"`
+	ProfilePhotoName string              `json:"profile_photo_name,omitempty"`
+	ProfilePhotoType string              `json:"profile_photo_type,omitempty"`
+	ProfilePhotoSize int64               `json:"profile_photo_size,omitempty"`
+	Resume           []byte              `json:"resume,omitempty"`
+	ResumeName       string              `json:"resume_name,omitempty"`
+	ResumeType       string              `json:"resume_type,omitempty"`
+	ResumeSize       int64               `json:"resume_size,omitempty"`
+	Skills           PostgreSQLTextArray `json:"skills,omitempty"`
+	Experience       *float64            `json:"experience,omitempty"`
+	Education        string              `json:"education,omitempty"`
+	Portfolio        string              `json:"portfolio,omitempty"`
+	Linkedin         string              `json:"linkedin,omitempty"`
+	Github           string              `json:"github,omitempty"`
+	Certificates     []Certificate       `json:"certificates,omitempty"`
 }
 
 // UpdateCertificateRequest - For certificate updates

@@ -52,27 +52,6 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 			}
 		}
 
-		// Generate correct resume URL
-		resumeURL := ""
-		if app.ResumeURL != "" {
-			if strings.HasPrefix(app.ResumeURL, "http") {
-				resumeURL = app.ResumeURL
-			} else if strings.Contains(app.ResumeURL, "uploads/") {
-				// Always use the /api/files/serve/ path for anything in uploads/
-				trimmed := app.ResumeURL
-				if strings.HasPrefix(trimmed, "/") {
-					trimmed = trimmed[1:]
-				}
-				if strings.HasPrefix(trimmed, "uploads/") {
-					trimmed = trimmed[len("uploads/"):]
-				}
-				resumeURL = "http://localhost:3000/api/files/serve/" + trimmed
-			} else {
-				resumeURL = "http://localhost:3000/api/files/serve/" + strings.TrimPrefix(app.ResumeURL, "/")
-			}
-		}
-		fmt.Printf("DEBUG: Final resumeURL for application %s: %s\n", app.ApplicationID, resumeURL)
-
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,
@@ -80,27 +59,26 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 			AppliedAt:     app.AppliedAt,
 			Status:        app.ApplicationStatus,
 			CoverLetter:   app.CoverLetter,
-			ResumeFile:    app.StudentResumeFile,
+			ResumeFile:    app.StudentResumeFile, // Already binary data
 			JobTitle:      app.JobTitle,
 			Company:       app.Company,
 			JobType:       app.JobType,
 			UserID:        app.UserID,
 			ID:            app.ApplicationID, // For consistency
 			Applicant: ApplicantInfo{
-				Name:        app.Name,
-				Email:       app.Email,
-				Avatar:      app.Avatar,
-				ResumeURL:   resumeURL,
-				Skills:      skills,
-				Experience:  app.Experience,
-				Education:   app.Education,
-				Portfolio:   app.Portfolio,
-				LinkedIn:    app.LinkedIn,
-				Github:      app.Github,
-				ProfileName: app.ProfileName,
-				Location:    app.Location,
-				Summary:     "",        // Not available in current data
-				Phone:       app.Phone, // Use phone number from database
+				Name:         app.Name,
+				Email:        app.Email,
+				ProfilePhoto: app.Avatar, // Already binary data
+				Skills:       skills,
+				Experience:   app.Experience,
+				Education:    app.Education,
+				Portfolio:    app.Portfolio,
+				LinkedIn:     app.LinkedIn,
+				Github:       app.Github,
+				ProfileName:  app.ProfileName,
+				Location:     app.Location,
+				Summary:      "",        // Not available in current data
+				Phone:        app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)
@@ -137,27 +115,6 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 			}
 		}
 
-		// Generate correct resume URL
-		resumeURL := ""
-		if app.ResumeURL != "" {
-			if strings.HasPrefix(app.ResumeURL, "http") {
-				resumeURL = app.ResumeURL
-			} else if strings.Contains(app.ResumeURL, "uploads/") {
-				// Always use the /api/files/serve/ path for anything in uploads/
-				trimmed := app.ResumeURL
-				if strings.HasPrefix(trimmed, "/") {
-					trimmed = trimmed[1:]
-				}
-				if strings.HasPrefix(trimmed, "uploads/") {
-					trimmed = trimmed[len("uploads/"):]
-				}
-				resumeURL = "http://localhost:3000/api/files/serve/" + trimmed
-			} else {
-				resumeURL = "http://localhost:3000/api/files/serve/" + strings.TrimPrefix(app.ResumeURL, "/")
-			}
-		}
-		fmt.Printf("DEBUG: Final resumeURL for application %s: %s\n", app.ApplicationID, resumeURL)
-
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,
@@ -165,27 +122,26 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 			AppliedAt:     app.AppliedAt,
 			Status:        app.ApplicationStatus,
 			CoverLetter:   app.CoverLetter,
-			ResumeFile:    app.StudentResumeFile,
+			ResumeFile:    app.StudentResumeFile, // Already binary data
 			JobTitle:      app.JobTitle,
 			Company:       app.Company,
 			JobType:       app.JobType,
 			UserID:        app.UserID,
 			ID:            app.ApplicationID, // For consistency
 			Applicant: ApplicantInfo{
-				Name:        app.Name,
-				Email:       app.Email,
-				Avatar:      app.Avatar,
-				ResumeURL:   resumeURL,
-				Skills:      skills,
-				Experience:  app.Experience,
-				Education:   app.Education,
-				Portfolio:   app.Portfolio,
-				LinkedIn:    app.LinkedIn,
-				Github:      app.Github,
-				ProfileName: app.ProfileName,
-				Location:    app.Location,
-				Summary:     "",        // Not available in current data
-				Phone:       app.Phone, // Use phone number from database
+				Name:         app.Name,
+				Email:        app.Email,
+				ProfilePhoto: app.Avatar, // Already binary data
+				Skills:       skills,
+				Experience:   app.Experience,
+				Education:    app.Education,
+				Portfolio:    app.Portfolio,
+				LinkedIn:     app.LinkedIn,
+				Github:       app.Github,
+				ProfileName:  app.ProfileName,
+				Location:     app.Location,
+				Summary:      "",        // Not available in current data
+				Phone:        app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)

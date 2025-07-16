@@ -2,10 +2,10 @@ package jobpost
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	"asa/internal/employerprofile"
+	"asa/internal/middleware"
 )
 
 type JobPostService interface {
@@ -352,29 +352,29 @@ func (s *jobPostService) GetByID(id string) (*JobPost, error) {
 
 // populateEmployerDetails fetches and populates employer details if they're missing
 func (s *jobPostService) populateEmployerDetails(job *JobPost) {
-	fmt.Printf("DEBUG: populateEmployerDetails called for job %s\n", job.ID)
-	fmt.Printf("DEBUG: Current employerName: '%s', employerEmail: '%s'\n", job.EmployerName, job.EmployerEmail)
+	middleware.DebugLog("DEBUG: populateEmployerDetails called for job %s\n", job.ID)
+	middleware.DebugLog("DEBUG: Current employerName: '%s', employerEmail: '%s'\n", job.EmployerName, job.EmployerEmail)
 
 	if job.EmployerName == "" || job.EmployerEmail == "" {
-		fmt.Printf("DEBUG: Fetching employer profile for user ID: %s\n", job.EmployerID)
+		middleware.DebugLog("DEBUG: Fetching employer profile for user ID: %s\n", job.EmployerID)
 		employerProfile, err := s.employerRepo.GetByUserID(job.EmployerID)
 		if err != nil {
-			fmt.Printf("DEBUG: Error fetching employer profile: %v\n", err)
+			middleware.DebugLog("DEBUG: Error fetching employer profile: %v\n", err)
 		} else if employerProfile != nil {
-			fmt.Printf("DEBUG: Found employer profile: %+v\n", employerProfile)
+			middleware.DebugLog("DEBUG: Found employer profile: %+v\n", employerProfile)
 			if job.EmployerName == "" {
 				job.EmployerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
-				fmt.Printf("DEBUG: Set employerName to: '%s'\n", job.EmployerName)
+				middleware.DebugLog("DEBUG: Set employerName to: '%s'\n", job.EmployerName)
 			}
 			if job.EmployerEmail == "" {
 				job.EmployerEmail = employerProfile.OfficialEmail
-				fmt.Printf("DEBUG: Set employerEmail to: '%s'\n", job.EmployerEmail)
+				middleware.DebugLog("DEBUG: Set employerEmail to: '%s'\n", job.EmployerEmail)
 			}
 		} else {
-			fmt.Printf("DEBUG: No employer profile found\n")
+			middleware.DebugLog("DEBUG: No employer profile found\n")
 		}
 	} else {
-		fmt.Printf("DEBUG: Employer details already populated\n")
+		middleware.DebugLog("DEBUG: Employer details already populated\n")
 	}
 }
 
@@ -734,12 +734,12 @@ func (s *jobPostService) CreateDraft(req *CreateDraftRequest, employerID, employ
 		job.SalaryCurrency = salary.Currency
 
 		// Debug logging
-		fmt.Printf("DEBUG: Salary data received - Min: %f, Max: %f, Currency: %s\n",
+		middleware.DebugLog("DEBUG: Salary data received - Min: %f, Max: %f, Currency: %s\n",
 			salary.Min, salary.Max, salary.Currency)
-		fmt.Printf("DEBUG: Job salary fields set - Min: %f, Max: %f, Currency: %s\n",
+		middleware.DebugLog("DEBUG: Job salary fields set - Min: %f, Max: %f, Currency: %s\n",
 			job.SalaryMin, job.SalaryMax, job.SalaryCurrency)
 	} else {
-		fmt.Printf("DEBUG: No salary data provided in request\n")
+		middleware.DebugLog("DEBUG: No salary data provided in request\n")
 	}
 	if req.Benefits != nil {
 		job.Benefits = req.Benefits

@@ -1,7 +1,7 @@
 package employerapplication
 
 import (
-	"fmt"
+	"asa/internal/middleware"
 
 	"gorm.io/gorm"
 )
@@ -27,7 +27,7 @@ func NewEmployerApplicationRepository(db *gorm.DB) EmployerApplicationRepository
 }
 
 func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status string) ([]JobApplicationWithApplicant, error) {
-	fmt.Printf("DEBUG: Repository GetApplicationsForJob - JobID: %s, Status: '%s'\n", jobID, status)
+	middleware.DebugLog("DEBUG: Repository GetApplicationsForJob - JobID: %s, Status: '%s'\n", jobID, status)
 
 	var results []JobApplicationWithApplicant
 
@@ -42,9 +42,8 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				a.cover_letter, a.resume_file AS student_resume_file,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
-				COALESCE(up.profile_photo, '') AS avatar, 
-				COALESCE(up.resume, '') AS resume_url, 
-				COALESCE(up.skills::text, '') AS skills, 
+				up.profile_photo AS avatar, 
+				up.skills::text AS skills, 
 				COALESCE(up.location, '') AS user_location, 
 				COALESCE(CAST(up.experience AS TEXT), '') AS user_experience, 
 				COALESCE(up.education, '') AS education, 
@@ -66,9 +65,8 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				a.cover_letter, a.resume_file AS student_resume_file,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
-				COALESCE(up.profile_photo, '') AS avatar, 
-				COALESCE(up.resume, '') AS resume_url, 
-				COALESCE(up.skills::text, '') AS skills, 
+				up.profile_photo AS avatar, 
+				up.skills::text AS skills, 
 				COALESCE(up.location, '') AS user_location, 
 				COALESCE(CAST(up.experience AS TEXT), '') AS user_experience, 
 				COALESCE(up.education, '') AS education, 
@@ -85,36 +83,36 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 		args = []interface{}{jobID}
 	}
 
-	fmt.Printf("DEBUG: Repository executing query with args: %+v\n", args)
-	fmt.Printf("DEBUG: Repository executing query: %s\n", query)
+	middleware.DebugLog("DEBUG: Repository executing query with args: %+v\n", args)
+	middleware.DebugLog("DEBUG: Repository executing query: %s\n", query)
 
 	// First, let's check if the applications exist at all
 	var appCount int64
 	err := r.db.Model(&struct{}{}).Table("applications").Where("job_id = ?", jobID).Count(&appCount).Error
 	if err != nil {
-		fmt.Printf("DEBUG: Error counting applications: %v\n", err)
+		middleware.DebugLog("DEBUG: Error counting applications: %v\n", err)
 	} else {
-		fmt.Printf("DEBUG: Total applications for job %s: %d\n", jobID, appCount)
+		middleware.DebugLog("DEBUG: Total applications for job %s: %d\n", jobID, appCount)
 	}
 
 	// Use Scan instead of ScanRows for better struct mapping
 	err = r.db.Raw(query, args...).Scan(&results).Error
 	if err != nil {
-		fmt.Printf("DEBUG: Repository query error: %v\n", err)
+		middleware.DebugLog("DEBUG: Repository query error: %v\n", err)
 		return nil, err
 	}
 
-	fmt.Printf("DEBUG: Repository found %d applications after JOIN\n", len(results))
+	middleware.DebugLog("DEBUG: Repository found %d applications after JOIN\n", len(results))
 
 	// Debug: Let's see what the raw query returns
 	var rawResults []map[string]interface{}
 	err = r.db.Raw(query, args...).Scan(&rawResults).Error
 	if err != nil {
-		fmt.Printf("DEBUG: Raw query error: %v\n", err)
+		middleware.DebugLog("DEBUG: Raw query error: %v\n", err)
 	} else {
-		fmt.Printf("DEBUG: Raw query returned %d rows\n", len(rawResults))
+		middleware.DebugLog("DEBUG: Raw query returned %d rows\n", len(rawResults))
 		if len(rawResults) > 0 {
-			fmt.Printf("DEBUG: First raw result: %+v\n", rawResults[0])
+			middleware.DebugLog("DEBUG: First raw result: %+v\n", rawResults[0])
 		}
 	}
 
@@ -143,7 +141,7 @@ func (r *employerApplicationRepository) GetApplicantProfile(studentID string) (*
 }
 
 func (r *employerApplicationRepository) AddMessage(msg *Message) error {
-	fmt.Printf("DEBUG: Repository AddMessage - Message timestamp: %v\n", msg.SentAt)
+	middleware.DebugLog("DEBUG: Repository AddMessage - Message timestamp: %v\n", msg.SentAt)
 
 	// Create message without the sent_at field to let database set it
 	messageToSave := map[string]interface{}{
@@ -155,9 +153,9 @@ func (r *employerApplicationRepository) AddMessage(msg *Message) error {
 
 	err := r.db.Table("messages").Create(messageToSave).Error
 	if err != nil {
-		fmt.Printf("DEBUG: Repository AddMessage error: %v\n", err)
+		middleware.DebugLog("DEBUG: Repository AddMessage error: %v\n", err)
 	} else {
-		fmt.Printf("DEBUG: Repository AddMessage success - Message saved with ID: %s\n", msg.ID)
+		middleware.DebugLog("DEBUG: Repository AddMessage success - Message saved with ID: %s\n", msg.ID)
 	}
 	return err
 }
@@ -259,11 +257,11 @@ func (r *employerApplicationRepository) IsUserAuthorizedForApplication(applicati
 }
 
 func (r *employerApplicationRepository) GetJobEmployerID(jobID string) (string, error) {
-	fmt.Printf("DEBUG: Repository GetJobEmployerID - JobID: %s\n", jobID)
+	middleware.DebugLog("DEBUG: Repository GetJobEmployerID - JobID: %s\n", jobID)
 
 	var employerID string
 	err := r.db.Raw("SELECT employer_id FROM job_posts WHERE id = ?", jobID).Scan(&employerID).Error
 
-	fmt.Printf("DEBUG: Repository GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
+	middleware.DebugLog("DEBUG: Repository GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
 	return employerID, err
 }

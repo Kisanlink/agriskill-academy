@@ -11,6 +11,7 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *StorageHandler, fileServeHandl
 	rg.POST("/upload/:folder", handler.UploadFile)
 	rg.POST("/upload/image/:folder", handler.UploadImage)
 	rg.POST("/upload/image/profile-photo", handler.UploadProfilePhoto)
+	rg.POST("/upload/image/employer-logo", handler.UploadEmployerLogo)
 	rg.POST("/upload/document/:folder", handler.UploadDocument)
 	rg.POST("/upload/resume/:folder", handler.UploadResume)
 
@@ -45,6 +46,7 @@ func RegisterAuthenticatedRoutes(rg *gin.RouterGroup, handler *StorageHandler, f
 	rg.POST("/upload/:folder", handler.UploadFile)
 	rg.POST("/upload/image/:folder", handler.UploadImage)
 	rg.POST("/upload/image/profile-photo", handler.UploadProfilePhoto)
+	rg.POST("/upload/image/employer-logo", handler.UploadEmployerLogo)
 	rg.POST("/upload/document/:folder", handler.UploadDocument)
 	rg.POST("/upload/resume/:folder", handler.UploadResume)
 	rg.POST("/upload/student/resume", handler.UploadStudentResume)

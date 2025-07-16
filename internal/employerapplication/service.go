@@ -1,8 +1,8 @@
 package employerapplication
 
 import (
+	"asa/internal/middleware"
 	"encoding/json"
-	"fmt"
 	"strings"
 )
 
@@ -27,11 +27,11 @@ func NewEmployerApplicationService(repo EmployerApplicationRepository) EmployerA
 }
 
 func (s *employerApplicationService) GetApplicationsForJob(jobID, status string) ([]JobApplicationResponse, error) {
-	fmt.Printf("DEBUG: Service GetApplicationsForJob - JobID: %s, Status: '%s'\n", jobID, status)
+	middleware.DebugLog("DEBUG: Service GetApplicationsForJob - JobID: %s, Status: '%s'\n", jobID, status)
 
 	apps, err := s.repo.GetApplicationsForJob(jobID, status)
 	if err != nil {
-		fmt.Printf("DEBUG: Service GetApplicationsForJob error: %v\n", err)
+		middleware.DebugLog("DEBUG: Service GetApplicationsForJob error: %v\n", err)
 		return nil, err
 	}
 
@@ -51,24 +51,7 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 				}
 			}
 		}
-
-		// Generate correct resume URL
-		resumeURL := ""
-		if app.ResumeURL != "" {
-			if strings.HasPrefix(app.ResumeURL, "http") {
-				resumeURL = app.ResumeURL
-			} else if strings.Contains(app.ResumeURL, "uploads/") {
-				// Always use the /api/files/serve/ path for anything in uploads/
-				trimmed := app.ResumeURL
-				trimmed = strings.TrimPrefix(trimmed, "/")
-				trimmed = strings.TrimPrefix(trimmed, "uploads/")
-				resumeURL = "http://localhost:3000/api/files/serve/" + trimmed
-			} else {
-				resumeURL = "http://localhost:3000/api/files/serve/" + strings.TrimPrefix(app.ResumeURL, "/")
-			}
-		}
-		fmt.Printf("DEBUG: Final resumeURL for application %s: %s\n", app.ApplicationID, resumeURL)
-
+    
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,
@@ -76,43 +59,42 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 			AppliedAt:     app.AppliedAt,
 			Status:        app.ApplicationStatus,
 			CoverLetter:   app.CoverLetter,
-			ResumeFile:    app.StudentResumeFile,
+			ResumeFile:    app.StudentResumeFile, // Already binary data
 			JobTitle:      app.JobTitle,
 			Company:       app.Company,
 			JobType:       app.JobType,
 			UserID:        app.UserID,
 			ID:            app.ApplicationID, // For consistency
 			Applicant: ApplicantInfo{
-				Name:        app.Name,
-				Email:       app.Email,
-				Avatar:      app.Avatar,
-				ResumeURL:   resumeURL,
-				Skills:      skills,
-				Experience:  app.Experience,
-				Education:   app.Education,
-				Portfolio:   app.Portfolio,
-				LinkedIn:    app.LinkedIn,
-				Github:      app.Github,
-				ProfileName: app.ProfileName,
-				Location:    app.Location,
-				Summary:     "",        // Not available in current data
-				Phone:       app.Phone, // Use phone number from database
+				Name:         app.Name,
+				Email:        app.Email,
+				ProfilePhoto: app.Avatar, // Already binary data
+				Skills:       skills,
+				Experience:   app.Experience,
+				Education:    app.Education,
+				Portfolio:    app.Portfolio,
+				LinkedIn:     app.LinkedIn,
+				Github:       app.Github,
+				ProfileName:  app.ProfileName,
+				Location:     app.Location,
+				Summary:      "",        // Not available in current data
+				Phone:        app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)
 	}
 
-	fmt.Printf("DEBUG: Service GetApplicationsForJob success - Found %d applications\n", len(responses))
-	fmt.Printf("DEBUG: Service returning applications: %+v\n", responses)
+	middleware.DebugLog("DEBUG: Service GetApplicationsForJob success - Found %d applications\n", len(responses))
+	middleware.DebugLog("DEBUG: Service returning applications: %+v\n", responses)
 	return responses, err
 }
 
 func (s *employerApplicationService) GetApplicationsByStudent(studentID string) ([]JobApplicationResponse, error) {
-	fmt.Printf("DEBUG: Service GetApplicationsByStudent - StudentID: %s\n", studentID)
+	middleware.DebugLog("DEBUG: Service GetApplicationsByStudent - StudentID: %s\n", studentID)
 
 	apps, err := s.repo.GetApplicationsByStudent(studentID)
 	if err != nil {
-		fmt.Printf("DEBUG: Service GetApplicationsByStudent error: %v\n", err)
+		middleware.DebugLog("DEBUG: Service GetApplicationsByStudent error: %v\n", err)
 		return nil, err
 	}
 
@@ -132,24 +114,7 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 				}
 			}
 		}
-
-		// Generate correct resume URL
-		resumeURL := ""
-		if app.ResumeURL != "" {
-			if strings.HasPrefix(app.ResumeURL, "http") {
-				resumeURL = app.ResumeURL
-			} else if strings.Contains(app.ResumeURL, "uploads/") {
-				// Always use the /api/files/serve/ path for anything in uploads/
-				trimmed := app.ResumeURL
-				trimmed = strings.TrimPrefix(trimmed, "/")
-				trimmed = strings.TrimPrefix(trimmed, "uploads/")
-				resumeURL = "http://localhost:3000/api/files/serve/" + trimmed
-			} else {
-				resumeURL = "http://localhost:3000/api/files/serve/" + strings.TrimPrefix(app.ResumeURL, "/")
-			}
-		}
-		fmt.Printf("DEBUG: Final resumeURL for application %s: %s\n", app.ApplicationID, resumeURL)
-
+    
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,
@@ -157,34 +122,33 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 			AppliedAt:     app.AppliedAt,
 			Status:        app.ApplicationStatus,
 			CoverLetter:   app.CoverLetter,
-			ResumeFile:    app.StudentResumeFile,
+			ResumeFile:    app.StudentResumeFile, // Already binary data
 			JobTitle:      app.JobTitle,
 			Company:       app.Company,
 			JobType:       app.JobType,
 			UserID:        app.UserID,
 			ID:            app.ApplicationID, // For consistency
 			Applicant: ApplicantInfo{
-				Name:        app.Name,
-				Email:       app.Email,
-				Avatar:      app.Avatar,
-				ResumeURL:   resumeURL,
-				Skills:      skills,
-				Experience:  app.Experience,
-				Education:   app.Education,
-				Portfolio:   app.Portfolio,
-				LinkedIn:    app.LinkedIn,
-				Github:      app.Github,
-				ProfileName: app.ProfileName,
-				Location:    app.Location,
-				Summary:     "",        // Not available in current data
-				Phone:       app.Phone, // Use phone number from database
+				Name:         app.Name,
+				Email:        app.Email,
+				ProfilePhoto: app.Avatar, // Already binary data
+				Skills:       skills,
+				Experience:   app.Experience,
+				Education:    app.Education,
+				Portfolio:    app.Portfolio,
+				LinkedIn:     app.LinkedIn,
+				Github:       app.Github,
+				ProfileName:  app.ProfileName,
+				Location:     app.Location,
+				Summary:      "",        // Not available in current data
+				Phone:        app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)
 	}
 
-	fmt.Printf("DEBUG: Service GetApplicationsByStudent success - Found %d applications\n", len(responses))
-	fmt.Printf("DEBUG: Service returning applications: %+v\n", responses)
+	middleware.DebugLog("DEBUG: Service GetApplicationsByStudent success - Found %d applications\n", len(responses))
+	middleware.DebugLog("DEBUG: Service returning applications: %+v\n", responses)
 	return responses, err
 }
 
@@ -213,10 +177,10 @@ func (s *employerApplicationService) IsUserAuthorizedForApplication(applicationI
 }
 
 func (s *employerApplicationService) GetJobEmployerID(jobID string) (string, error) {
-	fmt.Printf("DEBUG: Service GetJobEmployerID - JobID: %s\n", jobID)
+	middleware.DebugLog("DEBUG: Service GetJobEmployerID - JobID: %s\n", jobID)
 
 	employerID, err := s.repo.GetJobEmployerID(jobID)
 
-	fmt.Printf("DEBUG: Service GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
+	middleware.DebugLog("DEBUG: Service GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
 	return employerID, err
 }

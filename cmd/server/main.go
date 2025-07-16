@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"mime/multipart"
 	"os"
 	"time"
 
@@ -15,14 +16,13 @@ import (
 	"asa/internal/bookmark"
 	"asa/internal/employerapplication"
 	"asa/internal/employerprofile"
+	"asa/internal/grpc"
 	"asa/internal/jobpost"
 	"asa/internal/middleware"
 	"asa/internal/notification"
 	"asa/internal/storage"
 	"asa/internal/studentprofile"
 	"asa/internal/worker"
-
-	"mime/multipart"
 
 	_ "asa/docs" // Import swagger docs
 
@@ -37,12 +37,10 @@ func runAutoMigrate(db *gorm.DB) error {
 	log.Println("Running GORM AutoMigrate...")
 
 	// Enable UUID extension for generating UUIDs if needed
-	err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"").Error
-	if err != nil {
+	if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"").Error; err != nil {
 		log.Printf("Warning: Could not create uuid-ossp extension: %v", err)
 	}
 
-	// List of all models to migrate
 	models := []interface{}{
 		&auth.User{},
 		&employerprofile.EmployerProfile{},
@@ -56,47 +54,40 @@ func runAutoMigrate(db *gorm.DB) error {
 		&employerapplication.Message{},
 	}
 
-	// Run AutoMigrate for each model
-	for _, model := range models {
-		if err := db.AutoMigrate(model); err != nil {
-			return fmt.Errorf("failed to migrate model %T: %w", model, err)
+	for _, m := range models {
+		if err := db.AutoMigrate(m); err != nil {
+			return fmt.Errorf("failed to migrate model %T: %w", m, err)
 		}
-		log.Printf("Successfully migrated: %T", model)
+		log.Printf("Successfully migrated: %T", m)
 	}
 
 	log.Println("AutoMigrate completed successfully!")
 	return nil
 }
 
-// Mock storage service for compatibility with existing storage handler
+// mockStorageService satisfies storage.Service but disables file uploads
 type mockStorageService struct{}
 
-func (m *mockStorageService) SaveFile(fileHeader *multipart.FileHeader, folder string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled directly in profile handlers")
+func (m *mockStorageService) SaveFile(_ *multipart.FileHeader, _ string) (string, error) {
+	return "", fmt.Errorf("file uploads are now handled in profile handlers")
 }
-
-func (m *mockStorageService) SaveImage(fileHeader *multipart.FileHeader, folder string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled directly in profile handlers")
+func (m *mockStorageService) SaveImage(_ *multipart.FileHeader, _ string) (string, error) {
+	return "", fmt.Errorf("file uploads are now handled in profile handlers")
 }
-
-func (m *mockStorageService) SaveDocument(fileHeader *multipart.FileHeader, folder string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled directly in profile handlers")
+func (m *mockStorageService) SaveDocument(_ *multipart.FileHeader, _ string) (string, error) {
+	return "", fmt.Errorf("file uploads are now handled in profile handlers")
 }
-
-func (m *mockStorageService) SaveResume(fileHeader *multipart.FileHeader, folder string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled directly in profile handlers")
+func (m *mockStorageService) SaveResume(_ *multipart.FileHeader, _ string) (string, error) {
+	return "", fmt.Errorf("file uploads are now handled in profile handlers")
 }
-
-func (m *mockStorageService) DeleteFile(filePath string) error {
-	return fmt.Errorf("file operations are now handled directly in profile handlers")
+func (m *mockStorageService) DeleteFile(string) error {
+	return fmt.Errorf("file operations are now handled in profile handlers")
 }
-
-func (m *mockStorageService) ListFiles(folder string) ([]storage.FileInfo, error) {
-	return []storage.FileInfo{}, nil
+func (m *mockStorageService) ListFiles(_ string) ([]storage.FileInfo, error) {
+	return nil, nil
 }
-
-func (m *mockStorageService) GetFileInfo(filePath string) (*storage.FileInfo, error) {
-	return nil, fmt.Errorf("file operations are now handled directly in profile handlers")
+func (m *mockStorageService) GetFileInfo(string) (*storage.FileInfo, error) {
+	return nil, fmt.Errorf("file operations are now handled in profile handlers")
 }
 
 func main() {
@@ -107,22 +98,46 @@ func main() {
 	}
 	defer config.CloseDB(db)
 
-	// Run AutoMigrate to create/update all tables
+	// Run migrations
 	if err := runAutoMigrate(db); err != nil {
 		log.Fatalf("Failed to run auto migration: %v", err)
 	}
 
+	// Create Gin router with middleware
 	router := gin.Default()
 	router.Use(middleware.CORSMiddleware())
 	router.Use(middleware.Logger())
 
-	// Instantiate repositories, services, handlers for each module
+	// Repositories
 	employerProfileRepo := employerprofile.NewEmployerProfileRepository(db)
 	studentProfileRepo := studentprofile.NewStudentProfileRepository(db)
-
-	// Create auth service and handler
 	authRepo := auth.NewUserRepository(db)
-	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo)
+
+	// Initialize AAA gRPC client (optional - will use local auth if not available)
+	var aaaClient *grpc.AAAGrpcClient = nil
+	aaaHost := os.Getenv("AAA_HOST")
+	aaaPort := os.Getenv("AAA_GRPC_PORT")
+
+	if aaaHost != "" && aaaPort != "" {
+		aaaEndpoint := fmt.Sprintf("%s:%s", aaaHost, aaaPort)
+		log.Printf("Attempting to connect to AAA gRPC service at: %s", aaaEndpoint)
+
+		// Try to initialize gRPC client, but don't fail if it's not available
+		// This allows the service to run with local authentication only
+		grpcClient, err := initGrpcClient(aaaEndpoint)
+		if err != nil {
+			log.Printf("Warning: Failed to connect to AAA gRPC service: %v", err)
+			log.Printf("Continuing with local authentication only")
+		} else {
+			aaaClient = grpcClient
+			log.Printf("Successfully connected to AAA gRPC service")
+		}
+	} else {
+		log.Printf("AAA_HOST or AAA_GRPC_PORT not set, using local authentication only")
+	}
+
+	// Services and handlers
+	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo, aaaClient)
 	authHandler := auth.NewAuthHandler(authService)
 
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
@@ -141,22 +156,16 @@ func main() {
 	employerAppHandler := employerapplication.NewEmployerApplicationHandler(employerAppService)
 
 	bookmarkRepo := bookmark.NewBookmarkRepository(db)
-	jobRepo := jobpost.NewJobPostRepository(db)
-	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo, jobRepo)
+	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo, jobPostRepo)
 	bookmarkHandler := bookmark.NewBookmarkHandler(bookmarkService)
 
 	studentProfileService := studentprofile.NewStudentProfileService(studentProfileRepo)
 	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService)
 
-	// Use binary storage service for file serving from database
+	// File serving and storage handlers
 	fileServeHandler := storage.NewFileServeHandler(db)
+	storageHandler := storage.NewStorageHandler(&mockStorageService{})
 
-	// Create a mock storage service since file uploads are now handled directly in profile handlers
-	// The traditional file upload endpoints are not needed for binary storage
-	mockStorageService := &mockStorageService{}
-	storageHandler := storage.NewStorageHandler(mockStorageService)
-
-	// Notification module with preferences
 	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
 	notificationService := notification.NewNotificationService(notificationPrefsRepo)
 	notificationHandler := notification.NewNotificationHandler(notificationService)
@@ -164,12 +173,11 @@ func main() {
 	jobService := worker.NewInMemoryJobService(100)
 	workerHandler := worker.NewWorkerHandler(jobService)
 
-	// Admin module
 	adminRepo := admin.NewAdminRepository(db)
 	adminService := admin.NewAdminService(adminRepo)
 	adminHandler := admin.NewAdminHandler(adminService)
 
-	// Health check endpoint (no auth required)
+	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status":    "healthy",
@@ -178,59 +186,50 @@ func main() {
 		})
 	})
 
-	// Swagger documentation endpoint (no auth required)
+	// Swagger docs
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	// API routes
+	// Public API group
 	api := router.Group("/api")
-
-	// Auth routes (no auth middleware)
 	auth.RegisterRoutes(api, authHandler)
-
-	// Public job routes (no auth required)
 	jobpost.RegisterPublicRoutes(api, jobPostHandler)
-
-	// Public file serving routes (no auth required for file access)
 	storage.RegisterPublicRoutes(api, storageHandler, fileServeHandler)
 
-	// Middleware for authenticated routes
+	// Protected routes
 	authGroup := api.Group("/")
 	authGroup.Use(middleware.AuthMiddleware())
 
-	// Admin routes (require admin role)
 	admin.RegisterRoutes(authGroup, adminHandler)
-
-	// Employer profile
 	employerprofile.RegisterRoutes(authGroup, employerProfileHandler)
-
-	// Job post (authenticated routes)
 	jobpost.RegisterAuthenticatedRoutes(authGroup, jobPostHandler)
-
-	// Applications (student)
 	application.RegisterRoutes(authGroup, applicationHandler)
-
-	// Employer-side application management
 	employerapplication.RegisterRoutes(authGroup, employerAppHandler)
-
-	// Bookmarks
 	bookmark.RegisterRoutes(authGroup, bookmarkHandler)
-
-	// Student profile
 	studentprofile.RegisterRoutes(authGroup, studentProfileHandler)
-
-	// File upload routes (require auth)
 	storage.RegisterAuthenticatedRoutes(authGroup, storageHandler, fileServeHandler)
-
-	// Notifications
 	notification.RegisterRoutes(authGroup, notificationHandler)
-
-	// Workers (background job queue)
 	worker.RegisterRoutes(authGroup, workerHandler)
 
+	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
 	}
 
+	log.Printf("Starting ASA backend server on port %s", port)
 	router.Run(":" + port)
+}
+
+// initGrpcClient initializes the gRPC client with proper error handling
+func initGrpcClient(endpoint string) (*grpc.AAAGrpcClient, error) {
+	log.Printf("🔌 Attempting to connect to gRPC service at: %s", endpoint)
+
+	// Create gRPC client using the correct function signature
+	client, err := grpc.NewAAAGrpcClient(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to gRPC server: %w", err)
+	}
+
+	log.Printf("✅ Successfully connected to gRPC service")
+	return client, nil
 }

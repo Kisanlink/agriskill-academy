@@ -3,6 +3,7 @@
 package worker
 
 import (
+	"asa/internal/middleware"
 	"fmt"
 	"time"
 )
@@ -46,7 +47,7 @@ func (s *inMemoryJobService) ProcessNext() error {
 	// For demonstration; real implementation would block or fetch from queue
 	select {
 	case job := <-s.jobs:
-		fmt.Printf("Processing job: %+v\n", job)
+		middleware.DebugLog("Processing job: %+v\n", job)
 		return nil
 	default:
 		return fmt.Errorf("no job to process")
@@ -55,7 +56,7 @@ func (s *inMemoryJobService) ProcessNext() error {
 
 func (s *inMemoryJobService) workerLoop() {
 	for job := range s.jobs {
-		fmt.Printf("Worker processing job: %+v\n", job)
+		middleware.DebugLog("Worker processing job: %+v\n", job)
 		// Simulate job processing
 		time.Sleep(1 * time.Second)
 	}

@@ -3,6 +3,7 @@
 package application
 
 import (
+	"asa/internal/middleware"
 	"errors"
 	"fmt"
 	"time"
@@ -27,34 +28,34 @@ func NewApplicationService(repo ApplicationRepository) ApplicationService {
 }
 
 func (s *applicationService) Apply(app *Application) error {
-	fmt.Printf("DEBUG: Service Apply called for JobID: %s, StudentID: %s\n", app.JobID, app.StudentID)
+	middleware.DebugLog("DEBUG: Service Apply called for JobID: %s, StudentID: %s\n", app.JobID, app.StudentID)
 
 	// (UUID generation removed; handled by BeforeCreate hook)
 
 	exists, err := s.repo.Exists(app.JobID, app.StudentID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error checking if application exists: %v\n", err)
+		middleware.DebugLog("DEBUG: Error checking if application exists: %v\n", err)
 		return err
 	}
 	if exists {
-		fmt.Printf("DEBUG: Application already exists\n")
+		middleware.DebugLog("DEBUG: Application already exists\n")
 		return fmt.Errorf("application already exists")
 	}
 
-	fmt.Printf("DEBUG: No existing application found, proceeding...\n")
+	middleware.DebugLog("DEBUG: No existing application found, proceeding...\n")
 
 	// Populate job metadata
 	app.AppliedAt = time.Now()
 	app.Status = StatusApplied
 
-	fmt.Printf("DEBUG: Fetching job metadata for JobID: %s\n", app.JobID)
+	middleware.DebugLog("DEBUG: Fetching job metadata for JobID: %s\n", app.JobID)
 	job, err := s.repo.GetJobMetadata(app.JobID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error fetching job metadata: %v\n", err)
+		middleware.DebugLog("DEBUG: Error fetching job metadata: %v\n", err)
 		return err
 	}
 
-	fmt.Printf("DEBUG: Job metadata fetched: %+v\n", job)
+	middleware.DebugLog("DEBUG: Job metadata fetched: %+v\n", job)
 
 	app.JobTitle = job.Title
 	app.Company = job.EmployerName
@@ -62,15 +63,15 @@ func (s *applicationService) Apply(app *Application) error {
 	app.JobType = job.JobType
 	app.Experience = job.Experience
 
-	fmt.Printf("DEBUG: Application object before save: %+v\n", app)
+	middleware.DebugLog("DEBUG: Application object before save: %+v\n", app)
 
 	err = s.repo.Create(app)
 	if err != nil {
-		fmt.Printf("DEBUG: Error creating application in database: %v\n", err)
+		middleware.DebugLog("DEBUG: Error creating application in database: %v\n", err)
 		return err
 	}
 
-	fmt.Printf("DEBUG: Application created successfully\n")
+	middleware.DebugLog("DEBUG: Application created successfully\n")
 	return nil
 }
 
@@ -79,29 +80,29 @@ func (s *applicationService) GetMyApplications(studentID string) ([]Application,
 }
 
 func (s *applicationService) GetApplicationsByJob(jobID, employerID string) ([]Application, error) {
-	fmt.Printf("DEBUG: Service GetApplicationsByJob - JobID: %s, EmployerID: %s\n", jobID, employerID)
+	middleware.DebugLog("DEBUG: Service GetApplicationsByJob - JobID: %s, EmployerID: %s\n", jobID, employerID)
 
 	// Verify that the job belongs to the employer
 	jobEmployerID, err := s.repo.GetJobEmployerID(jobID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error getting job employer ID: %v\n", err)
+		middleware.DebugLog("DEBUG: Error getting job employer ID: %v\n", err)
 		return nil, err
 	}
 
-	fmt.Printf("DEBUG: Job employer ID: %s, Requesting employer ID: %s\n", jobEmployerID, employerID)
+	middleware.DebugLog("DEBUG: Job employer ID: %s, Requesting employer ID: %s\n", jobEmployerID, employerID)
 
 	if jobEmployerID != employerID {
-		fmt.Printf("DEBUG: Authorization failed - job belongs to %s, requesting user is %s\n", jobEmployerID, employerID)
+		middleware.DebugLog("DEBUG: Authorization failed - job belongs to %s, requesting user is %s\n", jobEmployerID, employerID)
 		return nil, errors.New("not authorized to view applications for this job")
 	}
 
 	apps, err := s.repo.GetByJob(jobID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error getting applications by job: %v\n", err)
+		middleware.DebugLog("DEBUG: Error getting applications by job: %v\n", err)
 		return nil, err
 	}
 
-	fmt.Printf("DEBUG: Found %d applications for job %s\n", len(apps), jobID)
+	middleware.DebugLog("DEBUG: Found %d applications for job %s\n", len(apps), jobID)
 	return apps, err
 }
 

@@ -86,9 +86,9 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 
 	// Prepare payload for AAA service
 	aaaPayload := map[string]interface{}{
-		"username":      req.Username, // Use username for AAA service
+		"username":      req.Username,
 		"password":      req.Password,
-		"mobile_number": phoneNumber, // Convert to number for AAA service
+		"mobile_number": phoneNumber,
 		"country_code":  countryCode,
 	}
 
@@ -107,7 +107,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	body, _ := json.Marshal(aaaPayload)
 	log.Printf("📤 AAA Register request body: %s", string(body))
 
-	resp, err := http.Post(config.AAAServiceBaseURL+"/register", "application/json", bytes.NewBuffer(body))
+	resp, err := http.Post(config.AAAServiceBaseURL+"/api/v1/register", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		log.Printf("❌ AAA Register request failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Auth service unavailable"})
@@ -119,6 +119,59 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	log.Printf("📥 AAA Register response status: %d", resp.StatusCode)
 	log.Printf("📥 AAA Register response headers: %+v", resp.Header)
 	log.Printf("📥 AAA Register response body: %s", string(responseBody))
+
+	// === UPDATED 409 HANDLING ===
+	if resp.StatusCode == http.StatusConflict {
+		log.Printf("🔄 HTTP 409 Conflict: AAA user exists → lookup via gRPC by phone")
+
+		grpcClient := h.authService.(*authService).grpcClient
+		if grpcClient == nil {
+			log.Printf("❌ gRPC client not initialized")
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "gRPC client not available"})
+			return
+		}
+
+		ctx := c.Request.Context()
+		respGet, err := grpcClient.GetUserByMobileNumber(ctx, req.PhoneNumber)
+		if err != nil {
+			log.Printf("❌ gRPC GetUserByMobileNumber failed: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch existing user from AAA"})
+			return
+		}
+		if respGet == nil || respGet.Data == nil {
+			log.Printf("❌ AAA gRPC GetUserByMobileNumber returned no Data")
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Internal error: missing AAA user data"})
+			return
+		}
+
+		userID := respGet.Data.Id
+		phoneNumberStr := strconv.FormatUint(respGet.Data.MobileNumber, 10)
+
+		user, token, err := h.authService.SignupWithID(&req, userID, phoneNumberStr)
+		if err != nil {
+			log.Printf("❌ Failed to create local user: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to link existing user: " + err.Error()})
+			return
+		}
+
+		log.Printf("✅ Local user linked successfully: %+v", user)
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"message": "User linked successfully",
+			"user": gin.H{
+				"id":       user.ID,
+				"name":     user.Name,
+				"email":    user.Email,
+				"role":     user.Role,
+				"username": req.Username,
+			},
+			"token":                token,
+			"aaa_user_id":          userID,
+			"is_existing_aaa_user": true,
+		})
+		return
+	}
+	// === END UPDATED 409 HANDLING ===
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		log.Printf("❌ AAA Register failed with status %d", resp.StatusCode)
@@ -145,6 +198,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 			MobileNumber int64  `json:"mobile_number"`
 			CountryCode  string `json:"country_code"`
 		} `json:"data"`
+		Error []string `json:"error"`
 	}
 	json.Unmarshal(responseBody, &aaaResp)
 
@@ -155,126 +209,51 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	log.Printf("   Data.Email: %s", aaaResp.Data.Email)
 	log.Printf("   Data.MobileNumber: %d", aaaResp.Data.MobileNumber)
 	log.Printf("   Data.CountryCode: %s", aaaResp.Data.CountryCode)
+	log.Printf("   Error: %v", aaaResp.Error)
 
-	// Use header values if available, fallback to body
-	userID := registerUserID
-	if userID == "" {
-		userID = aaaResp.Data.ID
-		log.Printf("⚠️ Using UserID from response body: %s", userID)
+	// Existing user second‐level conflict handling (now unreachable due to early return above)
+	var userID string
+	if resp.StatusCode == http.StatusConflict {
+		// ... old conflict logic omitted ...
 	} else {
-		log.Printf("✅ Using UserID from header: %s", userID)
-	}
-
-	assignRole := req.Role
-	assignPayload := map[string]interface{}{
-		"user_id": userID,
-		"role":    assignRole,
-	}
-
-	log.Printf("📤 AAA Assign role payload: %+v", assignPayload)
-
-	roleBody, _ := json.Marshal(assignPayload)
-	log.Printf("📤 AAA Assign role request body: %s", string(roleBody))
-
-	roleResp, err := http.Post(config.AAAServiceBaseURL+"/assign-role", "application/json", bytes.NewBuffer(roleBody))
-	if err != nil {
-		log.Printf("❌ AAA Assign role request failed: %v", err)
-	} else {
-		defer roleResp.Body.Close()
-		roleResponseBody, _ := io.ReadAll(roleResp.Body)
-		log.Printf("📥 AAA Assign role response status: %d", roleResp.StatusCode)
-		log.Printf("📥 AAA Assign role response headers: %+v", roleResp.Header)
-		log.Printf("📥 AAA Assign role response body: %s", string(roleResponseBody))
-	}
-
-	// Use tokens from register response, fallback to role assignment response
-	token := registerToken
-	refreshToken := registerRefreshToken
-
-	// If no tokens from register, try role assignment response
-	if token == "" && roleResp != nil {
-		token = roleResp.Header.Get("token")
-		refreshToken = roleResp.Header.Get("refreshtoken")
-		log.Printf("🔄 Using tokens from role assignment response")
-	}
-
-	log.Printf("🎯 Final tokens for response:")
-	log.Printf("   Token: %s", token)
-	log.Printf("   RefreshToken: %s", refreshToken)
-
-	// Create local user profile if AAA registration was successful
-	var localUser *User
-	if userID != "" {
-		log.Printf("📝 Creating local user profile with AAA user ID: %s", userID)
-		log.Printf("📝 Request data: %+v", req)
-
-		// Convert mobile number to string for profile
-		phoneNumber := ""
-		if aaaResp.Data.MobileNumber != 0 {
-			phoneNumber = strconv.FormatInt(aaaResp.Data.MobileNumber, 10)
-		}
-
-		// Create local user record using AAA user ID and phone number
-		user, localToken, err := h.authService.SignupWithID(&req, userID, phoneNumber)
-		if err != nil {
-			log.Printf("❌ Failed to create local user: %v", err)
-			log.Printf("❌ Error details: %T: %v", err, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create local user profile: " + err.Error()})
-			return
-		}
-
-		localUser = user
-		log.Printf("✅ Local user created successfully:")
-		log.Printf("   User ID: %s", user.ID)
-		log.Printf("   Name: %s", user.Name)
-		log.Printf("   Email: %s", user.Email)
-		log.Printf("   Local Token: %s", localToken)
-	} else {
-		log.Printf("⚠️ No AAA user ID received, skipping local user creation")
-	}
-
-	log.Printf("✅ Signup successful - sending response")
-	log.Printf("=== AAA SIGNUP DEBUG END ===")
-
-	// Use local user data if available, otherwise fallback to request data
-	responseUser := gin.H{
-		"id":       userID,       // Use AAA user ID as fallback
-		"name":     req.Name,     // Use request name as fallback
-		"email":    req.Email,    // Use request email as fallback
-		"username": req.Username, // Include username for reference
-		"role":     assignRole,
-	}
-
-	if localUser != nil {
-		responseUser["id"] = localUser.ID
-		responseUser["name"] = localUser.Name
-		responseUser["email"] = localUser.Email
-	}
-
-	// Use local token (which includes role) instead of AAA token
-	localToken := ""
-	if localUser != nil {
-		// Generate local token with role included
-		localToken, err = jwtutil.GenerateToken(localUser.ID, localUser.Email, localUser.Role, 72*time.Hour)
-		if err != nil {
-			log.Printf("❌ Failed to generate local token: %v", err)
-			// Fallback to AAA token if local token generation fails
-			localToken = token
+		userID = registerUserID
+		if userID == "" {
+			userID = aaaResp.Data.ID
+			log.Printf("⚠️ Using UserID from response body: %s", userID)
 		} else {
-			log.Printf("✅ Generated local token with role: %s", localUser.Role)
+			log.Printf("✅ Using UserID from header: %s", userID)
 		}
-	} else {
-		// Fallback to AAA token if no local user
-		localToken = token
-		log.Printf("⚠️ Using AAA token as fallback")
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success":       true,
-		"message":       "Signup successful",
-		"user":          responseUser,
-		"token":         localToken,   // Use local token with role
-		"refresh_token": refreshToken, // Keep AAA refresh token
+	phoneNumberStr := strconv.FormatInt(int64(aaaResp.Data.MobileNumber), 10)
+	if phoneNumberStr == "0" {
+		phoneNumberStr = req.PhoneNumber
+	}
+
+	log.Printf("📝 Creating local user with AAA user ID: %s", userID)
+	log.Printf("📝 Phone number for local storage: %s", phoneNumberStr)
+
+	user, token, err := h.authService.SignupWithID(&req, userID, phoneNumberStr)
+	if err != nil {
+		log.Printf("❌ Failed to create local user: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to create local user: " + err.Error()})
+		return
+	}
+
+	log.Printf("✅ Local user created successfully: %+v", user)
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"message": "User registered successfully",
+		"user": gin.H{
+			"id":       user.ID,
+			"name":     user.Name,
+			"email":    user.Email,
+			"role":     user.Role,
+			"username": req.Username,
+		},
+		"token":                token,
+		"aaa_user_id":          userID,
+		"is_existing_aaa_user": resp.StatusCode == http.StatusConflict,
 	})
 }
 
@@ -315,7 +294,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	body, _ := json.Marshal(aaaPayload)
 	log.Printf("📤 AAA Login request body: %s", string(body))
 
-	resp, err := http.Post(config.AAAServiceBaseURL+"/login", "application/json", bytes.NewBuffer(body))
+	resp, err := http.Post(config.AAAServiceBaseURL+"/api/v1/login", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		log.Printf("❌ AAA Login request failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Auth service unavailable"})
@@ -692,3 +671,5 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 		"roles":   rolesSlice,
 	})
 }
+
+// gRPC handlers removed - using HTTP AAA service integration instead

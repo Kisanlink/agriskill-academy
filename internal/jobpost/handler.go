@@ -1,8 +1,8 @@
 package jobpost
 
 import (
+	"asa/internal/middleware"
 	"asa/pkg/authz"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -102,7 +102,7 @@ func (h *JobPostHandler) CreateDraft(c *gin.Context) {
 	}
 
 	// Debug logging
-	fmt.Printf("DEBUG: CreateDraft request received - Salary: %+v\n", req.Salary)
+	middleware.DebugLog("DEBUG: CreateDraft request received - Salary: %+v\n", req.Salary)
 
 	employerID := c.GetString("user_id")
 	if employerID == "" {
@@ -392,6 +392,10 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 	jobType := c.Query("jobType")
 	experience := c.Query("experience")
 	isRemoteStr := c.Query("isRemote")
+	skills := c.QueryArray("skills")
+	salaryMinStr := c.Query("salaryMin")
+	salaryMaxStr := c.Query("salaryMax")
+	postedWithin := c.Query("postedWithin")
 
 	// Parse pagination
 	page, err := strconv.Atoi(pageStr)
@@ -415,14 +419,40 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 		}
 	}
 
-	// Create filter
+	// Parse salary range
+	var salaryRange *struct {
+		Min float64 `json:"min"`
+		Max float64 `json:"max"`
+	}
+	if salaryMinStr != "" || salaryMaxStr != "" {
+		salaryRange = &struct {
+			Min float64 `json:"min"`
+			Max float64 `json:"max"`
+		}{}
+
+		if salaryMinStr != "" {
+			if min, err := strconv.ParseFloat(salaryMinStr, 64); err == nil {
+				salaryRange.Min = min
+			}
+		}
+		if salaryMaxStr != "" {
+			if max, err := strconv.ParseFloat(salaryMaxStr, 64); err == nil {
+				salaryRange.Max = max
+			}
+		}
+	}
+
+	// Create filter with enhanced parameters
 	filter := &JobPostFilter{
-		Page:       page,
-		Limit:      limit,
-		Location:   location,
-		JobType:    []string{jobType},
-		Experience: []string{experience},
-		IsRemote:   isRemote,
+		Page:         page,
+		Limit:        limit,
+		Location:     location,
+		JobType:      []string{jobType},
+		Experience:   []string{experience},
+		IsRemote:     isRemote,
+		Skills:       skills,
+		SalaryRange:  salaryRange,
+		PostedWithin: postedWithin,
 	}
 
 	// Remove empty filters
@@ -431,6 +461,9 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 	}
 	if experience == "" {
 		filter.Experience = nil
+	}
+	if len(skills) == 0 {
+		filter.Skills = nil
 	}
 
 	jobs, err := h.service.Search(filter)

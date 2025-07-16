@@ -8,6 +8,7 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *EmployerProfileHandler) {
 		employers.GET("/:employerId/profile", handler.GetProfile)
 		employers.GET("/me/profile", handler.GetMyProfile)
 		employers.PUT("/:employerId/profile", handler.UpdateProfile)
+		employers.PUT("/me/profile", handler.UpdateMyProfile)
 		employers.POST("/profile", handler.CreateProfile)
 		employers.DELETE("/:employerId/profile", handler.DeleteProfile)
 	}

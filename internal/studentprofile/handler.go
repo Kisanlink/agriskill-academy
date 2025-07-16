@@ -3,6 +3,7 @@
 package studentprofile
 
 import (
+	"asa/internal/middleware"
 	"asa/pkg/authz"
 	"fmt"
 	"io"
@@ -265,16 +266,24 @@ func (h *StudentProfileHandler) DeleteMyCertificate(c *gin.Context) {
 // @Router /api/students/me/profile [put]
 // PUT /students/me/profile
 func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
+	middleware.DebugLog("🔍 DEBUG: UpdateMyProfile called\n")
+
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
+
+	middleware.DebugLog("🔍 DEBUG: Username: %s, UserID: %s\n", username, userID)
+
 	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
+		middleware.DebugLog("❌ DEBUG: Permission denied - Error: %v, Allowed: %v\n", err, allowed)
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
 	}
+	middleware.DebugLog("✅ DEBUG: Permission check passed\n")
 
 	if userID == "" {
+		middleware.DebugLog("❌ DEBUG: UserID is empty\n")
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
 		return
 	}
@@ -282,81 +291,18 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	var req UpdateStudentProfileRequest
 	contentType := c.GetHeader("Content-Type")
 
-	fmt.Printf("DEBUG: Content-Type: %s\n", contentType)
-	fmt.Printf("DEBUG: User ID: %s\n", userID)
+	middleware.DebugLog("🔍 DEBUG: Content-Type: %s\n", contentType)
+	middleware.DebugLog("🔍 DEBUG: User ID: %s\n", userID)
 
 	if strings.Contains(contentType, "multipart/form-data") {
-		fmt.Printf("DEBUG: Handling multipart form data\n")
-		// Handle multipart form data (file upload)
-		if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
-			fmt.Printf("DEBUG: ParseMultipartForm error: %v\n", err)
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"message": "Failed to parse form data",
-				"error":   err.Error(),
-			})
-			return
-		}
-
-		// Handle resume file upload
-		if resumeFile, err := c.FormFile("resume"); err == nil {
-			fmt.Printf("DEBUG: Resume file found - Name: %s, Size: %d\n", resumeFile.Filename, resumeFile.Size)
-			// Validate file type
-			if !IsValidResumeFile(resumeFile.Filename) {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "Invalid file type. Allowed: PDF, DOC, DOCX",
-				})
-				return
-			}
-
-			// Validate file size (10MB max)
-			if resumeFile.Size > 10*1024*1024 {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "File size exceeds maximum allowed size (10MB)",
-				})
-				return
-			}
-
-			// Read file into bytes
-			file, err := resumeFile.Open()
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "Failed to read file",
-				})
-				return
-			}
-			defer file.Close()
-
-			fileBytes, err := io.ReadAll(file)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"success": false,
-					"message": "Failed to read file",
-				})
-				return
-			}
-
-			// Set resume data in request
-			req.Resume = fileBytes
-			req.ResumeName = resumeFile.Filename
-			req.ResumeType = resumeFile.Header.Get("Content-Type")
-			if req.ResumeType == "" {
-				req.ResumeType = getMimeTypeFromExtension(resumeFile.Filename)
-			}
-			req.ResumeSize = resumeFile.Size
-			fmt.Printf("DEBUG: Resume data set - Size: %d bytes, Type: %s\n", len(fileBytes), req.ResumeType)
-		} else {
-			fmt.Printf("DEBUG: No resume file found: %v\n", err)
-		}
+		middleware.DebugLog("🔍 DEBUG: Processing multipart form data\n")
 
 		// Handle profile photo upload
 		if profilePhotoFile, err := c.FormFile("profile_photo"); err == nil {
-			fmt.Printf("DEBUG: Profile photo found - Name: %s, Size: %d\n", profilePhotoFile.Filename, profilePhotoFile.Size)
+			middleware.DebugLog("🔍 DEBUG: Profile photo found - Name: %s, Size: %d\n", profilePhotoFile.Filename, profilePhotoFile.Size)
 			// Validate file type
 			if !IsValidImageFile(profilePhotoFile.Filename) {
+				middleware.DebugLog("❌ DEBUG: Invalid image type: %s\n", profilePhotoFile.Filename)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
 					"message": "Invalid image type. Allowed: JPG, PNG, GIF, WebP",
@@ -366,6 +312,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 
 			// Validate file size (5MB max for images)
 			if profilePhotoFile.Size > 5*1024*1024 {
+				middleware.DebugLog("❌ DEBUG: Image size too large: %d bytes\n", profilePhotoFile.Size)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
 					"message": "Image size exceeds maximum allowed size (5MB)",
@@ -376,6 +323,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 			// Read file into bytes
 			file, err := profilePhotoFile.Open()
 			if err != nil {
+				middleware.DebugLog("❌ DEBUG: Failed to open image file: %v\n", err)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
 					"message": "Failed to read image file",
@@ -386,6 +334,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 
 			fileBytes, err := io.ReadAll(file)
 			if err != nil {
+				middleware.DebugLog("❌ DEBUG: Failed to read image file bytes: %v\n", err)
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
 					"message": "Failed to read image file",
@@ -401,41 +350,41 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 				req.ProfilePhotoType = getMimeTypeFromExtension(profilePhotoFile.Filename)
 			}
 			req.ProfilePhotoSize = profilePhotoFile.Size
-			fmt.Printf("DEBUG: Profile photo data set - Size: %d bytes, Type: %s\n", len(fileBytes), req.ProfilePhotoType)
+			middleware.DebugLog("✅ DEBUG: Profile photo data set - Size: %d bytes, Type: %s, Name: %s\n", len(fileBytes), req.ProfilePhotoType, req.ProfilePhotoName)
 		}
 
 		// Handle other form fields
 		if name := c.PostForm("name"); name != "" {
 			req.Name = name
-			fmt.Printf("DEBUG: Name from form: %s\n", name)
+			middleware.DebugLog("🔍 DEBUG: Name from form: %s\n", name)
 		}
 		if email := c.PostForm("email"); email != "" {
 			req.Email = email
-			fmt.Printf("DEBUG: Email from form: %s\n", email)
+			middleware.DebugLog("🔍 DEBUG: Email from form: %s\n", email)
 		}
 		if location := c.PostForm("location"); location != "" {
 			req.Location = location
-			fmt.Printf("DEBUG: Location from form: %s\n", location)
+			middleware.DebugLog("🔍 DEBUG: Location from form: %s\n", location)
 		}
 		if phoneNumber := c.PostForm("phone_number"); phoneNumber != "" {
 			req.PhoneNumber = phoneNumber
-			fmt.Printf("DEBUG: Phone number from form: %s\n", phoneNumber)
+			middleware.DebugLog("🔍 DEBUG: Phone number from form: %s\n", phoneNumber)
 		}
 		if education := c.PostForm("education"); education != "" {
 			req.Education = education
-			fmt.Printf("DEBUG: Education from form: %s\n", education)
+			middleware.DebugLog("🔍 DEBUG: Education from form: %s\n", education)
 		}
 		if portfolio := c.PostForm("portfolio"); portfolio != "" {
 			req.Portfolio = portfolio
-			fmt.Printf("DEBUG: Portfolio from form: %s\n", portfolio)
+			middleware.DebugLog("🔍 DEBUG: Portfolio from form: %s\n", portfolio)
 		}
 		if linkedin := c.PostForm("linkedin"); linkedin != "" {
 			req.Linkedin = linkedin
-			fmt.Printf("DEBUG: LinkedIn from form: %s\n", linkedin)
+			middleware.DebugLog("🔍 DEBUG: LinkedIn from form: %s\n", linkedin)
 		}
 		if github := c.PostForm("github"); github != "" {
 			req.Github = github
-			fmt.Printf("DEBUG: GitHub from form: %s\n", github)
+			middleware.DebugLog("🔍 DEBUG: GitHub from form: %s\n", github)
 		}
 		if skills := c.PostForm("skills"); skills != "" {
 			// Handle skills as comma-separated string and convert to array
@@ -448,8 +397,9 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		}
 	} else {
 		// Handle JSON request
+		middleware.DebugLog("🔍 DEBUG: Processing JSON request\n")
 		if err := c.ShouldBindJSON(&req); err != nil {
-			fmt.Printf("DEBUG: JSON binding error: %v\n", err)
+			middleware.DebugLog("❌ DEBUG: JSON binding error: %v\n", err)
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
 				"message": "Invalid request format",
@@ -457,54 +407,71 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 			})
 			return
 		}
+		middleware.DebugLog("✅ DEBUG: JSON request parsed successfully\n")
 	}
 
 	// Set user ID
 	req.UserID = userID
 
-	fmt.Printf("DEBUG: Final request: %+v\n", req)
+	middleware.DebugLog("🔍 DEBUG: Final request metadata - Name: %s, Email: %s, ProfilePhotoSize: %d, ResumeSize: %d, CertificatesCount: %d\n", req.Name, req.Email, req.ProfilePhotoSize, req.ResumeSize, len(req.Certificates))
 
 	// Get existing profile or create new one
+	middleware.DebugLog("🔍 DEBUG: Getting profile for user ID: %s\n", userID)
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
+		middleware.DebugLog("🔍 DEBUG: Profile not found, creating new one for user: %s\n", userID)
 		// Create new profile
 		profile = &StudentProfile{
 			UserID: userID,
 			Name:   req.Name,
 			Email:  req.Email,
 		}
+		middleware.DebugLog("🔍 DEBUG: New profile created: %+v\n", profile)
+	} else {
+		middleware.DebugLog("✅ DEBUG: Existing profile found: %+v\n", profile)
 	}
 
 	// Update profile fields from request
+	middleware.DebugLog("🔍 DEBUG: Updating profile fields\n")
 	if req.Name != "" {
 		profile.Name = req.Name
+		middleware.DebugLog("🔍 DEBUG: Updated name: %s\n", req.Name)
 	}
 	if req.Email != "" {
 		profile.Email = req.Email
+		middleware.DebugLog("🔍 DEBUG: Updated email: %s\n", req.Email)
 	}
 	if req.Location != "" {
 		profile.Location = req.Location
+		middleware.DebugLog("🔍 DEBUG: Updated location: %s\n", req.Location)
 	}
 	if req.PhoneNumber != "" {
 		profile.PhoneNumber = req.PhoneNumber
+		middleware.DebugLog("🔍 DEBUG: Updated phone number: %s\n", req.PhoneNumber)
 	}
 	if req.Education != "" {
 		profile.Education = req.Education
+		middleware.DebugLog("🔍 DEBUG: Updated education: %s\n", req.Education)
 	}
 	if req.Portfolio != "" {
 		profile.Portfolio = req.Portfolio
+		middleware.DebugLog("🔍 DEBUG: Updated portfolio: %s\n", req.Portfolio)
 	}
 	if req.Linkedin != "" {
 		profile.Linkedin = req.Linkedin
+		middleware.DebugLog("🔍 DEBUG: Updated linkedin: %s\n", req.Linkedin)
 	}
 	if req.Github != "" {
 		profile.Github = req.Github
+		middleware.DebugLog("🔍 DEBUG: Updated github: %s\n", req.Github)
 	}
 	if req.Experience != nil {
 		profile.Experience = *req.Experience
+		middleware.DebugLog("🔍 DEBUG: Updated experience: %f\n", *req.Experience)
 	}
 	if req.Skills != nil {
 		profile.Skills = req.Skills
+		middleware.DebugLog("🔍 DEBUG: Updated skills: %v\n", req.Skills)
 	}
 
 	// Update file fields
@@ -513,23 +480,38 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		profile.ResumeName = req.ResumeName
 		profile.ResumeType = req.ResumeType
 		profile.ResumeSize = req.ResumeSize
+		middleware.DebugLog("🔍 DEBUG: Updated resume - Name: %s, Size: %d\n", req.ResumeName, req.ResumeSize)
 	}
 	if req.ProfilePhoto != nil {
 		profile.ProfilePhoto = req.ProfilePhoto
 		profile.ProfilePhotoName = req.ProfilePhotoName
 		profile.ProfilePhotoType = req.ProfilePhotoType
 		profile.ProfilePhotoSize = req.ProfilePhotoSize
+		middleware.DebugLog("🔍 DEBUG: Updated profile photo - Name: %s, Size: %d\n", req.ProfilePhotoName, req.ProfilePhotoSize)
 	}
 
 	// Update profile
+	middleware.DebugLog("🔍 DEBUG: Profile ID: %s\n", profile.ID)
 	if profile.ID == "" {
+		middleware.DebugLog("🔍 DEBUG: Creating new profile\n")
 		err = h.service.CreateProfile(profile)
+		if err != nil {
+			middleware.DebugLog("❌ DEBUG: CreateProfile error: %v\n", err)
+		} else {
+			middleware.DebugLog("✅ DEBUG: Profile created successfully\n")
+		}
 	} else {
+		middleware.DebugLog("🔍 DEBUG: Updating existing profile\n")
 		err = h.service.UpdateProfile(profile)
+		if err != nil {
+			middleware.DebugLog("❌ DEBUG: UpdateProfile error: %v\n", err)
+		} else {
+			middleware.DebugLog("✅ DEBUG: Profile updated successfully\n")
+		}
 	}
 
 	if err != nil {
-		fmt.Printf("DEBUG: Service error: %v\n", err)
+		middleware.DebugLog("❌ DEBUG: Service error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to update profile",
@@ -538,13 +520,14 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Profile updated successfully: %+v\n", profile)
+	middleware.DebugLog("✅ DEBUG: Profile operation completed successfully - ID: %s, Name: %s, ProfilePhotoSize: %d, ResumeSize: %d, CertificatesCount: %d\n", profile.ID, profile.Name, profile.ProfilePhotoSize, profile.ResumeSize, len(profile.Certificates))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Profile updated successfully",
 		"data":    profile,
 	})
+	middleware.DebugLog("✅ DEBUG: Response sent successfully\n")
 }
 
 // @Summary Add Certificate to My Profile
@@ -561,7 +544,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 // @Router /api/students/me/certificates [post]
 // POST /students/me/certificates
 func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
-	fmt.Printf("DEBUG: AddMyCertificate called\n")
+	middleware.DebugLog("DEBUG: AddMyCertificate called\n")
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
@@ -780,7 +763,7 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 // @Router /api/students/me/certificate [post]
 // @x-swagger-ui true
 func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
-	fmt.Printf("DEBUG: UploadMyCertificate called\n")
+	middleware.DebugLog("DEBUG: UploadMyCertificate called\n")
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
@@ -1098,11 +1081,11 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: UploadCertificate - UserID: %s\n", userID)
+	middleware.DebugLog("DEBUG: UploadCertificate - UserID: %s\n", userID)
 
 	// Parse multipart form
 	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
-		fmt.Printf("DEBUG: ParseMultipartForm error: %v\n", err)
+		middleware.DebugLog("DEBUG: ParseMultipartForm error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "Failed to parse form data",
@@ -1114,7 +1097,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	// Get certificate file
 	certificateFile, err := c.FormFile("file")
 	if err != nil {
-		fmt.Printf("DEBUG: Certificate file error: %v\n", err)
+		middleware.DebugLog("DEBUG: Certificate file error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "Certificate file is required",
@@ -1142,7 +1125,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Certificate details - Name: %s, IssueDate: %s, File: %s, Size: %d\n",
+	middleware.DebugLog("DEBUG: Certificate details - Name: %s, IssueDate: %s, File: %s, Size: %d\n",
 		certificateName, issueDate, certificateFile.Filename, certificateFile.Size)
 
 	// Validate file type
@@ -1200,12 +1183,12 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	}
 	fileSize := certificateFile.Size
 
-	fmt.Printf("DEBUG: File read successfully - Size: %d bytes, Type: %s\n", len(fileBytes), fileType)
+	middleware.DebugLog("DEBUG: File read successfully - Size: %d bytes, Type: %s\n", len(fileBytes), fileType)
 
 	// Get or create student profile
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
-		fmt.Printf("DEBUG: Profile not found, creating new one\n")
+		middleware.DebugLog("DEBUG: Profile not found, creating new one\n")
 		// Create new profile
 		profile = &StudentProfile{
 			UserID: userID,
@@ -1214,7 +1197,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 		}
 		err = h.service.CreateProfile(profile)
 		if err != nil {
-			fmt.Printf("DEBUG: Failed to create profile: %v\n", err)
+			middleware.DebugLog("DEBUG: Failed to create profile: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"message": "Failed to create profile",
@@ -1223,7 +1206,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 			return
 		}
 	} else {
-		fmt.Printf("DEBUG: Existing profile found\n")
+		middleware.DebugLog("DEBUG: Existing profile found\n")
 	}
 
 	// Create certificate record
@@ -1240,7 +1223,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	// Save certificate to database
 	err = h.service.AddCertificate(certificate)
 	if err != nil {
-		fmt.Printf("DEBUG: Failed to create certificate record: %v\n", err)
+		middleware.DebugLog("DEBUG: Failed to create certificate record: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to save certificate record",
@@ -1249,7 +1232,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Certificate saved successfully - ID: %s\n", certificate.ID)
+	middleware.DebugLog("DEBUG: Certificate saved successfully - ID: %s\n", certificate.ID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -1279,7 +1262,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 // @Router /api/students/me/certificates/add [post]
 // @x-swagger-ui true
 func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
-	fmt.Printf("DEBUG: AddCertificateToProfile called\n")
+	middleware.DebugLog("DEBUG: AddCertificateToProfile called\n")
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
@@ -1294,11 +1277,11 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: AddCertificateToProfile - UserID: %s\n", userID)
+	middleware.DebugLog("DEBUG: AddCertificateToProfile - UserID: %s\n", userID)
 
 	// Parse multipart form data for file upload
 	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
-		fmt.Printf("DEBUG: ParseMultipartForm error: %v\n", err)
+		middleware.DebugLog("DEBUG: ParseMultipartForm error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "Failed to parse form data",
@@ -1310,7 +1293,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	// Get certificate file
 	certificateFile, err := c.FormFile("file")
 	if err != nil {
-		fmt.Printf("DEBUG: Certificate file error: %v\n", err)
+		middleware.DebugLog("DEBUG: Certificate file error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "Certificate file is required",
@@ -1338,7 +1321,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Certificate request - Name: %s, File: %s, IssueDate: %s\n", certificateName, certificateFile.Filename, issueDate)
+	middleware.DebugLog("DEBUG: Certificate request - Name: %s, File: %s, IssueDate: %s\n", certificateName, certificateFile.Filename, issueDate)
 
 	// Validate file type
 	ext := strings.ToLower(filepath.Ext(certificateFile.Filename))
@@ -1398,7 +1381,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	// Get or create student profile
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
-		fmt.Printf("DEBUG: Profile not found, creating new one\n")
+		middleware.DebugLog("DEBUG: Profile not found, creating new one\n")
 		// Create new profile
 		profile = &StudentProfile{
 			UserID: userID,
@@ -1407,7 +1390,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 		}
 		err = h.service.CreateProfile(profile)
 		if err != nil {
-			fmt.Printf("DEBUG: Failed to create profile: %v\n", err)
+			middleware.DebugLog("DEBUG: Failed to create profile: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"message": "Failed to create profile",
@@ -1416,7 +1399,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 			return
 		}
 	} else {
-		fmt.Printf("DEBUG: Existing profile found - ID: %s\n", profile.ID)
+		middleware.DebugLog("DEBUG: Existing profile found - ID: %s\n", profile.ID)
 	}
 
 	// Create certificate record
@@ -1433,7 +1416,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	// Save certificate to database
 	err = h.service.AddCertificate(certificate)
 	if err != nil {
-		fmt.Printf("DEBUG: Failed to create certificate record: %v\n", err)
+		middleware.DebugLog("DEBUG: Failed to create certificate record: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"message": "Failed to save certificate record",
@@ -1442,7 +1425,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Certificate saved successfully - ID: %s\n", certificate.ID)
+	middleware.DebugLog("DEBUG: Certificate saved successfully - ID: %s\n", certificate.ID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

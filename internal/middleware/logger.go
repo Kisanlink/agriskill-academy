@@ -4,10 +4,25 @@ package middleware
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+// DebugLog logs a message only if GIN_MODE=debug
+func DebugLog(format string, args ...interface{}) {
+	if os.Getenv("GIN_MODE") == "debug" {
+		log.Printf(format, args...)
+	}
+}
+
+// DebugLogWithEmoji logs a message with emoji only if GIN_MODE=debug
+func DebugLogWithEmoji(emoji, format string, args ...interface{}) {
+	if os.Getenv("GIN_MODE") == "debug" {
+		log.Printf("%s "+format, append([]interface{}{emoji}, args...)...)
+	}
+}
 
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {

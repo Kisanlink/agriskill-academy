@@ -3,8 +3,8 @@
 package storage
 
 import (
+	"asa/internal/middleware"
 	"asa/pkg/authz"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -155,19 +155,20 @@ func (h *StorageHandler) UploadImage(c *gin.Context) {
 	})
 }
 
-// @Summary Upload Profile Photo
-// @Description Upload a profile photo for the current user
+// @Summary Upload Profile Photo and Resume
+// @Description Upload a profile photo and/or resume for the current user
 // @Tags File Storage
 // @Accept multipart/form-data
 // @Produce json
 // @Security BearerAuth
-// @Param file formData file true "Profile photo (JPG, PNG, GIF, WebP, max 5MB)"
-// @Success 200 {object} map[string]interface{} "Profile photo processed successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid image format or size"
+// @Param file formData file false "Profile photo (JPG, PNG, GIF, WebP, max 5MB)"
+// @Param resume formData file false "Resume file (PDF, DOC, DOCX, max 10MB)"
+// @Success 200 {object} map[string]interface{} "Files processed successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid file format or size"
 // @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Router /api/upload/image/profile-photo [post]
-// POST /upload/image/profile-photo - Special endpoint for profile photo upload
+// POST /upload/image/profile-photo - Special endpoint for profile photo and resume upload
 func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
@@ -183,65 +184,132 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 		return
 	}
 
-	fileHeader, err := c.FormFile("file")
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Profile photo file is required"})
-		return
-	}
+	responseData := gin.H{}
+	hasFiles := false
 
-	// Validate file type
-	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
-	allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
-	isValid := false
-	for _, allowedExt := range allowedTypes {
-		if ext == allowedExt {
-			isValid = true
-			break
+	// Handle profile photo upload
+	if profilePhotoFile, err := c.FormFile("file"); err == nil {
+		hasFiles = true
+
+		// Validate file type
+		ext := strings.ToLower(filepath.Ext(profilePhotoFile.Filename))
+		allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
+		isValid := false
+		for _, allowedExt := range allowedTypes {
+			if ext == allowedExt {
+				isValid = true
+				break
+			}
 		}
-	}
-	if !isValid {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid image format. Allowed: JPG, PNG, GIF, WebP"})
-		return
-	}
+		if !isValid {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid image format. Allowed: JPG, PNG, GIF, WebP"})
+			return
+		}
 
-	// Validate file size (5MB max)
-	if fileHeader.Size > 5*1024*1024 {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Image size exceeds maximum allowed size (5MB)"})
-		return
-	}
+		// Validate file size (5MB max)
+		if profilePhotoFile.Size > 5*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Image size exceeds maximum allowed size (5MB)"})
+			return
+		}
 
-	// Read file into byte array
-	file, err := fileHeader.Open()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read file"})
-		return
-	}
-	defer file.Close()
+		// Read file into byte array
+		file, err := profilePhotoFile.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read profile photo file"})
+			return
+		}
+		defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read file"})
-		return
-	}
+		fileBytes, err := io.ReadAll(file)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read profile photo file"})
+			return
+		}
 
-	// Get file metadata
-	fileName := fileHeader.Filename
-	fileType := fileHeader.Header.Get("Content-Type")
-	if fileType == "" {
-		fileType = getMimeTypeFromExtension(fileName)
-	}
-	fileSize := fileHeader.Size
+		// Get file metadata
+		fileName := profilePhotoFile.Filename
+		fileType := profilePhotoFile.Header.Get("Content-Type")
+		if fileType == "" {
+			fileType = getMimeTypeFromExtension(fileName)
+		}
+		fileSize := profilePhotoFile.Size
 
-	// Return the binary data for the frontend to use in profile update
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Profile photo processed successfully",
-		"data": gin.H{
+		// Add profile photo data to response
+		responseData["profile_photo"] = gin.H{
 			"file_data": fileBytes,
 			"file_name": fileName,
 			"file_type": fileType,
 			"file_size": fileSize,
-		},
+		}
+	}
+
+	// Handle resume upload
+	if resumeFile, err := c.FormFile("resume"); err == nil {
+		hasFiles = true
+
+		// Validate file type
+		ext := strings.ToLower(filepath.Ext(resumeFile.Filename))
+		allowedTypes := []string{".pdf", ".doc", ".docx"}
+		isValid := false
+		for _, allowedExt := range allowedTypes {
+			if ext == allowedExt {
+				isValid = true
+				break
+			}
+		}
+		if !isValid {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid resume format. Allowed: PDF, DOC, DOCX"})
+			return
+		}
+
+		// Validate file size (10MB max)
+		if resumeFile.Size > 10*1024*1024 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Resume size exceeds maximum allowed size (10MB)"})
+			return
+		}
+
+		// Read file into byte array
+		file, err := resumeFile.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read resume file"})
+			return
+		}
+		defer file.Close()
+
+		fileBytes, err := io.ReadAll(file)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read resume file"})
+			return
+		}
+
+		// Get file metadata
+		fileName := resumeFile.Filename
+		fileType := resumeFile.Header.Get("Content-Type")
+		if fileType == "" {
+			fileType = getMimeTypeFromExtension(fileName)
+		}
+		fileSize := resumeFile.Size
+
+		// Add resume data to response
+		responseData["resume"] = gin.H{
+			"file_data": fileBytes,
+			"file_name": fileName,
+			"file_type": fileType,
+			"file_size": fileSize,
+		}
+	}
+
+	// Check if at least one file was uploaded
+	if !hasFiles {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "At least one file (profile photo or resume) is required"})
+		return
+	}
+
+	// Return the binary data for the frontend to use in profile update
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Files processed successfully",
+		"data":    responseData,
 	})
 }
 
@@ -351,7 +419,7 @@ func (h *StorageHandler) UploadResume(c *gin.Context) {
 
 	// If this is a student uploading a resume to the resumes folder, also update their profile
 	if userID != "" && folder == "resumes" {
-		fmt.Printf("DEBUG: Resume uploaded for user %s, path: %s - Profile update needed\n", userID, path)
+		middleware.DebugLog("DEBUG: Resume uploaded for user %s, path: %s - Profile update needed\n", userID, path)
 		// Note: In a production environment, you would inject the student profile service here
 		// For now, we'll just log that the profile needs to be updated
 		// The frontend should make a separate call to update the profile with this file path
@@ -455,7 +523,7 @@ func (h *StorageHandler) UploadStudentResume(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Student resume uploaded successfully - UserID: %s, Path: %s\n", userID, path)
+	middleware.DebugLog("DEBUG: Student resume uploaded successfully - UserID: %s, Path: %s\n", userID, path)
 
 	c.JSON(http.StatusOK, UploadResponse{
 		Success:  true,
@@ -564,7 +632,7 @@ func (h *StorageHandler) UploadStudentCertificate(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: Student certificate uploaded successfully - UserID: %s, Path: %s, Name: %s\n", userID, path, certificateName)
+	middleware.DebugLog("DEBUG: Student certificate uploaded successfully - UserID: %s, Path: %s, Name: %s\n", userID, path, certificateName)
 
 	c.JSON(http.StatusOK, UploadResponse{
 		Success:  true,
@@ -766,4 +834,97 @@ func (h *StorageHandler) ServeFile(c *gin.Context) {
 	// Serve the file
 	fullPath := filepath.Join("uploads", filePath)
 	c.File(fullPath)
+}
+
+// @Summary Upload Employer Logo
+// @Description Upload a logo file for employer profile
+// @Tags File Storage
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param file formData file true "Logo file (JPG, PNG, GIF, WebP, max 5MB)"
+// @Success 200 {object} map[string]interface{} "Logo processed successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid image format or size"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/upload/image/employer-logo [post]
+// POST /upload/image/employer-logo - Special endpoint for employer logo upload
+func (h *StorageHandler) UploadEmployerLogo(c *gin.Context) {
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	// Handle logo upload
+	logoFile, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Logo file is required"})
+		return
+	}
+
+	// Validate file type
+	ext := strings.ToLower(filepath.Ext(logoFile.Filename))
+	allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
+	isValid := false
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid image format. Allowed: JPG, PNG, GIF, WebP"})
+		return
+	}
+
+	// Validate file size (5MB max)
+	if logoFile.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Image size exceeds maximum allowed size (5MB)"})
+		return
+	}
+
+	// Read file into byte array
+	file, err := logoFile.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read logo file"})
+		return
+	}
+	defer file.Close()
+
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read logo file"})
+		return
+	}
+
+	// Get file metadata
+	fileName := logoFile.Filename
+	fileType := logoFile.Header.Get("Content-Type")
+	if fileType == "" {
+		fileType = getMimeTypeFromExtension(fileName)
+	}
+	fileSize := logoFile.Size
+
+	// Return the binary data for the frontend to use in employer profile update
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Logo processed successfully",
+		"data": gin.H{
+			"logo": gin.H{
+				"file_data": fileBytes,
+				"file_name": fileName,
+				"file_type": fileType,
+				"file_size": fileSize,
+			},
+		},
+	})
 }

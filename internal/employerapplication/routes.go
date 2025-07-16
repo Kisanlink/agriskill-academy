@@ -1,13 +1,13 @@
 package employerapplication
 
 import (
-	"fmt"
+	"asa/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *EmployerApplicationHandler) {
-	fmt.Printf("DEBUG: Registering employer application routes\n")
+	middleware.DebugLog("DEBUG: Registering employer application routes\n")
 
 	rg.GET("/employer/jobs/:jobId/applications", handler.GetApplicationsForJob)
 	rg.GET("/employer/jobs/:jobId/applications/debug", handler.DebugApplications)
@@ -21,5 +21,5 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *EmployerApplicationHandler) {
 	rg.GET("/student/applications/:applicationId/messages", handler.GetMessages)
 	rg.POST("/student/applications/:applicationId/message", handler.SendMessage)
 
-	fmt.Printf("DEBUG: Employer application routes registered successfully\n")
+	middleware.DebugLog("DEBUG: Employer application routes registered successfully\n")
 }

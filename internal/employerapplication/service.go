@@ -51,7 +51,7 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 				}
 			}
 		}
-
+    
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,
@@ -114,7 +114,7 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 				}
 			}
 		}
-
+    
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,

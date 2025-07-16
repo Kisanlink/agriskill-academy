@@ -111,6 +111,18 @@ func (Certificate) TableName() string {
 	return "certificates"
 }
 
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (c *Certificate) BeforeCreate(tx *gorm.DB) error {
+	if c.ID == "" {
+		c.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(c.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for Certificate ID: %w", err)
+		}
+	}
+	return nil
+}
+
 type StudentProfile struct {
 	ID     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	UserID string `gorm:"type:uuid;not null" json:"user_id" binding:"required"`
@@ -150,6 +162,41 @@ type StudentProfile struct {
 // TableName specifies the database table name for StudentProfile
 func (StudentProfile) TableName() string {
 	return "student_profiles"
+}
+
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (s *StudentProfile) BeforeCreate(tx *gorm.DB) error {
+	if s.ID == "" {
+		s.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(s.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for StudentProfile ID: %w", err)
+		}
+	}
+	return nil
+}
+
+// BeforeUpdate is a GORM hook to handle Skills field conversion
+func (s *StudentProfile) BeforeUpdate(tx *gorm.DB) error {
+	// Ensure Skills is properly formatted as an array
+	// This handles cases where the frontend might send a single string
+	if len(s.Skills) == 1 && s.Skills[0] == "" {
+		// If it's an empty string, set to nil/empty array
+		s.Skills = nil
+	}
+
+	// Filter out empty strings from skills
+	if len(s.Skills) > 0 {
+		var filteredSkills []string
+		for _, skill := range s.Skills {
+			if skill != "" {
+				filteredSkills = append(filteredSkills, skill)
+			}
+		}
+		s.Skills = Skills(filteredSkills)
+	}
+
+	return nil
 }
 
 // UpdateStudentProfileRequest - For profile updates (all fields optional except validation)

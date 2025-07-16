@@ -386,6 +386,15 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 			req.Github = github
 			middleware.DebugLog("🔍 DEBUG: GitHub from form: %s\n", github)
 		}
+		if skills := c.PostForm("skills"); skills != "" {
+			// Handle skills as comma-separated string and convert to array
+			skillsArray := strings.Split(skills, ",")
+			for i, skill := range skillsArray {
+				skillsArray[i] = strings.TrimSpace(skill)
+			}
+			req.Skills = Skills(skillsArray)
+			fmt.Printf("DEBUG: Skills from form: %s -> %v\n", skills, req.Skills)
+		}
 	} else {
 		// Handle JSON request
 		middleware.DebugLog("🔍 DEBUG: Processing JSON request\n")

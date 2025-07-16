@@ -160,35 +160,55 @@ func (r *employerApplicationRepository) AddMessage(msg *Message) error {
 	return err
 }
 
-func (r *employerApplicationRepository) GetApplicationsByStudent(studentID string) ([]JobApplicationWithApplicant, error) {
+// repository/employer_application_repository.go
+func (r *employerApplicationRepository) GetApplicationsByStudent(
+	studentID string,
+) ([]JobApplicationWithApplicant, error) {
+
 	var results []JobApplicationWithApplicant
 
-	rows, err := r.db.Raw(`
-		SELECT 
-			a.id, a.job_id, a.student_id, a.applied_at, a.status, a.cover_letter, a.resume_file,
-			a.job_title, a.company, a.location, a.job_type, a.experience,
-			u.id as id, u.name, u.email,
-			up.profile_photo as avatar, up.resume as resume_url, up.skills::text as skills, up.location, 
-			up.experience as experience, up.education, up.portfolio, up.linkedin, up.github, up.name as name,
-			up.phone_number as phone
+	const q = `
+		SELECT
+			-- application-side fields (ALIAS THEM!)
+			a.id          AS application_id,
+			a.job_id      AS job_id,
+			a.student_id  AS student_id,
+			a.applied_at,
+			a.status      AS application_status,
+			a.cover_letter,
+			a.resume_file AS student_resume_file,
+
+			a.job_title,
+			a.company,
+			a.location    AS job_location,
+			a.job_type,
+
+			-- user / profile fields
+			u.id          AS user_id,
+			u.name        AS user_name,
+			u.email       AS user_email,
+
+			COALESCE(up.profile_photo,'')            AS avatar,
+			COALESCE(up.resume,'')                   AS resume_url,
+			COALESCE(up.skills::text,'')             AS skills,
+			COALESCE(up.location,'')                 AS user_location,
+			COALESCE(CAST(up.experience AS TEXT),'') AS user_experience,
+			COALESCE(up.education,'')                AS education,
+			COALESCE(up.portfolio,'')                AS portfolio,
+			COALESCE(up.linkedin,'')                 AS linkedin,
+			COALESCE(up.github,'')                   AS github,
+			COALESCE(up.name, u.name)                AS profile_name,
+			COALESCE(up.phone_number,'')             AS phone
 		FROM applications a
-		JOIN users u ON u.id = a.student_id
-		JOIN student_profiles up ON up.user_id = a.student_id
+		JOIN users            u  ON u.id  = a.student_id
+		LEFT JOIN student_profiles up ON up.user_id = a.student_id
 		WHERE a.student_id = ?
-	`, studentID).Rows()
-	if err != nil {
+	`
+
+	if err := r.db.Raw(q, studentID).Scan(&results).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var app JobApplicationWithApplicant
-		err = r.db.ScanRows(rows, &app)
-		if err == nil {
-			results = append(results, app)
-		}
-	}
-	return results, err
+	return results, nil
 }
 
 func (r *employerApplicationRepository) GetMessages(applicationID string) ([]Message, error) {

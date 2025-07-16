@@ -30,6 +30,8 @@ func NewApplicationService(repo ApplicationRepository) ApplicationService {
 func (s *applicationService) Apply(app *Application) error {
 	middleware.DebugLog("DEBUG: Service Apply called for JobID: %s, StudentID: %s\n", app.JobID, app.StudentID)
 
+	// (UUID generation removed; handled by BeforeCreate hook)
+
 	exists, err := s.repo.Exists(app.JobID, app.StudentID)
 	if err != nil {
 		middleware.DebugLog("DEBUG: Error checking if application exists: %v\n", err)

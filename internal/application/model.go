@@ -4,6 +4,11 @@ package application
 
 import (
 	"time"
+
+	"fmt"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // Application status constants
@@ -50,6 +55,18 @@ type Application struct {
 // TableName specifies the database table name for Application
 func (Application) TableName() string {
 	return "applications"
+}
+
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (a *Application) BeforeCreate(tx *gorm.DB) error {
+	if a.ID == "" {
+		a.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(a.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for Application ID: %w", err)
+		}
+	}
+	return nil
 }
 
 // Request/Response Models

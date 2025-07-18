@@ -2,18 +2,21 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"net/http"
+	"path/filepath"
+
+	db "kisanlink-db/pkg/db"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type FileServeHandler struct {
-	db *gorm.DB
+	s3 *db.S3Manager
 }
 
-func NewFileServeHandler(db *gorm.DB) *FileServeHandler {
-	return &FileServeHandler{db: db}
+func NewFileServeHandler(s3 *db.S3Manager) *FileServeHandler {
+	return &FileServeHandler{s3: s3}
 }
 
 // GET /files/serve/resume/:user_id
@@ -23,37 +26,30 @@ func (h *FileServeHandler) ServeResume(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-
-	// Get resume from student_profiles table
-	var profile struct {
-		Resume     []byte `gorm:"column:resume"`
-		ResumeName string `gorm:"column:resume_name"`
-		ResumeType string `gorm:"column:resume_type"`
-		ResumeSize int64  `gorm:"column:resume_size"`
+	// Assume resume key is resumes/{user_id}_resume.pdf (or similar convention)
+	keyPrefix := "resumes/" + userID
+	// List objects with this prefix and pick the first one
+	var files []db.S3File
+	filters := []db.Filter{
+		h.s3.BuildFilter("prefix", db.FilterOpEqual, keyPrefix),
 	}
-
-	err := h.db.Table("student_profiles").
-		Select("resume, resume_name, resume_type, resume_size").
-		Where("user_id = ?", userID).
-		First(&profile).Error
-
-	if err != nil {
+	err := h.s3.List(c, filters, &files)
+	if err != nil || len(files) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Resume not found"})
 		return
 	}
-
-	if len(profile.Resume) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Resume file is empty"})
+	file := files[0]
+	reader, err := h.s3.DownloadFile(c, file.Key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download resume"})
 		return
 	}
-
-	// Set response headers
-	c.Header("Content-Type", profile.ResumeType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", profile.ResumeName))
-	c.Header("Content-Length", fmt.Sprintf("%d", profile.ResumeSize))
-
-	// Return binary data
-	c.Data(http.StatusOK, profile.ResumeType, profile.Resume)
+	defer reader.Close()
+	c.Header("Content-Type", file.ContentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(file.Key)))
+	c.Header("Content-Length", fmt.Sprintf("%d", file.Size))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/certificate/:certificate_id
@@ -63,37 +59,29 @@ func (h *FileServeHandler) ServeCertificate(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Certificate ID is required"})
 		return
 	}
-
-	// Get certificate from certificates table
-	var certificate struct {
-		File     []byte `gorm:"column:file"`
-		FileName string `gorm:"column:file_name"`
-		FileType string `gorm:"column:file_type"`
-		FileSize int64  `gorm:"column:file_size"`
+	// Assume certificate key is certificates/{certificate_id}.pdf (or similar convention)
+	keyPrefix := "certificates/" + certificateID
+	var files []db.S3File
+	filters := []db.Filter{
+		h.s3.BuildFilter("prefix", db.FilterOpEqual, keyPrefix),
 	}
-
-	err := h.db.Table("certificates").
-		Select("file, file_name, file_type, file_size").
-		Where("id = ?", certificateID).
-		First(&certificate).Error
-
-	if err != nil {
+	err := h.s3.List(c, filters, &files)
+	if err != nil || len(files) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Certificate not found"})
 		return
 	}
-
-	if len(certificate.File) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Certificate file is empty"})
+	file := files[0]
+	reader, err := h.s3.DownloadFile(c, file.Key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download certificate"})
 		return
 	}
-
-	// Set response headers
-	c.Header("Content-Type", certificate.FileType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", certificate.FileName))
-	c.Header("Content-Length", fmt.Sprintf("%d", certificate.FileSize))
-
-	// Return binary data
-	c.Data(http.StatusOK, certificate.FileType, certificate.File)
+	defer reader.Close()
+	c.Header("Content-Type", file.ContentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(file.Key)))
+	c.Header("Content-Length", fmt.Sprintf("%d", file.Size))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/profile-photo/:user_id
@@ -103,37 +91,29 @@ func (h *FileServeHandler) ServeProfilePhoto(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-
-	// Get profile photo from student_profiles table
-	var profile struct {
-		ProfilePhoto     []byte `gorm:"column:profile_photo"`
-		ProfilePhotoName string `gorm:"column:profile_photo_name"`
-		ProfilePhotoType string `gorm:"column:profile_photo_type"`
-		ProfilePhotoSize int64  `gorm:"column:profile_photo_size"`
+	// Assume profile photo key is profile_photos/{user_id}.jpg (or similar convention)
+	keyPrefix := "profile_photos/" + userID
+	var files []db.S3File
+	filters := []db.Filter{
+		h.s3.BuildFilter("prefix", db.FilterOpEqual, keyPrefix),
 	}
-
-	err := h.db.Table("student_profiles").
-		Select("profile_photo, profile_photo_name, profile_photo_type, profile_photo_size").
-		Where("user_id = ?", userID).
-		First(&profile).Error
-
-	if err != nil {
+	err := h.s3.List(c, filters, &files)
+	if err != nil || len(files) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Profile photo not found"})
 		return
 	}
-
-	if len(profile.ProfilePhoto) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Profile photo is empty"})
+	file := files[0]
+	reader, err := h.s3.DownloadFile(c, file.Key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download profile photo"})
 		return
 	}
-
-	// Set response headers
-	c.Header("Content-Type", profile.ProfilePhotoType)
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", profile.ProfilePhotoName))
-	c.Header("Content-Length", fmt.Sprintf("%d", profile.ProfilePhotoSize))
-
-	// Return binary data
-	c.Data(http.StatusOK, profile.ProfilePhotoType, profile.ProfilePhoto)
+	defer reader.Close()
+	c.Header("Content-Type", file.ContentType)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(file.Key)))
+	c.Header("Content-Length", fmt.Sprintf("%d", file.Size))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/logo/:employer_id
@@ -143,37 +123,29 @@ func (h *FileServeHandler) ServeLogo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Employer ID is required"})
 		return
 	}
-
-	// Get logo from employer_profiles table
-	var profile struct {
-		Logo     []byte `gorm:"column:logo"`
-		LogoName string `gorm:"column:logo_name"`
-		LogoType string `gorm:"column:logo_type"`
-		LogoSize int64  `gorm:"column:logo_size"`
+	// Assume logo key is logos/{employer_id}.png (or similar convention)
+	keyPrefix := "logos/" + employerID
+	var files []db.S3File
+	filters := []db.Filter{
+		h.s3.BuildFilter("prefix", db.FilterOpEqual, keyPrefix),
 	}
-
-	err := h.db.Table("employer_profiles").
-		Select("logo, logo_name, logo_type, logo_size").
-		Where("user_id = ?", employerID).
-		First(&profile).Error
-
-	if err != nil {
+	err := h.s3.List(c, filters, &files)
+	if err != nil || len(files) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Logo not found"})
 		return
 	}
-
-	if len(profile.Logo) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Logo is empty"})
+	file := files[0]
+	reader, err := h.s3.DownloadFile(c, file.Key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download logo"})
 		return
 	}
-
-	// Set response headers
-	c.Header("Content-Type", profile.LogoType)
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", profile.LogoName))
-	c.Header("Content-Length", fmt.Sprintf("%d", profile.LogoSize))
-
-	// Return binary data
-	c.Data(http.StatusOK, profile.LogoType, profile.Logo)
+	defer reader.Close()
+	c.Header("Content-Type", file.ContentType)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(file.Key)))
+	c.Header("Content-Length", fmt.Sprintf("%d", file.Size))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/avatar/:user_id
@@ -183,37 +155,29 @@ func (h *FileServeHandler) ServeAvatar(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-
-	// Get avatar from users table
-	var user struct {
-		Avatar     []byte `gorm:"column:avatar"`
-		AvatarName string `gorm:"column:avatar_name"`
-		AvatarType string `gorm:"column:avatar_type"`
-		AvatarSize int64  `gorm:"column:avatar_size"`
+	// Assume avatar key is avatars/{user_id}.jpg (or similar convention)
+	keyPrefix := "avatars/" + userID
+	var files []db.S3File
+	filters := []db.Filter{
+		h.s3.BuildFilter("prefix", db.FilterOpEqual, keyPrefix),
 	}
-
-	err := h.db.Table("users").
-		Select("avatar, avatar_name, avatar_type, avatar_size").
-		Where("id = ?", userID).
-		First(&user).Error
-
-	if err != nil {
+	err := h.s3.List(c, filters, &files)
+	if err != nil || len(files) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Avatar not found"})
 		return
 	}
-
-	if len(user.Avatar) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Avatar is empty"})
+	file := files[0]
+	reader, err := h.s3.DownloadFile(c, file.Key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download avatar"})
 		return
 	}
-
-	// Set response headers
-	c.Header("Content-Type", user.AvatarType)
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", user.AvatarName))
-	c.Header("Content-Length", fmt.Sprintf("%d", user.AvatarSize))
-
-	// Return binary data
-	c.Data(http.StatusOK, user.AvatarType, user.Avatar)
+	defer reader.Close()
+	c.Header("Content-Type", file.ContentType)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(file.Key)))
+	c.Header("Content-Length", fmt.Sprintf("%d", file.Size))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/application-resume/:application_id
@@ -223,35 +187,27 @@ func (h *FileServeHandler) ServeApplicationResume(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Application ID is required"})
 		return
 	}
-
-	// Get resume from applications table
-	var application struct {
-		ResumeFile     []byte `gorm:"column:resume_file"`
-		ResumeFileName string `gorm:"column:resume_file_name"`
-		ResumeFileType string `gorm:"column:resume_file_type"`
-		ResumeFileSize int64  `gorm:"column:resume_file_size"`
+	// Assume application resume key is application_resumes/{application_id}.pdf (or similar convention)
+	keyPrefix := "application_resumes/" + applicationID
+	var files []db.S3File
+	filters := []db.Filter{
+		h.s3.BuildFilter("prefix", db.FilterOpEqual, keyPrefix),
 	}
-
-	err := h.db.Table("applications").
-		Select("resume_file, resume_file_name, resume_file_type, resume_file_size").
-		Where("id = ?", applicationID).
-		First(&application).Error
-
-	if err != nil {
+	err := h.s3.List(c, filters, &files)
+	if err != nil || len(files) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Application resume not found"})
 		return
 	}
-
-	if len(application.ResumeFile) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Application resume is empty"})
+	file := files[0]
+	reader, err := h.s3.DownloadFile(c, file.Key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download application resume"})
 		return
 	}
-
-	// Set response headers
-	c.Header("Content-Type", application.ResumeFileType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", application.ResumeFileName))
-	c.Header("Content-Length", fmt.Sprintf("%d", application.ResumeFileSize))
-
-	// Return binary data
-	c.Data(http.StatusOK, application.ResumeFileType, application.ResumeFile)
+	defer reader.Close()
+	c.Header("Content-Type", file.ContentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(file.Key)))
+	c.Header("Content-Length", fmt.Sprintf("%d", file.Size))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }

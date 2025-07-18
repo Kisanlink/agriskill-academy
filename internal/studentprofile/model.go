@@ -123,15 +123,9 @@ type StudentProfile struct {
 	Location    string `json:"location,omitempty"`
 	PhoneNumber string `json:"phone_number,omitempty"`
 
-	// Optional profile media
-	ProfilePhoto     []byte `gorm:"type:bytea" json:"profile_photo,omitempty"`
-	ProfilePhotoName string `json:"profile_photo_name,omitempty"`
-	ProfilePhotoType string `json:"profile_photo_type,omitempty"`
-	ProfilePhotoSize int64  `json:"profile_photo_size,omitempty"`
-	Resume           []byte `gorm:"type:bytea" json:"resume,omitempty"`
-	ResumeName       string `json:"resume_name,omitempty"`
-	ResumeType       string `json:"resume_type,omitempty"`
-	ResumeSize       int64  `json:"resume_size,omitempty"`
+	// S3 file keys for profile media
+	ProfilePhotoKey string `json:"profile_photo_key,omitempty"`
+	ResumeKey       string `json:"resume_key,omitempty"`
 
 	// Optional professional information
 	Certificates []Certificate       `gorm:"foreignKey:StudentProfileID" json:"certificates,omitempty"`
@@ -154,34 +148,26 @@ func (StudentProfile) TableName() string {
 
 // UpdateStudentProfileRequest - For profile updates (all fields optional except validation)
 type UpdateStudentProfileRequest struct {
-	UserID           string              `json:"user_id,omitempty"`
-	Name             string              `json:"name,omitempty"`
-	Email            string              `json:"email,omitempty"`
-	Location         string              `json:"location,omitempty"`
-	PhoneNumber      string              `json:"phone_number,omitempty"`
-	ProfilePhoto     []byte              `json:"profile_photo,omitempty"`
-	ProfilePhotoName string              `json:"profile_photo_name,omitempty"`
-	ProfilePhotoType string              `json:"profile_photo_type,omitempty"`
-	ProfilePhotoSize int64               `json:"profile_photo_size,omitempty"`
-	Resume           []byte              `json:"resume,omitempty"`
-	ResumeName       string              `json:"resume_name,omitempty"`
-	ResumeType       string              `json:"resume_type,omitempty"`
-	ResumeSize       int64               `json:"resume_size,omitempty"`
-	Skills           PostgreSQLTextArray `json:"skills,omitempty"`
-	Experience       *float64            `json:"experience,omitempty"`
-	Education        string              `json:"education,omitempty"`
-	Portfolio        string              `json:"portfolio,omitempty"`
-	Linkedin         string              `json:"linkedin,omitempty"`
-	Github           string              `json:"github,omitempty"`
-	Certificates     []Certificate       `json:"certificates,omitempty"`
+	UserID          string              `json:"user_id,omitempty"`
+	Name            string              `json:"name,omitempty"`
+	Email           string              `json:"email,omitempty"`
+	Location        string              `json:"location,omitempty"`
+	PhoneNumber     string              `json:"phone_number,omitempty"`
+	ProfilePhotoKey string              `json:"profile_photo_key,omitempty"`
+	ResumeKey       string              `json:"resume_key,omitempty"`
+	Skills          PostgreSQLTextArray `json:"skills,omitempty"`
+	Experience      *float64            `json:"experience,omitempty"`
+	Education       string              `json:"education,omitempty"`
+	Portfolio       string              `json:"portfolio,omitempty"`
+	Linkedin        string              `json:"linkedin,omitempty"`
+	Github          string              `json:"github,omitempty"`
+	Certificates    []Certificate       `json:"certificates,omitempty"`
 }
 
 // UpdateCertificateRequest - For certificate updates
+// (If you want to keep file upload for certificates, keep FileName/FileType/FileSize, else just S3 key)
 type UpdateCertificateRequest struct {
 	Name      string `json:"name" binding:"required"`
-	File      []byte `json:"file" binding:"required"`
-	FileName  string `json:"file_name,omitempty"`
-	FileType  string `json:"file_type,omitempty"`
-	FileSize  int64  `json:"file_size,omitempty"`
+	FileKey   string `json:"file_key,omitempty"`
 	IssueDate string `json:"issue_date" binding:"required"`
 }

@@ -5,20 +5,22 @@ package studentprofile
 import (
 	"asa/pkg/authz"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
+
+	"asa/internal/storage"
 
 	"github.com/gin-gonic/gin"
 )
 
 type StudentProfileHandler struct {
 	service StudentProfileService
+	storage storage.StorageService
 }
 
-func NewStudentProfileHandler(s StudentProfileService) *StudentProfileHandler {
-	return &StudentProfileHandler{s}
+func NewStudentProfileHandler(s StudentProfileService, storageSvc storage.StorageService) *StudentProfileHandler {
+	return &StudentProfileHandler{s, storageSvc}
 }
 
 func getJWT(c *gin.Context) string {
@@ -55,11 +57,6 @@ func (h *StudentProfileHandler) GetProfile(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Profile not found"})
 		return
-	}
-
-	// Rewrite resume field to always use /api/files/serve/
-	if profile.Resume != nil {
-		profile.Resume = profile.Resume
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile fetched", "data": profile})
@@ -138,11 +135,6 @@ func (h *StudentProfileHandler) GetMyProfile(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Profile not found"})
 		return
-	}
-
-	// Rewrite resume field to always use /api/files/serve/
-	if profile.Resume != nil {
-		profile.Resume = profile.Resume
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Profile fetched", "data": profile})
@@ -319,37 +311,55 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 				return
 			}
 
-			// Read file into bytes
-			file, err := profilePhotoFile.Open()
+			// Upload to S3 and set only the S3 key
+			key, err := h.storage.SaveImage(profilePhotoFile, "profile_photos")
 			if err != nil {
-				fmt.Printf("❌ DEBUG: Failed to open image file: %v\n", err)
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "Failed to read image file",
-				})
-				return
-			}
-			defer file.Close()
-
-			fileBytes, err := io.ReadAll(file)
-			if err != nil {
-				fmt.Printf("❌ DEBUG: Failed to read image file bytes: %v\n", err)
+				fmt.Printf("❌ DEBUG: Failed to upload profile photo: %v\n", err)
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
-					"message": "Failed to read image file",
+					"message": "Failed to upload profile photo",
+				})
+				return
+			}
+			req.ProfilePhotoKey = key
+			fmt.Printf("✅ DEBUG: Profile photo S3 key set: %s\n", key)
+		}
+
+		// Handle resume upload (optional)
+		if resumeFile, err := c.FormFile("resume"); err == nil {
+			fmt.Printf("🔍 DEBUG: Resume found - Name: %s, Size: %d\n", resumeFile.Filename, resumeFile.Size)
+			// Validate file type
+			if !IsValidResumeFile(resumeFile.Filename) {
+				fmt.Printf("❌ DEBUG: Invalid resume type: %s\n", resumeFile.Filename)
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"message": "Invalid resume type. Allowed: PDF, DOC, DOCX",
 				})
 				return
 			}
 
-			// Set profile photo data in request
-			req.ProfilePhoto = fileBytes
-			req.ProfilePhotoName = profilePhotoFile.Filename
-			req.ProfilePhotoType = profilePhotoFile.Header.Get("Content-Type")
-			if req.ProfilePhotoType == "" {
-				req.ProfilePhotoType = getMimeTypeFromExtension(profilePhotoFile.Filename)
+			// Validate file size (10MB max for resumes)
+			if resumeFile.Size > 10*1024*1024 {
+				fmt.Printf("❌ DEBUG: Resume size too large: %d bytes\n", resumeFile.Size)
+				c.JSON(http.StatusBadRequest, gin.H{
+					"success": false,
+					"message": "Resume size exceeds maximum allowed size (10MB)",
+				})
+				return
 			}
-			req.ProfilePhotoSize = profilePhotoFile.Size
-			fmt.Printf("✅ DEBUG: Profile photo data set - Size: %d bytes, Type: %s, Name: %s\n", len(fileBytes), req.ProfilePhotoType, req.ProfilePhotoName)
+
+			// Upload to S3 and set only the S3 key
+			key, err := h.storage.SaveResume(resumeFile, "resumes")
+			if err != nil {
+				fmt.Printf("❌ DEBUG: Failed to upload resume: %v\n", err)
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"message": "Failed to upload resume",
+				})
+				return
+			}
+			req.ResumeKey = key
+			fmt.Printf("✅ DEBUG: Resume S3 key set: %s\n", key)
 		}
 
 		// Handle other form fields
@@ -403,7 +413,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	// Set user ID
 	req.UserID = userID
 
-	fmt.Printf("🔍 DEBUG: Final request metadata - Name: %s, Email: %s, ProfilePhotoSize: %d, ResumeSize: %d, CertificatesCount: %d\n", req.Name, req.Email, req.ProfilePhotoSize, req.ResumeSize, len(req.Certificates))
+	fmt.Printf("🔍 DEBUG: Final request metadata - Name: %s, Email: %s, CertificatesCount: %d\n", req.Name, req.Email, len(req.Certificates))
 
 	// Get existing profile or create new one
 	fmt.Printf("🔍 DEBUG: Getting profile for user ID: %s\n", userID)
@@ -465,19 +475,13 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	}
 
 	// Update file fields
-	if req.Resume != nil {
-		profile.Resume = req.Resume
-		profile.ResumeName = req.ResumeName
-		profile.ResumeType = req.ResumeType
-		profile.ResumeSize = req.ResumeSize
-		fmt.Printf("🔍 DEBUG: Updated resume - Name: %s, Size: %d\n", req.ResumeName, req.ResumeSize)
+	if req.ResumeKey != "" {
+		profile.ResumeKey = req.ResumeKey
+		fmt.Printf("🔍 DEBUG: Updated resume - Key: %s\n", req.ResumeKey)
 	}
-	if req.ProfilePhoto != nil {
-		profile.ProfilePhoto = req.ProfilePhoto
-		profile.ProfilePhotoName = req.ProfilePhotoName
-		profile.ProfilePhotoType = req.ProfilePhotoType
-		profile.ProfilePhotoSize = req.ProfilePhotoSize
-		fmt.Printf("🔍 DEBUG: Updated profile photo - Name: %s, Size: %d\n", req.ProfilePhotoName, req.ProfilePhotoSize)
+	if req.ProfilePhotoKey != "" { // Changed from ProfilePhotoKey != nil to ProfilePhotoKey != ""
+		profile.ProfilePhotoKey = req.ProfilePhotoKey
+		fmt.Printf("🔍 DEBUG: Updated profile photo - Key: %s\n", req.ProfilePhotoKey)
 	}
 
 	// Update profile
@@ -510,7 +514,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("✅ DEBUG: Profile operation completed successfully - ID: %s, Name: %s, ProfilePhotoSize: %d, ResumeSize: %d, CertificatesCount: %d\n", profile.ID, profile.Name, profile.ProfilePhotoSize, profile.ResumeSize, len(profile.Certificates))
+	fmt.Printf("✅ DEBUG: Profile operation completed successfully - ID: %s, Name: %s, CertificatesCount: %d\n", profile.ID, profile.Name, len(profile.Certificates))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -583,7 +587,7 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
 		Name:             req.Name,
-		File:             req.File,
+		FileName:         req.FileKey, // Changed from File: req.File to FileKey: req.FileKey
 		IssueDate:        req.IssueDate,
 	}
 
@@ -673,15 +677,6 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to read file",
-		})
-		return
-	}
-
 	// Get or create student profile
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
@@ -694,23 +689,13 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 	}
 
 	// Update resume data
-	profile.Resume = fileBytes
-	profile.ResumeName = fileHeader.Filename
-	profile.ResumeType = fileHeader.Header.Get("Content-Type")
-	if profile.ResumeType == "" {
-		profile.ResumeType = getMimeTypeFromExtension(fileHeader.Filename)
-	}
-	profile.ResumeSize = fileHeader.Size
+	profile.ResumeKey = "" // Clear S3 key
 
 	// Save profile
 	if profile.ID == "" {
 		err = h.service.CreateProfile(profile)
 	} else {
 		// Update the profile with resume data
-		profile.Resume = fileBytes
-		profile.ResumeName = fileHeader.Filename
-		profile.ResumeType = profile.ResumeType
-		profile.ResumeSize = fileHeader.Size
 		err = h.service.UpdateProfile(profile)
 	}
 
@@ -727,10 +712,7 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 		"success": true,
 		"message": "Resume uploaded successfully",
 		"data": gin.H{
-			"resume_name": profile.ResumeName,
-			"resume_type": profile.ResumeType,
-			"resume_size": profile.ResumeSize,
-			"file_url":    fmt.Sprintf("/api/files/serve/resume/%s", userID),
+			"file_url": fmt.Sprintf("/api/files/serve/resume/%s", userID),
 		},
 	})
 }
@@ -868,15 +850,6 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to read certificate file",
-		})
-		return
-	}
-
 	// Get file metadata
 	fileName := certificateFile.Filename
 	fileType := certificateFile.Header.Get("Content-Type")
@@ -889,8 +862,7 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
 		Name:             certificateName,
-		File:             fileBytes,
-		FileName:         fileName,
+		FileName:         fileName, // Changed from File: fileBytes to FileName: fileName
 		FileType:         fileType,
 		FileSize:         fileSize,
 		IssueDate:        issueDate,
@@ -987,15 +959,6 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to read file",
-		})
-		return
-	}
-
 	// Get existing profile or create new one
 	profile, err := h.service.GetProfile(userID)
 	if err != nil {
@@ -1008,13 +971,7 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 	}
 
 	// Update resume data
-	profile.Resume = fileBytes
-	profile.ResumeName = fileHeader.Filename
-	profile.ResumeType = fileHeader.Header.Get("Content-Type")
-	if profile.ResumeType == "" {
-		profile.ResumeType = getMimeTypeFromExtension(fileHeader.Filename)
-	}
-	profile.ResumeSize = fileHeader.Size
+	profile.ResumeKey = "" // Clear S3 key
 
 	// Save profile
 	if profile.ID == "" {
@@ -1156,15 +1113,6 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to read certificate file",
-		})
-		return
-	}
-
 	// Get file metadata
 	fileName := certificateFile.Filename
 	fileType := certificateFile.Header.Get("Content-Type")
@@ -1173,7 +1121,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	}
 	fileSize := certificateFile.Size
 
-	fmt.Printf("DEBUG: File read successfully - Size: %d bytes, Type: %s\n", len(fileBytes), fileType)
+	fmt.Printf("DEBUG: File read successfully - Size: %d bytes, Type: %s\n", fileSize, fileType)
 
 	// Get or create student profile
 	profile, err := h.service.GetProfile(userID)
@@ -1203,8 +1151,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
 		Name:             certificateName,
-		File:             fileBytes,
-		FileName:         fileName,
+		FileName:         fileName, // Changed from File: fileBytes to FileName: fileName
 		FileType:         fileType,
 		FileSize:         fileSize,
 		IssueDate:        issueDate,
@@ -1351,15 +1298,6 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	}
 	defer file.Close()
 
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to read certificate file",
-		})
-		return
-	}
-
 	// Get file metadata
 	fileName := certificateFile.Filename
 	fileType := certificateFile.Header.Get("Content-Type")
@@ -1396,8 +1334,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
 		Name:             certificateName,
-		File:             fileBytes,
-		FileName:         fileName,
+		FileName:         fileName, // Changed from File: fileBytes to FileName: fileName
 		FileType:         fileType,
 		FileSize:         fileSize,
 		IssueDate:        issueDate,

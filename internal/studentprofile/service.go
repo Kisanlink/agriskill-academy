@@ -32,7 +32,7 @@ func (s *studentProfileService) GetProfile(userID string) (*StudentProfile, erro
 }
 
 func (s *studentProfileService) UpdateProfile(profile *StudentProfile) error {
-	fmt.Printf("🔍 DEBUG: Service.UpdateProfile called - ID: %s, Name: %s, ProfilePhotoSize: %d, ResumeSize: %d\n", profile.ID, profile.Name, profile.ProfilePhotoSize, profile.ResumeSize)
+	fmt.Printf("🔍 DEBUG: Service.UpdateProfile called - ID: %s, Name: %s\n", profile.ID, profile.Name)
 	err := s.repo.Update(profile)
 	if err != nil {
 		fmt.Printf("❌ DEBUG: Service.UpdateProfile error: %v\n", err)
@@ -43,7 +43,7 @@ func (s *studentProfileService) UpdateProfile(profile *StudentProfile) error {
 }
 
 func (s *studentProfileService) CreateProfile(profile *StudentProfile) error {
-	fmt.Printf("🔍 DEBUG: Service.CreateProfile called - UserID: %s, Name: %s, ProfilePhotoSize: %d, ResumeSize: %d\n", profile.UserID, profile.Name, profile.ProfilePhotoSize, profile.ResumeSize)
+	fmt.Printf("🔍 DEBUG: Service.CreateProfile called - UserID: %s, Name: %s\n", profile.UserID, profile.Name)
 	err := s.repo.Create(profile)
 	if err != nil {
 		fmt.Printf("❌ DEBUG: Service.CreateProfile error: %v\n", err)

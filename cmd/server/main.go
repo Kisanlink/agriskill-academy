@@ -3,9 +3,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"mime/multipart"
 	"os"
 	"time"
 
@@ -26,9 +26,12 @@ import (
 
 	_ "asa/docs" // Import swagger docs
 
+	kdb "kisanlink-db/pkg/db"
+
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -65,31 +68,6 @@ func runAutoMigrate(db *gorm.DB) error {
 	return nil
 }
 
-// mockStorageService satisfies storage.Service but disables file uploads
-type mockStorageService struct{}
-
-func (m *mockStorageService) SaveFile(_ *multipart.FileHeader, _ string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled in profile handlers")
-}
-func (m *mockStorageService) SaveImage(_ *multipart.FileHeader, _ string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled in profile handlers")
-}
-func (m *mockStorageService) SaveDocument(_ *multipart.FileHeader, _ string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled in profile handlers")
-}
-func (m *mockStorageService) SaveResume(_ *multipart.FileHeader, _ string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled in profile handlers")
-}
-func (m *mockStorageService) DeleteFile(string) error {
-	return fmt.Errorf("file operations are now handled in profile handlers")
-}
-func (m *mockStorageService) ListFiles(_ string) ([]storage.FileInfo, error) {
-	return nil, nil
-}
-func (m *mockStorageService) GetFileInfo(string) (*storage.FileInfo, error) {
-	return nil, fmt.Errorf("file operations are now handled in profile handlers")
-}
-
 func main() {
 	// Initialize config and DB
 	db, err := config.InitDB()
@@ -102,6 +80,32 @@ func main() {
 	if err := runAutoMigrate(db); err != nil {
 		log.Fatalf("Failed to run auto migration: %v", err)
 	}
+
+	// S3 Storage Service setup
+	s3Region := os.Getenv("DB_S3_REGION")
+	if s3Region == "" {
+		s3Region = "us-east-1"
+	}
+	s3Bucket := os.Getenv("DB_S3_BUCKET")
+	if s3Bucket == "" {
+		log.Fatalf("DB_S3_BUCKET env var is required for S3 storage")
+	}
+
+	s3Config := &kdb.Config{
+		S3Region: s3Region,
+		S3Bucket: s3Bucket,
+		LogLevel: "info",
+	}
+	s3Logger := zap.NewNop()
+	s3Manager := kdb.NewS3Manager(s3Config, s3Logger)
+	if err := s3Manager.Connect(context.Background()); err != nil {
+		log.Fatalf("Failed to connect to S3: %v", err)
+	}
+	baseURL := os.Getenv("ASA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:3000/api"
+	}
+	storageService := storage.NewS3StorageService(s3Manager, s3Bucket, baseURL)
 
 	// Create Gin router with middleware
 	router := gin.Default()
@@ -160,11 +164,11 @@ func main() {
 	bookmarkHandler := bookmark.NewBookmarkHandler(bookmarkService)
 
 	studentProfileService := studentprofile.NewStudentProfileService(studentProfileRepo)
-	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService)
+	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService, storageService)
 
 	// File serving and storage handlers
-	fileServeHandler := storage.NewFileServeHandler(db)
-	storageHandler := storage.NewStorageHandler(&mockStorageService{})
+	fileServeHandler := storage.NewFileServeHandler(s3Manager)
+	storageHandler := storage.NewStorageHandler(storageService)
 
 	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
 	notificationService := notification.NewNotificationService(notificationPrefsRepo)

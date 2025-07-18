@@ -63,7 +63,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	log.Printf("   Username: %s", req.Username)
 	log.Printf("   Email: %s", req.Email)
 	log.Printf("   Role: %s", req.Role)
-	log.Printf("   Phone: %d", req.PhoneNumber)
+	log.Printf("   Phone: %s", req.PhoneNumber)
 	log.Printf("   Country Code: %s", req.CountryCode)
 	log.Printf("   Aadhaar: %s", req.AadhaarNumber)
 	log.Printf("   Company: %s", req.CompanyName)

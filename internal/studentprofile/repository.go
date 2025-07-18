@@ -40,7 +40,7 @@ func (r *studentProfileRepository) GetByUserID(userID string) (*StudentProfile, 
 }
 
 func (r *studentProfileRepository) Update(profile *StudentProfile) error {
-	fmt.Printf("🔍 DEBUG: Repository.Update called - ID: %s, Name: %s, ProfilePhotoSize: %d, ResumeSize: %d\n", profile.ID, profile.Name, profile.ProfilePhotoSize, profile.ResumeSize)
+	fmt.Printf("🔍 DEBUG: Repository.Update called - ID: %s, Name: %s\n", profile.ID, profile.Name)
 
 	// Check if profile exists
 	var existingProfile StudentProfile
@@ -63,7 +63,7 @@ func (r *studentProfileRepository) Update(profile *StudentProfile) error {
 }
 
 func (r *studentProfileRepository) Create(profile *StudentProfile) error {
-	fmt.Printf("🔍 DEBUG: Repository.Create called - UserID: %s, Name: %s, ProfilePhotoSize: %d, ResumeSize: %d\n", profile.UserID, profile.Name, profile.ProfilePhotoSize, profile.ResumeSize)
+	fmt.Printf("🔍 DEBUG: Repository.Create called - UserID: %s, Name: %s\n", profile.UserID, profile.Name)
 
 	result := r.db.Create(profile)
 	if result.Error != nil {

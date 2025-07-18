@@ -13,6 +13,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var (
+	ErrFileTooLarge    = fmt.Errorf("file size exceeds maximum allowed size")
+	ErrInvalidFileType = fmt.Errorf("file type not allowed")
+)
+
 type StorageHandler struct {
 	service StorageService
 }

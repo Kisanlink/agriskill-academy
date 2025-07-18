@@ -59,26 +59,24 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 			AppliedAt:     app.AppliedAt,
 			Status:        app.ApplicationStatus,
 			CoverLetter:   app.CoverLetter,
-			ResumeFile:    app.StudentResumeFile, // Already binary data
 			JobTitle:      app.JobTitle,
 			Company:       app.Company,
 			JobType:       app.JobType,
 			UserID:        app.UserID,
 			ID:            app.ApplicationID, // For consistency
 			Applicant: ApplicantInfo{
-				Name:         app.Name,
-				Email:        app.Email,
-				ProfilePhoto: app.Avatar, // Already binary data
-				Skills:       skills,
-				Experience:   app.Experience,
-				Education:    app.Education,
-				Portfolio:    app.Portfolio,
-				LinkedIn:     app.LinkedIn,
-				Github:       app.Github,
-				ProfileName:  app.ProfileName,
-				Location:     app.Location,
-				Summary:      "",        // Not available in current data
-				Phone:        app.Phone, // Use phone number from database
+				Name:        app.Name,
+				Email:       app.Email,
+				Skills:      skills,
+				Experience:  app.Experience,
+				Education:   app.Education,
+				Portfolio:   app.Portfolio,
+				LinkedIn:    app.LinkedIn,
+				Github:      app.Github,
+				ProfileName: app.ProfileName,
+				Location:    app.Location,
+				Summary:     "",        // Not available in current data
+				Phone:       app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)
@@ -122,26 +120,24 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 			AppliedAt:     app.AppliedAt,
 			Status:        app.ApplicationStatus,
 			CoverLetter:   app.CoverLetter,
-			ResumeFile:    app.StudentResumeFile, // Already binary data
 			JobTitle:      app.JobTitle,
 			Company:       app.Company,
 			JobType:       app.JobType,
 			UserID:        app.UserID,
 			ID:            app.ApplicationID, // For consistency
 			Applicant: ApplicantInfo{
-				Name:         app.Name,
-				Email:        app.Email,
-				ProfilePhoto: app.Avatar, // Already binary data
-				Skills:       skills,
-				Experience:   app.Experience,
-				Education:    app.Education,
-				Portfolio:    app.Portfolio,
-				LinkedIn:     app.LinkedIn,
-				Github:       app.Github,
-				ProfileName:  app.ProfileName,
-				Location:     app.Location,
-				Summary:      "",        // Not available in current data
-				Phone:        app.Phone, // Use phone number from database
+				Name:        app.Name,
+				Email:       app.Email,
+				Skills:      skills,
+				Experience:  app.Experience,
+				Education:   app.Education,
+				Portfolio:   app.Portfolio,
+				LinkedIn:    app.LinkedIn,
+				Github:      app.Github,
+				ProfileName: app.ProfileName,
+				Location:    app.Location,
+				Summary:     "",        // Not available in current data
+				Phone:       app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)

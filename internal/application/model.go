@@ -29,22 +29,23 @@ var ValidStatuses = []string{
 }
 
 type Application struct {
-	ID             string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	JobID          string    `gorm:"type:uuid" json:"job_id" binding:"required"`
-	StudentID      string    `gorm:"type:uuid" json:"student_id" binding:"required"`
-	AppliedAt      time.Time `json:"applied_at"`
-	Status         string    `json:"status"`
-	CoverLetter    string    `json:"cover_letter"`
-	ResumeFile     []byte    `json:"resume_file" gorm:"type:bytea"`
-	ResumeFileName string    `json:"resume_file_name"`
-	ResumeFileType string    `json:"resume_file_type"`
-	ResumeFileSize int64     `json:"resume_file_size"`
-	JobTitle       string    `json:"job_title"`
-	Company        string    `json:"company"`
-	Location       string    `json:"location"`
-	JobType        string    `json:"job_type"`
-	Experience     string    `json:"experience"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID                 string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	JobID              string    `gorm:"type:uuid" json:"job_id" binding:"required"`
+	StudentID          string    `gorm:"type:uuid" json:"student_id" binding:"required"`
+	AppliedAt          time.Time `json:"applied_at"`
+	Status             string    `json:"status"`
+	CoverLetter        string    `json:"cover_letter"`
+	ResumeKey          string    `json:"resume_key,omitempty"`
+	ResumeFileName     string    `json:"resume_file_name,omitempty"`
+	ResumeFileType     string    `json:"resume_file_type,omitempty"`
+	ResumeFileSize     int64     `json:"resume_file_size,omitempty"`
+	JobTitle           string    `json:"job_title"`
+	Company            string    `json:"company"`
+	Location           string    `json:"location"`
+	JobType            string    `json:"job_type"`
+	Experience         string    `json:"experience"`
+	UpdatedAt          time.Time `json:"updated_at"`
+	StudentPhoneNumber string    `json:"student_phone_number,omitempty"`
 }
 
 // TableName specifies the database table name for Application

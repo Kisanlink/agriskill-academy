@@ -3,6 +3,7 @@ package auth
 import (
 	"asa/internal/employerprofile"
 	"asa/internal/grpc"
+	"asa/internal/middleware"
 	"asa/internal/studentprofile"
 	"bytes"
 	"encoding/json"
@@ -165,34 +166,34 @@ func (s *authService) Login(username, password string) (*User, string, error) {
 
 // Signup
 func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
-	fmt.Printf("🔍 AuthService.Signup called with: %+v\n", req)
+	middleware.DebugLog("🔍 AuthService.Signup called with: %+v\n", req)
 
 	// 1. Validate password confirmation
 	if req.Password != req.ConfirmPassword {
-		fmt.Printf("❌ Password mismatch\n")
+		middleware.DebugLog("❌ Password mismatch\n")
 		return nil, "", errors.New("passwords do not match")
 	}
 
 	// 2. Check if user exists
-	fmt.Printf("🔍 Checking if user exists with email: %s\n", req.Email)
+	middleware.DebugLog("🔍 Checking if user exists with email: %s\n", req.Email)
 	existingUser, err := s.repo.FindByEmail(req.Email)
 	if err != nil {
-		fmt.Printf("🔍 User not found (expected): %v\n", err)
+		middleware.DebugLog("🔍 User not found (expected): %v\n", err)
 	} else if existingUser != nil {
-		fmt.Printf("❌ User already exists: %+v\n", existingUser)
+		middleware.DebugLog("❌ User already exists: %+v\n", existingUser)
 		return nil, "", errors.New("email already registered")
 	}
 
 	// 3. Create user (store hashed password and role locally as well)
-	fmt.Printf("🔍 Creating user with name: %s, username: %s, email: %s\n", req.Name, req.Username, req.Email)
+	middleware.DebugLog("🔍 Creating user with name: %s, username: %s, email: %s\n", req.Name, req.Username, req.Email)
 
 	// Hash the password using the same method as AAA service
 	hashedPassword, err := HashPassword(req.Password)
 	if err != nil {
-		fmt.Printf("❌ Failed to hash password: %v\n", err)
+		middleware.DebugLog("❌ Failed to hash password: %v\n", err)
 		return nil, "", fmt.Errorf("failed to hash password: %w", err)
 	}
-	fmt.Printf("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
+	middleware.DebugLog("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
 
 	user := &User{
 		Name:     req.Name,
@@ -202,10 +203,10 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 	}
 	err = s.repo.Create(user)
 	if err != nil {
-		fmt.Printf("❌ Failed to create user in DB: %v\n", err)
+		middleware.DebugLog("❌ Failed to create user in DB: %v\n", err)
 		return nil, "", err
 	}
-	fmt.Printf("✅ User created successfully with hashed password: %+v\n", user)
+	middleware.DebugLog("✅ User created successfully with hashed password: %+v\n", user)
 
 	// 4. Generate token
 	token, err := generateToken(user)
@@ -214,10 +215,10 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 	}
 
 	// 5. Create corresponding profile based on role from request
-	fmt.Printf("🔍 Creating profile for role: %s\n", req.Role)
+	middleware.DebugLog("🔍 Creating profile for role: %s\n", req.Role)
 	roles := []string{req.Role} // Use role from request since it's not stored in DB
 	if contains(roles, "employer") {
-		fmt.Printf("🔍 Creating employer profile for user: %s\n", user.ID)
+		middleware.DebugLog("🔍 Creating employer profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
 		if req.City != "" && req.State != "" {
@@ -249,15 +250,15 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			HiringLocations:    []string{location},
 			HiringTypes:        []string{"full-time"},
 		}
-		fmt.Printf("🔍 Employer profile data: %+v\n", profile)
+		middleware.DebugLog("🔍 Employer profile data: %+v\n", profile)
 		if err := s.employerRepo.Create(profile); err != nil {
-			fmt.Printf("❌ Failed to create employer profile: %v\n", err)
+			middleware.DebugLog("❌ Failed to create employer profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create employer profile: %w", err)
 		}
-		fmt.Printf("✅ Employer profile created successfully\n")
+		middleware.DebugLog("✅ Employer profile created successfully\n")
 
 	} else if contains(roles, "student") {
-		fmt.Printf("🔍 Creating student profile for user: %s\n", user.ID)
+		middleware.DebugLog("🔍 Creating student profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
 		if req.City != "" && req.State != "" {
@@ -274,27 +275,27 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			Email:           user.Email,
 			Location:        location,
 			Skills:          []string{},
-			ResumeKey:       "", // Binary data, not string
-			ProfilePhotoKey: "", // Binary data, not string
+			ResumeKey:       "", // S3 key for resume file
+			ProfilePhotoKey: "", // S3 key for profile photo
 			Experience:      0.0,
 			Education:       "",
 			Portfolio:       "",
 			Linkedin:        "",
 			Github:          "",
 		}
-		fmt.Printf("🔍 Student profile data: %+v\n", profile)
+		middleware.DebugLog("🔍 Student profile data: %+v\n", profile)
 		if err := s.studentProfileRepo.Create(profile); err != nil {
-			fmt.Printf("❌ Failed to create student profile: %v\n", err)
+			middleware.DebugLog("❌ Failed to create student profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create user profile: %w", err)
 		}
-		fmt.Printf("✅ Student profile created successfully\n")
+		middleware.DebugLog("✅ Student profile created successfully\n")
 	} else {
-		fmt.Printf("⚠️ Unknown role: %s, no profile created\n", req.Role)
+		middleware.DebugLog("⚠️ Unknown role: %s, no profile created\n", req.Role)
 	}
 
 	// Assign role to user in AAA service
 	if err := s.assignRoleToUser(user.ID, req.Role); err != nil {
-		fmt.Printf("❌ Failed to assign role '%s' to user '%s' in AAA service: %v\n", req.Role, user.ID, err)
+		middleware.DebugLog("❌ Failed to assign role '%s' to user '%s' in AAA service: %v\n", req.Role, user.ID, err)
 		// Decide how to handle this - maybe return an error or continue?
 		// For now, we'll return the original error.
 		return nil, "", fmt.Errorf("failed to assign role to AAA service: %w", err)
@@ -305,34 +306,34 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 
 // SignupWithID - creates a user with a specific ID (for AAA integration)
 func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumber string) (*User, string, error) {
-	fmt.Printf("🔍 AuthService.SignupWithID called with: %+v, userID: %s\n", req, userID)
+	middleware.DebugLog("🔍 AuthService.SignupWithID called with: %+v, userID: %s\n", req, userID)
 
 	// 1. Validate password confirmation
 	if req.Password != req.ConfirmPassword {
-		fmt.Printf("❌ Password mismatch\n")
+		middleware.DebugLog("❌ Password mismatch\n")
 		return nil, "", errors.New("passwords do not match")
 	}
 
 	// 2. Check if user exists with the specific ID
-	fmt.Printf("🔍 Checking if user exists with ID: %s\n", userID)
+	middleware.DebugLog("🔍 Checking if user exists with ID: %s\n", userID)
 	existingUser, err := s.repo.FindByID(userID)
 	if err != nil {
-		fmt.Printf("🔍 User not found with ID (expected): %v\n", err)
+		middleware.DebugLog("🔍 User not found with ID (expected): %v\n", err)
 	} else if existingUser != nil {
-		fmt.Printf("❌ User already exists with ID: %+v\n", existingUser)
+		middleware.DebugLog("❌ User already exists with ID: %+v\n", existingUser)
 		return nil, "", errors.New("user ID already exists")
 	}
 
 	// 3. Create user with the specified ID
-	fmt.Printf("🔍 Creating user with ID: %s, name: %s, username: %s, email: %s\n", userID, req.Name, req.Username, req.Email)
+	middleware.DebugLog("🔍 Creating user with ID: %s, name: %s, username: %s, email: %s\n", userID, req.Name, req.Username, req.Email)
 
 	// Hash the password using the same method as AAA service
 	hashedPassword, err := HashPassword(req.Password)
 	if err != nil {
-		fmt.Printf("❌ Failed to hash password: %v\n", err)
+		middleware.DebugLog("❌ Failed to hash password: %v\n", err)
 		return nil, "", fmt.Errorf("failed to hash password: %w", err)
 	}
-	fmt.Printf("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
+	middleware.DebugLog("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
 
 	user := &User{
 		Name:     req.Name,
@@ -342,10 +343,10 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 	}
 	err = s.repo.CreateWithID(user, userID)
 	if err != nil {
-		fmt.Printf("❌ Failed to create user in DB: %v\n", err)
+		middleware.DebugLog("❌ Failed to create user in DB: %v\n", err)
 		return nil, "", err
 	}
-	fmt.Printf("✅ User created successfully with specified ID: %+v\n", user)
+	middleware.DebugLog("✅ User created successfully with specified ID: %+v\n", user)
 
 	// 4. Generate token
 	token, err := generateToken(user)
@@ -354,10 +355,10 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 	}
 
 	// 5. Create corresponding profile based on role from request
-	fmt.Printf("🔍 Creating profile for role: %s\n", req.Role)
+	middleware.DebugLog("🔍 Creating profile for role: %s\n", req.Role)
 	roles := []string{req.Role} // Use role from request since it's not stored in DB
 	if contains(roles, "employer") {
-		fmt.Printf("🔍 Creating employer profile for user: %s\n", user.ID)
+		middleware.DebugLog("🔍 Creating employer profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
 		if req.City != "" && req.State != "" {
@@ -389,15 +390,15 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 			HiringLocations:    []string{location},
 			HiringTypes:        []string{"full-time"},
 		}
-		fmt.Printf("🔍 Employer profile data: %+v\n", profile)
+		middleware.DebugLog("🔍 Employer profile data: %+v\n", profile)
 		if err := s.employerRepo.Create(profile); err != nil {
-			fmt.Printf("❌ Failed to create employer profile: %v\n", err)
+			middleware.DebugLog("❌ Failed to create employer profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create employer profile: %w", err)
 		}
-		fmt.Printf("✅ Employer profile created successfully\n")
+		middleware.DebugLog("✅ Employer profile created successfully\n")
 
 	} else if contains(roles, "student") {
-		fmt.Printf("🔍 Creating student profile for user: %s\n", user.ID)
+		middleware.DebugLog("🔍 Creating student profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
 		if req.City != "" && req.State != "" {
@@ -415,27 +416,27 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 			Location:        location,
 			PhoneNumber:     phoneNumber, // <-- set here
 			Skills:          []string{},
-			ResumeKey:       "", // Binary data, not string
-			ProfilePhotoKey: "", // Binary data, not string
+			ResumeKey:       "", // S3 key for resume file
+			ProfilePhotoKey: "", // S3 key for profile photo
 			Experience:      0.0,
 			Education:       "",
 			Portfolio:       "",
 			Linkedin:        "",
 			Github:          "",
 		}
-		fmt.Printf("🔍 Student profile data: %+v\n", profile)
+		middleware.DebugLog("🔍 Student profile data: %+v\n", profile)
 		if err := s.studentProfileRepo.Create(profile); err != nil {
-			fmt.Printf("❌ Failed to create student profile: %v\n", err)
+			middleware.DebugLog("❌ Failed to create student profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create user profile: %w", err)
 		}
-		fmt.Printf("✅ Student profile created successfully\n")
+		middleware.DebugLog("✅ Student profile created successfully\n")
 	} else {
-		fmt.Printf("⚠️ Unknown role: %s, no profile created\n", req.Role)
+		middleware.DebugLog("⚠️ Unknown role: %s, no profile created\n", req.Role)
 	}
 
 	// Assign role to user in AAA service
 	if err := s.assignRoleToUser(user.ID, req.Role); err != nil {
-		fmt.Printf("❌ Failed to assign role '%s' to user '%s' in AAA service: %v\n", req.Role, user.ID, err)
+		middleware.DebugLog("❌ Failed to assign role '%s' to user '%s' in AAA service: %v\n", req.Role, user.ID, err)
 		// Decide how to handle this - maybe return an error or continue?
 		// For now, we'll return the original error.
 		return nil, "", fmt.Errorf("failed to assign role to AAA service: %w", err)
@@ -451,7 +452,7 @@ func (s *authService) SendResetLink(email string) error {
 	if err != nil {
 		return errors.New("email not found")
 	}
-	fmt.Printf("Password reset requested for %s (user id: %s)\n", user.Email, user.ID)
+	middleware.DebugLog("Password reset requested for %s (user id: %s)\n", user.Email, user.ID)
 	return nil
 }
 
@@ -590,7 +591,7 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 	if req.LinkedinProfile != "" {
 		profile.Linkedin = req.LinkedinProfile
 	}
-	// ProfilePhoto and Resume are now binary data, not strings
+	// ProfilePhoto and Resume are now S3 keys, not strings
 	// These should be handled by the file upload handlers, not the auth service
 	// if req.ProfilePhoto != "" {
 	//     profile.ProfilePhoto = req.ProfilePhoto
@@ -619,7 +620,7 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 
 // assignRoleToUser assigns a role to a user in AAA service via HTTP
 func (s *authService) assignRoleToUser(userID, roleName string) error {
-	fmt.Printf("🔐 Assigning role '%s' to user '%s' in AAA service\n", roleName, userID)
+	middleware.DebugLog("🔐 Assigning role '%s' to user '%s' in AAA service\n", roleName, userID)
 
 	// Prepare payload for AAA service - use correct field names
 	payload := map[string]interface{}{
@@ -630,36 +631,36 @@ func (s *authService) assignRoleToUser(userID, roleName string) error {
 	// Try the first format
 	body, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Printf("❌ Failed to marshal assign role payload: %v\n", err)
+		middleware.DebugLog("❌ Failed to marshal assign role payload: %v\n", err)
 		return fmt.Errorf("failed to marshal assign role payload: %w", err)
 	}
 
-	fmt.Printf("📤 AAA assign role request body: %s\n", string(body))
+	middleware.DebugLog("📤 AAA assign role request body: %s\n", string(body))
 
 	// Make HTTP request to AAA service
 	resp, err := http.Post(config.AAAServiceBaseURL+"/api/v1/assign-role", "application/json", bytes.NewBuffer(body))
 	if err != nil {
-		fmt.Printf("❌ AAA assign role request failed: %v\n", err)
+		middleware.DebugLog("❌ AAA assign role request failed: %v\n", err)
 		return fmt.Errorf("AAA assign role request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	responseBody, _ := io.ReadAll(resp.Body)
-	fmt.Printf("📥 AAA assign role response status: %d\n", resp.StatusCode)
-	fmt.Printf("📥 AAA assign role response body: %s\n", string(responseBody))
+	middleware.DebugLog("📥 AAA assign role response status: %d\n", resp.StatusCode)
+	middleware.DebugLog("📥 AAA assign role response body: %s\n", string(responseBody))
 
 	// Check if request was successful
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		fmt.Printf("❌ AAA assign role failed with status %d\n", resp.StatusCode)
+		middleware.DebugLog("❌ AAA assign role failed with status %d\n", resp.StatusCode)
 		return fmt.Errorf("AAA assign role failed with status %d: %s", resp.StatusCode, string(responseBody))
 	}
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		fmt.Printf("❌ AAA assign role failed with status %d\n", resp.StatusCode)
+		middleware.DebugLog("❌ AAA assign role failed with status %d\n", resp.StatusCode)
 		return fmt.Errorf("AAA assign role failed with status %d: %s", resp.StatusCode, string(responseBody))
 	}
 
-	fmt.Printf("✅ Role '%s' assigned successfully to user '%s'\n", roleName, userID)
+	middleware.DebugLog("✅ Role '%s' assigned successfully to user '%s'\n", roleName, userID)
 	return nil
 }
 

@@ -285,7 +285,7 @@ make setup            # Setup development environment
 ### Debug Logging
 The system includes comprehensive debug logging throughout:
 ```go
-fmt.Printf("DEBUG: Operation details - %+v\n", data)
+middleware.DebugLog("DEBUG: Operation details - %+v\n", data)
 ```
 
 ### Log Levels

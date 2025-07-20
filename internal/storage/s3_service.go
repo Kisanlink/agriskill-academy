@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	db "kisanlink-db/pkg/db"
+	db "asa/pkg/db"
 )
 
 // StorageService defines the interface for file storage operations
@@ -94,7 +94,8 @@ func (s *s3StorageService) saveFileInternal(fileHeader *multipart.FileHeader, fo
 	baseName := strings.TrimSuffix(fileHeader.Filename, ext)
 	safeBaseName := strings.ReplaceAll(baseName, " ", "_")
 	filename := fmt.Sprintf("%d_%s%s", timestamp, safeBaseName, ext)
-	key := filepath.Join(folder, filename)
+	// Use forward slashes for S3 keys (not filepath.Join which uses OS-specific separators)
+	key := folder + "/" + filename
 
 	contentType := fileHeader.Header.Get("Content-Type")
 	if contentType == "" {

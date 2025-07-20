@@ -3,9 +3,16 @@
 package application
 
 import (
+	"asa/internal/middleware"
+	"context"
 	"errors"
 	"fmt"
+	"mime/multipart"
+	"path/filepath"
+	"strings"
 	"time"
+
+	db "asa/pkg/db"
 )
 
 type ApplicationService interface {
@@ -16,43 +23,45 @@ type ApplicationService interface {
 	Remove(appID, studentID string) error
 	UpdateStatus(appID, studentID, status string) error
 	UpdateStatusByEmployer(appID, jobID, employerID, status string) error
+	UploadResumeToS3(file *multipart.FileHeader, studentID string) (string, error)
 }
 
 type applicationService struct {
 	repo ApplicationRepository
+	s3   *db.S3Manager
 }
 
-func NewApplicationService(repo ApplicationRepository) ApplicationService {
-	return &applicationService{repo}
+func NewApplicationService(repo ApplicationRepository, s3 *db.S3Manager) ApplicationService {
+	return &applicationService{repo: repo, s3: s3}
 }
 
 func (s *applicationService) Apply(app *Application) error {
-	fmt.Printf("DEBUG: Service Apply called for JobID: %s, StudentID: %s\n", app.JobID, app.StudentID)
+	middleware.DebugLog("DEBUG: Service Apply called for JobID: %s, StudentID: %s\n", app.JobID, app.StudentID)
 
 	exists, err := s.repo.Exists(app.JobID, app.StudentID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error checking if application exists: %v\n", err)
+		middleware.DebugLog("DEBUG: Error checking if application exists: %v\n", err)
 		return err
 	}
 	if exists {
-		fmt.Printf("DEBUG: Application already exists\n")
+		middleware.DebugLog("DEBUG: Application already exists\n")
 		return fmt.Errorf("application already exists")
 	}
 
-	fmt.Printf("DEBUG: No existing application found, proceeding...\n")
+	middleware.DebugLog("DEBUG: No existing application found, proceeding...\n")
 
 	// Populate job metadata
 	app.AppliedAt = time.Now()
 	app.Status = StatusApplied
 
-	fmt.Printf("DEBUG: Fetching job metadata for JobID: %s\n", app.JobID)
+	middleware.DebugLog("DEBUG: Fetching job metadata for JobID: %s\n", app.JobID)
 	job, err := s.repo.GetJobMetadata(app.JobID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error fetching job metadata: %v\n", err)
+		middleware.DebugLog("DEBUG: Error fetching job metadata: %v\n", err)
 		return err
 	}
 
-	fmt.Printf("DEBUG: Job metadata fetched: %+v\n", job)
+	middleware.DebugLog("DEBUG: Job metadata fetched: %+v\n", job)
 
 	app.JobTitle = job.Title
 	app.Company = job.EmployerName
@@ -60,15 +69,15 @@ func (s *applicationService) Apply(app *Application) error {
 	app.JobType = job.JobType
 	app.Experience = job.Experience
 
-	fmt.Printf("DEBUG: Application object before save: %+v\n", app)
+	middleware.DebugLog("DEBUG: Application object before save: %+v\n", app)
 
 	err = s.repo.Create(app)
 	if err != nil {
-		fmt.Printf("DEBUG: Error creating application in database: %v\n", err)
+		middleware.DebugLog("DEBUG: Error creating application in database: %v\n", err)
 		return err
 	}
 
-	fmt.Printf("DEBUG: Application created successfully\n")
+	middleware.DebugLog("DEBUG: Application created successfully\n")
 	return nil
 }
 
@@ -77,29 +86,29 @@ func (s *applicationService) GetMyApplications(studentID string) ([]Application,
 }
 
 func (s *applicationService) GetApplicationsByJob(jobID, employerID string) ([]Application, error) {
-	fmt.Printf("DEBUG: Service GetApplicationsByJob - JobID: %s, EmployerID: %s\n", jobID, employerID)
+	middleware.DebugLog("DEBUG: Service GetApplicationsByJob - JobID: %s, EmployerID: %s\n", jobID, employerID)
 
 	// Verify that the job belongs to the employer
 	jobEmployerID, err := s.repo.GetJobEmployerID(jobID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error getting job employer ID: %v\n", err)
+		middleware.DebugLog("DEBUG: Error getting job employer ID: %v\n", err)
 		return nil, err
 	}
 
-	fmt.Printf("DEBUG: Job employer ID: %s, Requesting employer ID: %s\n", jobEmployerID, employerID)
+	middleware.DebugLog("DEBUG: Job employer ID: %s, Requesting employer ID: %s\n", jobEmployerID, employerID)
 
 	if jobEmployerID != employerID {
-		fmt.Printf("DEBUG: Authorization failed - job belongs to %s, requesting user is %s\n", jobEmployerID, employerID)
+		middleware.DebugLog("DEBUG: Authorization failed - job belongs to %s, requesting user is %s\n", jobEmployerID, employerID)
 		return nil, errors.New("not authorized to view applications for this job")
 	}
 
 	apps, err := s.repo.GetByJob(jobID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error getting applications by job: %v\n", err)
+		middleware.DebugLog("DEBUG: Error getting applications by job: %v\n", err)
 		return nil, err
 	}
 
-	fmt.Printf("DEBUG: Found %d applications for job %s\n", len(apps), jobID)
+	middleware.DebugLog("DEBUG: Found %d applications for job %s\n", len(apps), jobID)
 	return apps, err
 }
 
@@ -137,4 +146,40 @@ func (s *applicationService) UpdateStatusByEmployer(appID, jobID, employerID, st
 	}
 
 	return s.repo.UpdateStatusByEmployer(appID, jobID, employerID, status)
+}
+
+func (s *applicationService) UploadResumeToS3(file *multipart.FileHeader, studentID string) (string, error) {
+	middleware.DebugLog("DEBUG: Uploading resume for student %s, file: %s", studentID, file.Filename)
+
+	// Open the file
+	src, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+	defer src.Close()
+
+	// Generate S3 key
+	timestamp := time.Now().UnixNano()
+	ext := filepath.Ext(file.Filename)
+	baseName := strings.TrimSuffix(file.Filename, ext)
+	safeBaseName := strings.ReplaceAll(baseName, " ", "_")
+	filename := fmt.Sprintf("%d_%s%s", timestamp, safeBaseName, ext)
+	s3Key := fmt.Sprintf("application_resumes/%s_%s", studentID, filename)
+
+	// Get content type
+	contentType := file.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	// Upload to S3
+	ctx := context.Background()
+	err = s.s3.UploadFile(ctx, s3Key, src, contentType, nil)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Error uploading file to S3: %v\n", err)
+		return "", err
+	}
+
+	middleware.DebugLog("DEBUG: File uploaded successfully to S3 with key: %s\n", s3Key)
+	return s3Key, nil
 }

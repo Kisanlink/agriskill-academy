@@ -1679,6 +1679,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/employers/me/logo": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload a logo file for the current employer profile",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employer Profile"
+                ],
+                "summary": "Upload Employer Logo",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Logo file (JPG, PNG, GIF, WebP, max 5MB)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logo uploaded successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid file type or size",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/api/employers/me/profile": {
             "get": {
                 "security": [
@@ -1721,6 +1780,65 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Profile not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update the current user's employer profile",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employer Profile"
+                ],
+                "summary": "Update My Employer Profile",
+                "parameters": [
+                    {
+                        "description": "Profile update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/employerprofile.UpdateEmployerProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1872,7 +1990,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/employerprofile.EmployerProfile"
+                            "$ref": "#/definitions/employerprofile.UpdateEmployerProfileRequest"
                         }
                     }
                 ],
@@ -4806,14 +4924,14 @@ const docTemplate = `{
                 "x-swagger-ui": true
             }
         },
-        "/api/upload/image/profile-photo": {
+        "/api/upload/image/employer-logo": {
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Upload a profile photo for the current user",
+                "description": "Upload a logo file for employer profile",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -4823,11 +4941,11 @@ const docTemplate = `{
                 "tags": [
                     "File Storage"
                 ],
-                "summary": "Upload Profile Photo",
+                "summary": "Upload Employer Logo",
                 "parameters": [
                     {
                         "type": "file",
-                        "description": "Profile photo (JPG, PNG, GIF, WebP, max 5MB)",
+                        "description": "Logo file (JPG, PNG, GIF, WebP, max 5MB)",
                         "name": "file",
                         "in": "formData",
                         "required": true
@@ -4835,7 +4953,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Profile photo processed successfully",
+                        "description": "Logo processed successfully",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -4843,6 +4961,70 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid image format or size",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/upload/image/profile-photo": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload a profile photo and/or resume for the current user",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "File Storage"
+                ],
+                "summary": "Upload Profile Photo and Resume",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Profile photo (JPG, PNG, GIF, WebP, max 5MB)",
+                        "name": "file",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "Resume file (PDF, DOC, DOCX, max 10MB)",
+                        "name": "resume",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Files processed successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid file format or size",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -5516,6 +5698,9 @@ const docTemplate = `{
         "employerprofile.EmployerProfile": {
             "type": "object"
         },
+        "employerprofile.UpdateEmployerProfileRequest": {
+            "type": "object"
+        },
         "jobpost.AdvancedJobSearchRequest": {
             "type": "object",
             "properties": {
@@ -6074,11 +6259,8 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
-                "file": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                "file_key": {
+                    "type": "string"
                 },
                 "file_name": {
                     "type": "string"
@@ -6112,12 +6294,14 @@ const docTemplate = `{
             ],
             "properties": {
                 "certificates": {
+                    "description": "Optional professional information",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/studentprofile.Certificate"
                     }
                 },
                 "created_at": {
+                    "description": "System managed fields",
                     "type": "string"
                 },
                 "education": {
@@ -6139,9 +6323,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "location": {
+                    "description": "Optional contact and location",
                     "type": "string"
                 },
                 "name": {
+                    "description": "Required basic information",
                     "type": "string"
                 },
                 "phone_number": {
@@ -6150,34 +6336,11 @@ const docTemplate = `{
                 "portfolio": {
                     "type": "string"
                 },
-                "profile_photo": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "profile_photo_name": {
+                "profile_photo_key": {
+                    "description": "S3 file keys for profile media",
                     "type": "string"
                 },
-                "profile_photo_size": {
-                    "type": "integer"
-                },
-                "profile_photo_type": {
-                    "type": "string"
-                },
-                "resume": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "resume_name": {
-                    "type": "string"
-                },
-                "resume_size": {
-                    "type": "integer"
-                },
-                "resume_type": {
+                "resume_key": {
                     "type": "string"
                 },
                 "skills": {
@@ -6197,24 +6360,11 @@ const docTemplate = `{
         "studentprofile.UpdateCertificateRequest": {
             "type": "object",
             "required": [
-                "file",
                 "issue_date",
                 "name"
             ],
             "properties": {
-                "file": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "file_name": {
-                    "type": "string"
-                },
-                "file_size": {
-                    "type": "integer"
-                },
-                "file_type": {
+                "file_key": {
                     "type": "string"
                 },
                 "issue_date": {

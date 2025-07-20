@@ -10,10 +10,10 @@ type User struct {
 	Email      string    `json:"email" binding:"required,email"`
 	Password   string    `json:"password" binding:"required"`
 	Role       string    `json:"role" binding:"required"`
-	Avatar     []byte    `json:"avatar" gorm:"type:bytea"`
-	AvatarName string    `json:"avatar_name"`
-	AvatarType string    `json:"avatar_type"`
-	AvatarSize int64     `json:"avatar_size"`
+	AvatarKey  string    `json:"avatar_key,omitempty"`
+	AvatarName string    `json:"avatar_name,omitempty"`
+	AvatarType string    `json:"avatar_type,omitempty"`
+	AvatarSize int64     `json:"avatar_size,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }

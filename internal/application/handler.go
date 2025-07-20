@@ -3,9 +3,9 @@
 package application
 
 import (
+	"asa/internal/middleware"
 	"asa/pkg/authz"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -58,20 +58,20 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 	jobId := c.Param("id")
 	studentID := c.GetString("user_id")
 
-	fmt.Printf("DEBUG: Apply called - JobID: %s, StudentID: %s\n", jobId, studentID)
-	fmt.Printf("DEBUG: Content-Type: %s\n", c.GetHeader("Content-Type"))
+	middleware.DebugLog("DEBUG: Apply called - JobID: %s, StudentID: %s\n", jobId, studentID)
+	middleware.DebugLog("DEBUG: Content-Type: %s\n", c.GetHeader("Content-Type"))
 
 	// Parse multipart form data
 	if err := c.Request.ParseMultipartForm(32 << 20); err != nil { // 32MB max
-		fmt.Printf("DEBUG: ParseMultipartForm error: %v\n", err)
+		middleware.DebugLog("DEBUG: ParseMultipartForm error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to parse form data"})
 		return
 	}
 
-	fmt.Printf("DEBUG: Form fields: %+v\n", c.Request.Form)
+	middleware.DebugLog("DEBUG: Form fields: %+v\n", c.Request.Form)
 
 	coverLetter := c.PostForm("cover_letter")
-	fmt.Printf("DEBUG: Cover letter: %s\n", coverLetter)
+	middleware.DebugLog("DEBUG: Cover letter: %s\n", coverLetter)
 
 	// Try multiple possible field names for the resume file
 	var file *multipart.FileHeader
@@ -80,16 +80,16 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 	// Try different field names (prioritize snake_case)
 	file, fileErr = c.FormFile("resume_file")
 	if fileErr != nil {
-		fmt.Printf("DEBUG: resume_file not found, trying resumeFile\n")
+		middleware.DebugLog("DEBUG: resume_file not found, trying resumeFile\n")
 		file, fileErr = c.FormFile("resumeFile")
 		if fileErr != nil {
-			fmt.Printf("DEBUG: resumeFile not found, trying resume\n")
+			middleware.DebugLog("DEBUG: resumeFile not found, trying resume\n")
 			file, fileErr = c.FormFile("resume")
 			if fileErr != nil {
-				fmt.Printf("DEBUG: resume not found, trying file\n")
+				middleware.DebugLog("DEBUG: resume not found, trying file\n")
 				file, fileErr = c.FormFile("file")
 				if fileErr != nil {
-					fmt.Printf("DEBUG: Resume file error - tried resume_file, resumeFile, resume, file: %v\n", fileErr)
+					middleware.DebugLog("DEBUG: Resume file error - tried resume_file, resumeFile, resume, file: %v\n", fileErr)
 					c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Resume file is required"})
 					return
 				}
@@ -97,11 +97,11 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 		}
 	}
 
-	fmt.Printf("DEBUG: Resume file received - Name: %s, Size: %d\n", file.Filename, file.Size)
+	middleware.DebugLog("DEBUG: Resume file received - Name: %s, Size: %d\n", file.Filename, file.Size)
 
 	// Validate file type
 	if !IsValidResumeFile(file.Filename) {
-		fmt.Printf("DEBUG: Invalid file type: %s\n", file.Filename)
+		middleware.DebugLog("DEBUG: Invalid file type: %s\n", file.Filename)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "Invalid file type. Allowed: PDF, DOC, DOCX",
@@ -111,31 +111,13 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 
 	// Validate file size (10MB max)
 	if file.Size > 10*1024*1024 {
-		fmt.Printf("DEBUG: File too large: %d bytes\n", file.Size)
+		middleware.DebugLog("DEBUG: File too large: %d bytes\n", file.Size)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"message": "File size exceeds maximum allowed size (10MB)",
 		})
 		return
 	}
-
-	// Read file into bytes
-	fileReader, err := file.Open()
-	if err != nil {
-		fmt.Printf("DEBUG: Failed to open file: %v\n", err)
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to read file"})
-		return
-	}
-	defer fileReader.Close()
-
-	fileBytes, err := io.ReadAll(fileReader)
-	if err != nil {
-		fmt.Printf("DEBUG: Failed to read file bytes: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read file"})
-		return
-	}
-
-	fmt.Printf("DEBUG: File read successfully - Size: %d bytes\n", len(fileBytes))
 
 	// Get file metadata
 	fileName := file.Filename
@@ -145,25 +127,33 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 	}
 	fileSize := file.Size
 
+	// Upload file to S3 and get the key
+	resumeKey, err := h.service.UploadResumeToS3(file, studentID)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Failed to upload resume to S3: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to upload resume"})
+		return
+	}
+
 	app := &Application{
 		JobID:          jobId,
 		StudentID:      studentID,
 		CoverLetter:    coverLetter,
-		ResumeFile:     fileBytes,
+		ResumeKey:      resumeKey,
 		ResumeFileName: fileName,
 		ResumeFileType: fileType,
 		ResumeFileSize: fileSize,
 	}
 
-	fmt.Printf("DEBUG: Application object created - JobID: %s, StudentID: %s, ResumeFileName: %s, ResumeFileSize: %d\n", app.JobID, app.StudentID, app.ResumeFileName, app.ResumeFileSize)
+	middleware.DebugLog("DEBUG: Application object created - JobID: %s, StudentID: %s, ResumeFileName: %s, ResumeFileSize: %d\n", app.JobID, app.StudentID, app.ResumeFileName, app.ResumeFileSize)
 
 	if err := h.service.Apply(app); err != nil {
-		fmt.Printf("DEBUG: Service Apply error: %v\n", err)
+		middleware.DebugLog("DEBUG: Service Apply error: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
 		return
 	}
 
-	fmt.Printf("DEBUG: Application submitted successfully with ID: %s\n", app.ID)
+	middleware.DebugLog("DEBUG: Application submitted successfully with ID: %s\n", app.ID)
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"message": "Application submitted successfully",
@@ -171,6 +161,7 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 			"id":               app.ID,
 			"job_id":           app.JobID,
 			"student_id":       app.StudentID,
+			"resume_key":       app.ResumeKey,
 			"resume_file_name": app.ResumeFileName,
 			"resume_file_type": app.ResumeFileType,
 			"resume_file_size": app.ResumeFileSize,
@@ -257,20 +248,20 @@ func (h *ApplicationHandler) GetApplicationsByJob(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: ===== REGULAR APPLICATION HANDLER CALLED =====\n")
+	middleware.DebugLog("DEBUG: ===== REGULAR APPLICATION HANDLER CALLED =====\n")
 
 	employerID := c.GetString("user_id")
 
-	fmt.Printf("DEBUG: GetApplicationsByJob called - JobID: %s, EmployerID: %s\n", jobID, employerID)
+	middleware.DebugLog("DEBUG: GetApplicationsByJob called - JobID: %s, EmployerID: %s\n", jobID, employerID)
 
 	apps, err := h.service.GetApplicationsByJob(jobID, employerID)
 	if err != nil {
-		fmt.Printf("DEBUG: GetApplicationsByJob error: %v\n", err)
+		middleware.DebugLog("DEBUG: GetApplicationsByJob error: %v\n", err)
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": err.Error()})
 		return
 	}
 
-	fmt.Printf("DEBUG: GetApplicationsByJob success - Found %d applications\n", len(apps))
+	middleware.DebugLog("DEBUG: GetApplicationsByJob success - Found %d applications\n", len(apps))
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Applications retrieved successfully", "applications": apps})
 }
 

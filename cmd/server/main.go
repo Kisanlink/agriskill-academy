@@ -26,7 +26,7 @@ import (
 
 	_ "asa/docs" // Import swagger docs
 
-	kdb "kisanlink-db/pkg/db"
+	kdb "asa/pkg/db"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -82,19 +82,33 @@ func main() {
 	}
 
 	// S3 Storage Service setup
-	s3Region := os.Getenv("DB_S3_REGION")
+	s3Region := os.Getenv("AWS_REGION")
 	if s3Region == "" {
 		s3Region = "us-east-1"
 	}
-	s3Bucket := os.Getenv("DB_S3_BUCKET")
+	s3Bucket := os.Getenv("AWS_S3_BUCKET")
 	if s3Bucket == "" {
-		log.Fatalf("DB_S3_BUCKET env var is required for S3 storage")
+		log.Fatalf("AWS_S3_BUCKET env var is required for S3 storage")
+	}
+	s3Endpoint := os.Getenv("AWS_S3_ENDPOINT")
+	s3ForcePathStyle := os.Getenv("AWS_S3_FORCE_PATH_STYLE") == "true"
+	s3DisableSSL := os.Getenv("AWS_S3_DISABLE_SSL") == "true"
+	s3AccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	s3SecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+
+	if s3AccessKeyID == "" || s3SecretAccessKey == "" {
+		log.Fatalf("AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars are required for S3 storage")
 	}
 
 	s3Config := &kdb.Config{
-		S3Region: s3Region,
-		S3Bucket: s3Bucket,
-		LogLevel: "info",
+		S3Region:          s3Region,
+		S3Bucket:          s3Bucket,
+		S3Endpoint:        s3Endpoint,
+		S3ForcePathStyle:  s3ForcePathStyle,
+		S3DisableSSL:      s3DisableSSL,
+		S3AccessKeyID:     s3AccessKeyID,
+		S3SecretAccessKey: s3SecretAccessKey,
+		LogLevel:          "info",
 	}
 	s3Logger := zap.NewNop()
 	s3Manager := kdb.NewS3Manager(s3Config, s3Logger)
@@ -145,14 +159,14 @@ func main() {
 	authHandler := auth.NewAuthHandler(authService)
 
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
-	employerProfileHandler := employerprofile.NewEmployerProfileHandler(employerProfileService)
+	employerProfileHandler := employerprofile.NewEmployerProfileHandler(employerProfileService, storageService)
 
 	jobPostRepo := jobpost.NewJobPostRepository(db)
 	jobPostService := jobpost.NewJobPostService(jobPostRepo, employerProfileRepo)
 	jobPostHandler := jobpost.NewJobPostHandler(jobPostService)
 
 	applicationRepo := application.NewApplicationRepository(db)
-	applicationService := application.NewApplicationService(applicationRepo)
+	applicationService := application.NewApplicationService(applicationRepo, s3Manager)
 	applicationHandler := application.NewApplicationHandler(applicationService)
 
 	employerAppRepo := employerapplication.NewEmployerApplicationRepository(db)
@@ -167,7 +181,7 @@ func main() {
 	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService, storageService)
 
 	// File serving and storage handlers
-	fileServeHandler := storage.NewFileServeHandler(s3Manager)
+	fileServeHandler := storage.NewFileServeHandler(s3Manager, db)
 	storageHandler := storage.NewStorageHandler(storageService)
 
 	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)

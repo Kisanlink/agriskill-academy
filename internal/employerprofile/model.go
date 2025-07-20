@@ -16,7 +16,7 @@ type EmployerProfile struct {
 	CompanySize string `gorm:"not null" json:"company_size" binding:"required"`
 
 	// Optional company branding and details
-	Logo               []byte `gorm:"type:bytea" json:"logo,omitempty"`
+	LogoKey            string `json:"logo_key,omitempty"`
 	LogoName           string `json:"logo_name,omitempty"`
 	LogoType           string `json:"logo_type,omitempty"`
 	LogoSize           int64  `json:"logo_size,omitempty"`
@@ -55,7 +55,7 @@ type UpdateEmployerProfileRequest struct {
 	CompanySize string `json:"company_size,omitempty"`
 
 	// Optional company branding and details
-	Logo               []byte `json:"logo,omitempty"`
+	LogoKey            string `json:"logo_key,omitempty"`
 	LogoName           string `json:"logo_name,omitempty"`
 	LogoType           string `json:"logo_type,omitempty"`
 	LogoSize           int64  `json:"logo_size,omitempty"`

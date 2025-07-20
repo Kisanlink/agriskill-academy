@@ -4,6 +4,7 @@ package middleware
 
 import (
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,5 +17,13 @@ func Logger() gin.HandlerFunc {
 		latency := time.Since(start)
 		status := c.Writer.Status()
 		log.Printf("%s %s %d %s", c.Request.Method, c.Request.URL.Path, status, latency)
+	}
+}
+
+// DebugLog logs debug messages only when GIN_MODE=debug.
+// If emoji is non-empty, it is prepended to the log message.
+func DebugLog(format string, args ...interface{}) {
+	if os.Getenv("GIN_MODE") == "debug" {
+		log.Printf("[DEBUG] "+format, args...)
 	}
 }

@@ -3,9 +3,8 @@
 package application
 
 import (
-	"fmt"
-
 	"asa/internal/jobpost"
+	"asa/internal/middleware"
 
 	"gorm.io/gorm"
 )
@@ -42,12 +41,35 @@ func (r *applicationRepository) GetByStudent(studentID string) ([]Application, e
 }
 
 func (r *applicationRepository) GetByJob(jobID string) ([]Application, error) {
-	fmt.Printf("DEBUG: Repository GetByJob - JobID: %s\n", jobID)
+	middleware.DebugLog("DEBUG: Repository GetByJob - JobID: %s\n", jobID)
 
 	var apps []Application
-	err := r.db.Where("job_id = ?", jobID).Order("applied_at DESC").Find(&apps).Error
+	err := r.db.Raw(`
+		SELECT 
+			a.id,
+			a.job_id,
+			a.student_id,
+			a.applied_at,
+			a.status,
+			a.cover_letter,
+			a.resume_key,
+			a.resume_file_name,
+			a.resume_file_type,
+			a.resume_file_size,
+			a.job_title,
+			a.company,
+			a.location,
+			a.job_type,
+			a.experience,
+			a.updated_at,
+			sp.phone_number as student_phone_number
+		FROM applications a
+		LEFT JOIN student_profiles sp ON a.student_id = sp.user_id
+		WHERE a.job_id = ?
+		ORDER BY a.applied_at DESC
+	`, jobID).Scan(&apps).Error
 
-	fmt.Printf("DEBUG: Repository GetByJob result - Found %d applications, Error: %v\n", len(apps), err)
+	middleware.DebugLog("DEBUG: Repository GetByJob result - Found %d applications, Error: %v\n", len(apps), err)
 	return apps, err
 }
 
@@ -115,7 +137,7 @@ func (r *applicationRepository) UpdateStatusByEmployer(appID, jobID, employerID,
 }
 
 func (r *applicationRepository) GetJobEmployerID(jobID string) (string, error) {
-	fmt.Printf("DEBUG: Repository GetJobEmployerID - JobID: %s\n", jobID)
+	middleware.DebugLog("DEBUG: Repository GetJobEmployerID - JobID: %s\n", jobID)
 
 	var employerID string
 	err := r.db.Model(&jobpost.JobPost{}).
@@ -123,6 +145,6 @@ func (r *applicationRepository) GetJobEmployerID(jobID string) (string, error) {
 		Select("employer_id").
 		Scan(&employerID).Error
 
-	fmt.Printf("DEBUG: Repository GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
+	middleware.DebugLog("DEBUG: Repository GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
 	return employerID, err
 }

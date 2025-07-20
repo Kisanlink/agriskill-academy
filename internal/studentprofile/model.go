@@ -99,10 +99,10 @@ type Certificate struct {
 	ID               string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
 	StudentProfileID string `gorm:"type:uuid" json:"student_profile_id,omitempty"`
 	Name             string `json:"name" binding:"required"`
-	File             []byte `json:"file" gorm:"type:bytea"`
-	FileName         string `json:"file_name"`
-	FileType         string `json:"file_type"`
-	FileSize         int64  `json:"file_size"`
+	FileKey          string `json:"file_key,omitempty"`
+	FileName         string `json:"file_name,omitempty"`
+	FileType         string `json:"file_type,omitempty"`
+	FileSize         int64  `json:"file_size,omitempty"`
 	IssueDate        string `json:"issue_date" binding:"required"`
 }
 
@@ -117,7 +117,7 @@ type StudentProfile struct {
 
 	// Required basic information
 	Name  string `gorm:"not null" json:"name" binding:"required"`
-	Email string `gorm:"not null" json:"email" binding:"required,email"`
+	Email string `gorm:"not null" json:"email" binding:"required"`
 
 	// Optional contact and location
 	Location    string `json:"location,omitempty"`

@@ -1,9 +1,10 @@
 package employerprofile
 
 import (
+	"asa/internal/middleware"
+	"asa/internal/storage"
 	"asa/pkg/authz"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -13,10 +14,11 @@ import (
 
 type EmployerProfileHandler struct {
 	service EmployerProfileService
+	storage storage.StorageService
 }
 
-func NewEmployerProfileHandler(s EmployerProfileService) *EmployerProfileHandler {
-	return &EmployerProfileHandler{s}
+func NewEmployerProfileHandler(s EmployerProfileService, storageSvc storage.StorageService) *EmployerProfileHandler {
+	return &EmployerProfileHandler{s, storageSvc}
 }
 
 func getJWT(c *gin.Context) string {
@@ -25,6 +27,35 @@ func getJWT(c *gin.Context) string {
 		return authHeader[7:]
 	}
 	return ""
+}
+
+// IsValidImageFile validates if the file is a valid image type
+func IsValidImageFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			return true
+		}
+	}
+	return false
+}
+
+// getMimeTypeFromExtension returns MIME type based on file extension
+func getMimeTypeFromExtension(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 // @Summary Get Employer Profile
@@ -188,9 +219,6 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	// Handle logo fields - only update if provided
-	if req.Logo != nil {
-		existingProfile.Logo = req.Logo
-	}
 	if req.LogoName != "" {
 		existingProfile.LogoName = req.LogoName
 	}
@@ -199,6 +227,9 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 	}
 	if req.LogoSize != 0 {
 		existingProfile.LogoSize = req.LogoSize
+	}
+	if req.LogoKey != "" {
+		existingProfile.LogoKey = req.LogoKey
 	}
 
 	if err := h.service.UpdateProfile(existingProfile); err != nil {
@@ -246,28 +277,19 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 	var req UpdateEmployerProfileRequest
 	contentType := c.GetHeader("Content-Type")
 
-	fmt.Printf("🔍 DEBUG: Employer UpdateMyProfile - Content-Type: %s\n", contentType)
-	fmt.Printf("🔍 DEBUG: User ID: %s\n", userID)
+	middleware.DebugLog("🔍 DEBUG: Employer UpdateMyProfile - Content-Type: %s\n", contentType)
+	middleware.DebugLog("🔍 DEBUG: User ID: %s\n", userID)
 
 	if strings.Contains(contentType, "multipart/form-data") {
-		fmt.Printf("🔍 DEBUG: Processing multipart form data for employer\n")
+		middleware.DebugLog("🔍 DEBUG: Processing multipart form data for employer\n")
 
 		// Handle logo upload
 		if logoFile, err := c.FormFile("logo"); err == nil {
-			fmt.Printf("🔍 DEBUG: Logo found - Name: %s, Size: %d\n", logoFile.Filename, logoFile.Size)
+			middleware.DebugLog("🔍 DEBUG: Logo found - Name: %s, Size: %d\n", logoFile.Filename, logoFile.Size)
 
 			// Validate file type
-			ext := strings.ToLower(filepath.Ext(logoFile.Filename))
-			allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
-			isValid := false
-			for _, allowedExt := range allowedTypes {
-				if ext == allowedExt {
-					isValid = true
-					break
-				}
-			}
-			if !isValid {
-				fmt.Printf("❌ DEBUG: Invalid logo type: %s\n", logoFile.Filename)
+			if !IsValidImageFile(logoFile.Filename) {
+				middleware.DebugLog("❌ DEBUG: Invalid logo type: %s\n", logoFile.Filename)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
 					"message": "Invalid image type. Allowed: JPG, PNG, GIF, WebP",
@@ -277,7 +299,7 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 
 			// Validate file size (5MB max for images)
 			if logoFile.Size > 5*1024*1024 {
-				fmt.Printf("❌ DEBUG: Logo size too large: %d bytes\n", logoFile.Size)
+				middleware.DebugLog("❌ DEBUG: Logo size too large: %d bytes\n", logoFile.Size)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
 					"message": "Image size exceeds maximum allowed size (5MB)",
@@ -285,105 +307,86 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 				return
 			}
 
-			// Read file into bytes
-			file, err := logoFile.Open()
+			// Upload to S3 and set only the S3 key
+			key, err := h.storage.SaveImage(logoFile, "employer_logos")
 			if err != nil {
-				fmt.Printf("❌ DEBUG: Failed to open logo file: %v\n", err)
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "Failed to read logo file",
-				})
-				return
-			}
-			defer file.Close()
-
-			fileBytes, err := io.ReadAll(file)
-			if err != nil {
-				fmt.Printf("❌ DEBUG: Failed to read logo file bytes: %v\n", err)
+				middleware.DebugLog("❌ DEBUG: Failed to upload logo: %v\n", err)
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
-					"message": "Failed to read logo file",
+					"message": "Failed to upload logo",
 				})
 				return
 			}
-
-			// Set logo data in request
-			req.Logo = fileBytes
-			req.LogoName = logoFile.Filename
-			req.LogoType = logoFile.Header.Get("Content-Type")
-			if req.LogoType == "" {
-				req.LogoType = getMimeTypeFromExtension(logoFile.Filename)
-			}
-			req.LogoSize = logoFile.Size
-			fmt.Printf("✅ DEBUG: Logo data set - Size: %d bytes, Type: %s, Name: %s\n", len(fileBytes), req.LogoType, req.LogoName)
+			req.LogoKey = key
+			middleware.DebugLog("✅ DEBUG: Logo S3 key set: %s\n", key)
 		}
 
 		// Handle other form fields
 		if companyName := c.PostForm("company_name"); companyName != "" {
 			req.CompanyName = companyName
-			fmt.Printf("🔍 DEBUG: Company name from form: %s\n", companyName)
+			middleware.DebugLog("🔍 DEBUG: Company name from form: %s\n", companyName)
 		}
 		if industry := c.PostForm("industry"); industry != "" {
 			req.Industry = industry
-			fmt.Printf("🔍 DEBUG: Industry from form: %s\n", industry)
+			middleware.DebugLog("🔍 DEBUG: Industry from form: %s\n", industry)
 		}
 		if companySize := c.PostForm("company_size"); companySize != "" {
 			req.CompanySize = companySize
-			fmt.Printf("🔍 DEBUG: Company size from form: %s\n", companySize)
+			middleware.DebugLog("🔍 DEBUG: Company size from form: %s\n", companySize)
 		}
 		if websiteURL := c.PostForm("website_url"); websiteURL != "" {
 			req.WebsiteURL = websiteURL
-			fmt.Printf("🔍 DEBUG: Website URL from form: %s\n", websiteURL)
+			middleware.DebugLog("🔍 DEBUG: Website URL from form: %s\n", websiteURL)
 		}
 		if companyDescription := c.PostForm("company_description"); companyDescription != "" {
 			req.CompanyDescription = companyDescription
-			fmt.Printf("🔍 DEBUG: Company description from form: %s\n", companyDescription)
+			middleware.DebugLog("🔍 DEBUG: Company description from form: %s\n", companyDescription)
 		}
 		if recruiterName := c.PostForm("recruiter_name"); recruiterName != "" {
 			req.RecruiterName = recruiterName
-			fmt.Printf("🔍 DEBUG: Recruiter name from form: %s\n", recruiterName)
+			middleware.DebugLog("🔍 DEBUG: Recruiter name from form: %s\n", recruiterName)
 		}
 		if designation := c.PostForm("designation"); designation != "" {
 			req.Designation = designation
-			fmt.Printf("🔍 DEBUG: Designation from form: %s\n", designation)
+			middleware.DebugLog("🔍 DEBUG: Designation from form: %s\n", designation)
 		}
 		if officialEmail := c.PostForm("official_email"); officialEmail != "" {
 			req.OfficialEmail = officialEmail
-			fmt.Printf("🔍 DEBUG: Official email from form: %s\n", officialEmail)
+			middleware.DebugLog("🔍 DEBUG: Official email from form: %s\n", officialEmail)
 		}
 		if phoneNumber := c.PostForm("phone_number"); phoneNumber != "" {
 			req.PhoneNumber = phoneNumber
-			fmt.Printf("🔍 DEBUG: Phone number from form: %s\n", phoneNumber)
+			middleware.DebugLog("🔍 DEBUG: Phone number from form: %s\n", phoneNumber)
 		}
 		if linkedinProfile := c.PostForm("linkedin_profile"); linkedinProfile != "" {
 			req.LinkedinProfile = linkedinProfile
-			fmt.Printf("🔍 DEBUG: LinkedIn profile from form: %s\n", linkedinProfile)
+			middleware.DebugLog("🔍 DEBUG: LinkedIn profile from form: %s\n", linkedinProfile)
 		}
 		if gstinNumber := c.PostForm("gstin_number"); gstinNumber != "" {
 			req.GSTINNumber = gstinNumber
-			fmt.Printf("🔍 DEBUG: GSTIN number from form: %s\n", gstinNumber)
+			middleware.DebugLog("🔍 DEBUG: GSTIN number from form: %s\n", gstinNumber)
 		}
 		if companyAddress := c.PostForm("company_address"); companyAddress != "" {
 			req.CompanyAddress = companyAddress
-			fmt.Printf("🔍 DEBUG: Company address from form: %s\n", companyAddress)
+			middleware.DebugLog("🔍 DEBUG: Company address from form: %s\n", companyAddress)
 		}
 		if city := c.PostForm("city"); city != "" {
 			req.City = city
-			fmt.Printf("🔍 DEBUG: City from form: %s\n", city)
+			middleware.DebugLog("🔍 DEBUG: City from form: %s\n", city)
 		}
 		if state := c.PostForm("state"); state != "" {
 			req.State = state
-			fmt.Printf("🔍 DEBUG: State from form: %s\n", state)
+			middleware.DebugLog("🔍 DEBUG: State from form: %s\n", state)
 		}
 		if pincode := c.PostForm("pincode"); pincode != "" {
 			req.Pincode = pincode
-			fmt.Printf("🔍 DEBUG: Pincode from form: %s\n", pincode)
+			middleware.DebugLog("🔍 DEBUG: Pincode from form: %s\n", pincode)
 		}
 	} else {
 		// Handle JSON request
-		fmt.Printf("🔍 DEBUG: Processing JSON request for employer\n")
+		middleware.DebugLog("🔍 DEBUG: Processing JSON request for employer\n")
 		if err := c.ShouldBindJSON(&req); err != nil {
-			fmt.Printf("❌ DEBUG: JSON binding error: %v\n", err)
+			middleware.DebugLog("❌ DEBUG: JSON binding error: %v\n", err)
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
 				"message": "Invalid request format",
@@ -391,112 +394,109 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 			})
 			return
 		}
-		fmt.Printf("✅ DEBUG: JSON request parsed successfully\n")
+		middleware.DebugLog("✅ DEBUG: JSON request parsed successfully\n")
 	}
 
 	// Get existing profile first
-	fmt.Printf("🔍 DEBUG: Getting employer profile for user ID: %s\n", userID)
+	middleware.DebugLog("🔍 DEBUG: Getting employer profile for user ID: %s\n", userID)
 	existingProfile, err := h.service.GetProfile(userID)
 	if err != nil {
-		fmt.Printf("❌ DEBUG: Employer profile not found: %v\n", err)
+		middleware.DebugLog("❌ DEBUG: Employer profile not found: %v\n", err)
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Profile not found"})
 		return
 	}
-	fmt.Printf("✅ DEBUG: Existing employer profile found\n")
+	middleware.DebugLog("✅ DEBUG: Existing employer profile found\n")
 
 	// Update only the fields that are provided in the request (non-empty values)
 	if req.CompanyName != "" {
 		existingProfile.CompanyName = req.CompanyName
-		fmt.Printf("🔍 DEBUG: Updated company name: %s\n", req.CompanyName)
+		middleware.DebugLog("🔍 DEBUG: Updated company name: %s\n", req.CompanyName)
 	}
 	if req.Industry != "" {
 		existingProfile.Industry = req.Industry
-		fmt.Printf("🔍 DEBUG: Updated industry: %s\n", req.Industry)
+		middleware.DebugLog("🔍 DEBUG: Updated industry: %s\n", req.Industry)
 	}
 	if req.CompanySize != "" {
 		existingProfile.CompanySize = req.CompanySize
-		fmt.Printf("🔍 DEBUG: Updated company size: %s\n", req.CompanySize)
+		middleware.DebugLog("🔍 DEBUG: Updated company size: %s\n", req.CompanySize)
 	}
 	if req.WebsiteURL != "" {
 		existingProfile.WebsiteURL = req.WebsiteURL
-		fmt.Printf("🔍 DEBUG: Updated website URL: %s\n", req.WebsiteURL)
+		middleware.DebugLog("🔍 DEBUG: Updated website URL: %s\n", req.WebsiteURL)
 	}
 	if req.CompanyDescription != "" {
 		existingProfile.CompanyDescription = req.CompanyDescription
-		fmt.Printf("🔍 DEBUG: Updated company description\n")
+		middleware.DebugLog("🔍 DEBUG: Updated company description\n")
 	}
 	if req.RecruiterName != "" {
 		existingProfile.RecruiterName = req.RecruiterName
-		fmt.Printf("🔍 DEBUG: Updated recruiter name: %s\n", req.RecruiterName)
+		middleware.DebugLog("🔍 DEBUG: Updated recruiter name: %s\n", req.RecruiterName)
 	}
 	if req.Designation != "" {
 		existingProfile.Designation = req.Designation
-		fmt.Printf("🔍 DEBUG: Updated designation: %s\n", req.Designation)
+		middleware.DebugLog("🔍 DEBUG: Updated designation: %s\n", req.Designation)
 	}
 	if req.OfficialEmail != "" {
 		existingProfile.OfficialEmail = req.OfficialEmail
-		fmt.Printf("🔍 DEBUG: Updated official email: %s\n", req.OfficialEmail)
+		middleware.DebugLog("🔍 DEBUG: Updated official email: %s\n", req.OfficialEmail)
 	}
 	if req.PhoneNumber != "" {
 		existingProfile.PhoneNumber = req.PhoneNumber
-		fmt.Printf("🔍 DEBUG: Updated phone number: %s\n", req.PhoneNumber)
+		middleware.DebugLog("🔍 DEBUG: Updated phone number: %s\n", req.PhoneNumber)
 	}
 	if req.LinkedinProfile != "" {
 		existingProfile.LinkedinProfile = req.LinkedinProfile
-		fmt.Printf("🔍 DEBUG: Updated LinkedIn profile: %s\n", req.LinkedinProfile)
+		middleware.DebugLog("🔍 DEBUG: Updated LinkedIn profile: %s\n", req.LinkedinProfile)
 	}
 	if req.GSTINNumber != "" {
 		existingProfile.GSTINNumber = req.GSTINNumber
-		fmt.Printf("🔍 DEBUG: Updated GSTIN number: %s\n", req.GSTINNumber)
+		middleware.DebugLog("🔍 DEBUG: Updated GSTIN number: %s\n", req.GSTINNumber)
 	}
 	if req.CompanyAddress != "" {
 		existingProfile.CompanyAddress = req.CompanyAddress
-		fmt.Printf("🔍 DEBUG: Updated company address: %s\n", req.CompanyAddress)
+		middleware.DebugLog("🔍 DEBUG: Updated company address: %s\n", req.CompanyAddress)
 	}
 	if req.City != "" {
 		existingProfile.City = req.City
-		fmt.Printf("🔍 DEBUG: Updated city: %s\n", req.City)
+		middleware.DebugLog("🔍 DEBUG: Updated city: %s\n", req.City)
 	}
 	if req.State != "" {
 		existingProfile.State = req.State
-		fmt.Printf("🔍 DEBUG: Updated state: %s\n", req.State)
+		middleware.DebugLog("🔍 DEBUG: Updated state: %s\n", req.State)
 	}
 	if req.Pincode != "" {
 		existingProfile.Pincode = req.Pincode
-		fmt.Printf("🔍 DEBUG: Updated pincode: %s\n", req.Pincode)
+		middleware.DebugLog("🔍 DEBUG: Updated pincode: %s\n", req.Pincode)
 	}
 
 	// Handle arrays - only update if provided (non-nil)
 	if req.JobCategories != nil {
 		existingProfile.JobCategories = req.JobCategories
-		fmt.Printf("🔍 DEBUG: Updated job categories: %v\n", req.JobCategories)
+		middleware.DebugLog("🔍 DEBUG: Updated job categories: %v\n", req.JobCategories)
 	}
 	if req.HiringLocations != nil {
 		existingProfile.HiringLocations = req.HiringLocations
-		fmt.Printf("🔍 DEBUG: Updated hiring locations: %v\n", req.HiringLocations)
+		middleware.DebugLog("🔍 DEBUG: Updated hiring locations: %v\n", req.HiringLocations)
 	}
 	if req.HiringTypes != nil {
 		existingProfile.HiringTypes = req.HiringTypes
-		fmt.Printf("🔍 DEBUG: Updated hiring types: %v\n", req.HiringTypes)
+		middleware.DebugLog("🔍 DEBUG: Updated hiring types: %v\n", req.HiringTypes)
 	}
 
-	// Handle logo fields - only update if provided
-	if req.Logo != nil {
-		existingProfile.Logo = req.Logo
-		existingProfile.LogoName = req.LogoName
-		existingProfile.LogoType = req.LogoType
-		existingProfile.LogoSize = req.LogoSize
-		fmt.Printf("🔍 DEBUG: Updated logo - Name: %s, Size: %d\n", req.LogoName, req.LogoSize)
+	// Update logo key if provided
+	if req.LogoKey != "" {
+		existingProfile.LogoKey = req.LogoKey
+		middleware.DebugLog("🔍 DEBUG: Updated logo - Key: %s\n", req.LogoKey)
 	}
 
-	fmt.Printf("🔍 DEBUG: Updating employer profile in database\n")
+	middleware.DebugLog("🔍 DEBUG: Updating employer profile in database\n")
 	if err := h.service.UpdateProfile(existingProfile); err != nil {
-		fmt.Printf("❌ DEBUG: UpdateProfile error: %v\n", err)
+		middleware.DebugLog("❌ DEBUG: UpdateProfile error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Update failed"})
 		return
 	}
 
-	fmt.Printf("✅ DEBUG: Employer profile updated successfully\n")
+	middleware.DebugLog("✅ DEBUG: Employer profile updated successfully\n")
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Profile updated successfully",
@@ -646,7 +646,7 @@ func (h *EmployerProfileHandler) UploadLogo(c *gin.Context) {
 		return
 	}
 
-	// Read file into bytes
+	// Validate file can be opened (for S3 upload later)
 	file, err := fileHeader.Open()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -656,15 +656,6 @@ func (h *EmployerProfileHandler) UploadLogo(c *gin.Context) {
 		return
 	}
 	defer file.Close()
-
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to read file",
-		})
-		return
-	}
 
 	// Get or create employer profile
 	profile, err := h.service.GetProfile(userID)
@@ -677,13 +668,13 @@ func (h *EmployerProfileHandler) UploadLogo(c *gin.Context) {
 	}
 
 	// Update logo data
-	profile.Logo = fileBytes
 	profile.LogoName = fileHeader.Filename
 	profile.LogoType = fileHeader.Header.Get("Content-Type")
 	if profile.LogoType == "" {
 		profile.LogoType = getMimeTypeFromExtension(fileHeader.Filename)
 	}
 	profile.LogoSize = fileHeader.Size
+	// Note: LogoKey will be set by the service when uploading to S3
 
 	// Save profile
 	err = h.service.UpdateProfile(profile)
@@ -708,19 +699,200 @@ func (h *EmployerProfileHandler) UploadLogo(c *gin.Context) {
 	})
 }
 
-// Helper function to get MIME type from file extension
-func getMimeTypeFromExtension(filename string) string {
-	ext := strings.ToLower(filepath.Ext(filename))
-	switch ext {
-	case ".jpg", ".jpeg":
-		return "image/jpeg"
-	case ".png":
-		return "image/png"
-	case ".gif":
-		return "image/gif"
-	case ".webp":
-		return "image/webp"
-	default:
-		return "application/octet-stream"
+// @Summary Upload My Employer Logo
+// @Description Upload a logo file to the current user's employer profile
+// @Tags Employer Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param logo formData file true "Logo file (JPG, PNG, GIF, WebP, max 5MB)"
+// @Success 200 {object} map[string]interface{} "Logo uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid file type or size"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/employers/me/logo [post]
+// POST /employers/me/logo
+func (h *EmployerProfileHandler) UploadMyLogo(c *gin.Context) {
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
 	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	// Get the file from the request
+	fileHeader, err := c.FormFile("logo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Logo file is required",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Validate file type
+	if !IsValidImageFile(fileHeader.Filename) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid file type. Allowed: JPG, PNG, GIF, WebP",
+		})
+		return
+	}
+
+	// Validate file size (5MB max)
+	if fileHeader.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File size exceeds maximum allowed size (5MB)",
+		})
+		return
+	}
+
+	// Upload to S3
+	key, err := h.storage.SaveImage(fileHeader, "employer_logos")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to upload logo",
+		})
+		return
+	}
+
+	// Get or create employer profile
+	profile, err := h.service.GetProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "Employer profile not found",
+		})
+		return
+	}
+
+	// Update logo key
+	profile.LogoKey = key
+
+	// Save profile
+	err = h.service.UpdateProfile(profile)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to update profile with logo",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Logo uploaded successfully",
+		"data": gin.H{
+			"file_url": fmt.Sprintf("/api/files/serve/logo/%s", userID),
+		},
+	})
+}
+
+// @Summary Update My Employer Logo
+// @Description Update the logo file for the current user's employer profile
+// @Tags Employer Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param logo formData file true "Logo file (JPG, PNG, GIF, WebP, max 5MB)"
+// @Success 200 {object} map[string]interface{} "Logo updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid file type or size"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/employers/me/logo [put]
+// PUT /employers/me/logo
+func (h *EmployerProfileHandler) UpdateMyLogo(c *gin.Context) {
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_employer_profiles", "update", userID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	// Get the file from the request
+	fileHeader, err := c.FormFile("logo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Logo file is required",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Validate file type
+	if !IsValidImageFile(fileHeader.Filename) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid file type. Allowed: JPG, PNG, GIF, WebP",
+		})
+		return
+	}
+
+	// Validate file size (5MB max)
+	if fileHeader.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File size exceeds maximum allowed size (5MB)",
+		})
+		return
+	}
+
+	// Upload to S3
+	key, err := h.storage.SaveImage(fileHeader, "employer_logos")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to upload logo",
+		})
+		return
+	}
+
+	// Get existing profile
+	profile, err := h.service.GetProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "Employer profile not found",
+		})
+		return
+	}
+
+	// Update logo key
+	profile.LogoKey = key
+
+	// Save profile
+	err = h.service.UpdateProfile(profile)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to update profile",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Logo updated successfully",
+		"data":    profile,
+	})
 }

@@ -37,7 +37,7 @@ type JobApplicationWithApplicant struct {
 }
 
 // New response structure for frontend
-// Remove binary ResumeFile, use ResumeKey
+// Use ResumeKey for S3 storage
 // Remove ProfilePhoto, use ProfilePhotoKey
 // Remove Avatar, use AvatarKey
 type JobApplicationResponse struct {

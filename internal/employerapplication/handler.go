@@ -1,8 +1,8 @@
 package employerapplication
 
 import (
+	"asa/internal/middleware"
 	"asa/pkg/authz"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -51,25 +51,25 @@ func (h *EmployerApplicationHandler) GetApplicationsForJob(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: ===== GetApplicationsForJob HANDLER CALLED =====\n")
+	middleware.DebugLog("DEBUG: ===== GetApplicationsForJob HANDLER CALLED =====\n")
 
 	status := c.Query("status")
 	employerID := c.GetString("user_id")
 
-	fmt.Printf("DEBUG: GetApplicationsForJob - JobID: %s, Status: '%s', EmployerID: %s\n", jobID, status, employerID)
+	middleware.DebugLog("DEBUG: GetApplicationsForJob - JobID: %s, Status: '%s', EmployerID: %s\n", jobID, status, employerID)
 
 	// Verify that the job belongs to the employer
 	jobEmployerID, err := h.service.GetJobEmployerID(jobID)
 	if err != nil {
-		fmt.Printf("DEBUG: Error getting job employer ID: %v\n", err)
+		middleware.DebugLog("DEBUG: Error getting job employer ID: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch applications"})
 		return
 	}
 
-	fmt.Printf("DEBUG: Job employer ID: %s, Requesting employer ID: %s\n", jobEmployerID, employerID)
+	middleware.DebugLog("DEBUG: Job employer ID: %s, Requesting employer ID: %s\n", jobEmployerID, employerID)
 
 	if jobEmployerID != employerID {
-		fmt.Printf("DEBUG: Authorization failed - job belongs to %s, requesting user is %s\n", jobEmployerID, employerID)
+		middleware.DebugLog("DEBUG: Authorization failed - job belongs to %s, requesting user is %s\n", jobEmployerID, employerID)
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Not authorized to view applications for this job"})
 		return
 	}
@@ -81,11 +81,11 @@ func (h *EmployerApplicationHandler) GetApplicationsForJob(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("DEBUG: GetApplicationsForJob success - Found %d applications\n", len(apps))
-	fmt.Printf("DEBUG: Handler returning applications: %+v\n", apps)
+	middleware.DebugLog("DEBUG: GetApplicationsForJob success - Found %d applications\n", len(apps))
+	middleware.DebugLog("DEBUG: Handler returning applications: %+v\n", apps)
 
 	response := gin.H{"success": true, "applications": apps}
-	fmt.Printf("DEBUG: Handler final response: %+v\n", response)
+	middleware.DebugLog("DEBUG: Handler final response: %+v\n", response)
 	c.JSON(http.StatusOK, response)
 }
 
@@ -101,7 +101,7 @@ func (h *EmployerApplicationHandler) GetApplicationsForJob(c *gin.Context) {
 // @Failure 500 {object} map[string]interface{} "Internal server error"
 // @Router /api/employer/jobs/{jobId}/applications/debug [get]
 func (h *EmployerApplicationHandler) DebugApplications(c *gin.Context) {
-	fmt.Printf("DEBUG: ===== DebugApplications HANDLER CALLED =====\n")
+	middleware.DebugLog("DEBUG: ===== DebugApplications HANDLER CALLED =====\n")
 
 	jobID := c.Param("jobId")
 
@@ -245,7 +245,7 @@ func (h *EmployerApplicationHandler) SendMessage(c *gin.Context) {
 		Message:       req.Message,
 	}
 
-	fmt.Printf("DEBUG: Creating message - database will set timestamp automatically\n")
+	middleware.DebugLog("DEBUG: Creating message - database will set timestamp automatically\n")
 
 	if err := h.service.SendMessage(msg); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to send message"})

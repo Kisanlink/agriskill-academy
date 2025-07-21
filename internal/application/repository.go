@@ -62,7 +62,7 @@ func (r *applicationRepository) GetByJob(jobID string) ([]Application, error) {
 			a.job_type,
 			a.experience,
 			a.updated_at,
-			sp.phone_number as student_phone_number
+			COALESCE(sp.phone_number, '') as student_phone_number
 		FROM applications a
 		LEFT JOIN student_profiles sp ON a.student_id = sp.user_id
 		WHERE a.job_id = ?
@@ -70,6 +70,12 @@ func (r *applicationRepository) GetByJob(jobID string) ([]Application, error) {
 	`, jobID).Scan(&apps).Error
 
 	middleware.DebugLog("DEBUG: Repository GetByJob result - Found %d applications, Error: %v\n", len(apps), err)
+
+	// Debug log each application to see the ID
+	for i, app := range apps {
+		middleware.DebugLog("DEBUG: Application %d - ID: %s, JobID: %s, StudentID: %s\n", i, app.ID, app.JobID, app.StudentID)
+	}
+
 	return apps, err
 }
 

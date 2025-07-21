@@ -52,7 +52,7 @@ type JobApplicationResponse struct {
 	Company       string    `json:"company"`
 	JobType       string    `json:"job_type"`
 	UserID        string    `json:"user_id"`
-	ID            string    `json:"id"`
+	ID            string    `json:"id" gorm:"column:application_id"` // Map to application_id from query
 
 	Applicant ApplicantInfo `json:"applicant"`
 }

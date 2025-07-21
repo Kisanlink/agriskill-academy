@@ -355,26 +355,49 @@ func (s *jobPostService) populateEmployerDetails(job *JobPost) {
 	middleware.DebugLog("DEBUG: populateEmployerDetails called for job %s\n", job.ID)
 	middleware.DebugLog("DEBUG: Current employerName: '%s', employerEmail: '%s'\n", job.EmployerName, job.EmployerEmail)
 
-	if job.EmployerName == "" || job.EmployerEmail == "" {
-		middleware.DebugLog("DEBUG: Fetching employer profile for user ID: %s\n", job.EmployerID)
-		employerProfile, err := s.employerRepo.GetByUserID(job.EmployerID)
-		if err != nil {
-			middleware.DebugLog("DEBUG: Error fetching employer profile: %v\n", err)
-		} else if employerProfile != nil {
-			middleware.DebugLog("DEBUG: Found employer profile: %+v\n", employerProfile)
-			if job.EmployerName == "" {
-				job.EmployerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
-				middleware.DebugLog("DEBUG: Set employerName to: '%s'\n", job.EmployerName)
-			}
-			if job.EmployerEmail == "" {
-				job.EmployerEmail = employerProfile.OfficialEmail
-				middleware.DebugLog("DEBUG: Set employerEmail to: '%s'\n", job.EmployerEmail)
-			}
-		} else {
-			middleware.DebugLog("DEBUG: No employer profile found\n")
+	// Always fetch employer profile to populate company details
+	middleware.DebugLog("DEBUG: Fetching employer profile for user ID: %s\n", job.EmployerID)
+	employerProfile, err := s.employerRepo.GetByUserID(job.EmployerID)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Error fetching employer profile: %v\n", err)
+	} else if employerProfile != nil {
+		middleware.DebugLog("DEBUG: Found employer profile: %+v\n", employerProfile)
+
+		// Populate basic employer details if missing
+		if job.EmployerName == "" {
+			job.EmployerName = employerProfile.RecruiterName
+			middleware.DebugLog("DEBUG: Set employerName to: '%s'\n", job.EmployerName)
 		}
+		if job.EmployerEmail == "" {
+			job.EmployerEmail = employerProfile.OfficialEmail
+			middleware.DebugLog("DEBUG: Set employerEmail to: '%s'\n", job.EmployerEmail)
+		}
+
+		// Populate company details
+		job.CompanyName = employerProfile.CompanyName
+		job.CompanyDescription = employerProfile.CompanyDescription
+		job.Industry = employerProfile.Industry
+		job.CompanySize = employerProfile.CompanySize
+		job.WebsiteURL = employerProfile.WebsiteURL
+		job.CompanyAddress = employerProfile.CompanyAddress
+		job.City = employerProfile.City
+		job.State = employerProfile.State
+		job.Pincode = employerProfile.Pincode
+
+		// Convert arrays from employer profile
+		if employerProfile.JobCategories != nil {
+			job.JobCategories = []string(employerProfile.JobCategories)
+		}
+		if employerProfile.HiringLocations != nil {
+			job.HiringLocations = []string(employerProfile.HiringLocations)
+		}
+		if employerProfile.HiringTypes != nil {
+			job.HiringTypes = []string(employerProfile.HiringTypes)
+		}
+
+		middleware.DebugLog("DEBUG: Populated company details - Company: %s, Industry: %s\n", job.CompanyName, job.Industry)
 	} else {
-		middleware.DebugLog("DEBUG: Employer details already populated\n")
+		middleware.DebugLog("DEBUG: No employer profile found\n")
 	}
 }
 

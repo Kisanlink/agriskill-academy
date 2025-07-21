@@ -2,9 +2,9 @@
 package grpc
 
 import (
+	"asa/internal/middleware"
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
@@ -22,7 +22,7 @@ type AAAGrpcClient struct {
 
 // NewAAAGrpcClient creates a new gRPC client for AAA service
 func NewAAAGrpcClient(endpoint string) (*AAAGrpcClient, error) {
-	log.Printf("🔌 Connecting to AAA gRPC service at: %s", endpoint)
+	middleware.DebugLog("🔌 Connecting to AAA gRPC service at: %s", endpoint)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -36,7 +36,7 @@ func NewAAAGrpcClient(endpoint string) (*AAAGrpcClient, error) {
 	}
 
 	client := pb_aaa.NewUserServiceClient(conn)
-	log.Printf("✅ Successfully connected to AAA gRPC service")
+	middleware.DebugLog("✅ Successfully connected to AAA gRPC service")
 
 	return &AAAGrpcClient{conn: conn, client: client}, nil
 }
@@ -52,7 +52,7 @@ func (c *AAAGrpcClient) Close() error {
 // GetUserByMobileNumber retrieves a user by mobile number from AAA service.
 // It expects the proto field MobileNumber to be uint64.
 func (c *AAAGrpcClient) GetUserByMobileNumber(ctx context.Context, mobile string) (*pb_aaa.GetUserByMobileNumberResponse, error) {
-	log.Printf("📱 AAA gRPC GetUserByMobileNumber - Mobile: %s", mobile)
+	middleware.DebugLog("📱 AAA gRPC GetUserByMobileNumber - Mobile: %s", mobile)
 
 	// Convert string to uint64 as per proto definition
 	mobileUint, err := strconv.ParseUint(mobile, 10, 64)
@@ -72,6 +72,6 @@ func (c *AAAGrpcClient) GetUserByMobileNumber(ctx context.Context, mobile string
 		return nil, fmt.Errorf("AAA service GetUserByMobileNumber failed: %w", err)
 	}
 
-	log.Printf("✅ AAA gRPC GetUserByMobileNumber successful: %s", resp.GetMessage())
+	middleware.DebugLog("✅ AAA gRPC GetUserByMobileNumber successful: %s", resp.GetMessage())
 	return resp, nil
 }

@@ -649,7 +649,7 @@ func (s *jobPostService) ProcessJobAlerts() error {
 			// TODO: Send notification to user
 			// This would integrate with the notification service
 			// For now, we just log it
-			// log.Printf("Found %d matching jobs for alert %s (user: %s)", len(jobs), alert.ID, alert.UserID)
+			// middleware.DebugLog("Found %d matching jobs for alert %s (user: %s)", len(jobs), alert.ID, alert.UserID)
 		}
 	}
 

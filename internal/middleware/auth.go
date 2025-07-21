@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"asa/pkg/jwtutil"
-	"log"
 	"net/http"
 	"strings"
 
@@ -21,76 +20,76 @@ func contains(list []string, val string) bool {
 
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Printf("🔐 === AUTH MIDDLEWARE START ===")
-		log.Printf("🔐 Request: %s %s", c.Request.Method, c.Request.URL.Path)
+		DebugLog("🔐 === AUTH MIDDLEWARE START ===")
+		DebugLog("🔐 Request: %s %s", c.Request.Method, c.Request.URL.Path)
 
 		authHeader := c.GetHeader("Authorization")
-		log.Printf("🔐 Authorization header: %s", authHeader)
+		DebugLog("🔐 Authorization header: %s", authHeader)
 
 		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-			log.Printf("❌ Missing or invalid Authorization header")
+			DebugLog("❌ Missing or invalid Authorization header")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Missing or invalid token"})
 			return
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		log.Printf("🔐 Token string length: %d", len(tokenString))
-		log.Printf("🔐 Token preview: %s...", tokenString[:min(50, len(tokenString))])
+		DebugLog("🔐 Token string length: %d", len(tokenString))
+		DebugLog("🔐 Token preview: %s...", tokenString[:min(50, len(tokenString))])
 
 		// Validate the token locally using the shared secret from SECRET_KEY
-		log.Printf("🔐 Parsing JWT token...")
+		DebugLog("🔐 Parsing JWT token...")
 		claims, err := jwtutil.ParseToken(tokenString)
 		if err != nil {
-			log.Printf("❌ Failed to parse JWT token: %v", err)
+			DebugLog("❌ Failed to parse JWT token: %v", err)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid or expired token"})
 			return
 		}
-		log.Printf("✅ JWT token parsed successfully")
-		log.Printf("🔐 All JWT claims: %+v", claims)
+		DebugLog("✅ JWT token parsed successfully")
+		DebugLog("🔐 All JWT claims: %+v", claims)
 
 		// Extract roles from JWT claims - handle both 'role' (AAA) and 'roles' (local)
 		var roles []string
 
-		log.Printf("🔐 Extracting roles from JWT claims...")
+		DebugLog("🔐 Extracting roles from JWT claims...")
 
 		// First try to get 'roles' (plural array)
 		if rolesInterface, exists := claims["roles"]; exists {
-			log.Printf("🔐 Found 'roles' in claims: %+v (type: %T)", rolesInterface, rolesInterface)
+			DebugLog("🔐 Found 'roles' in claims: %+v (type: %T)", rolesInterface, rolesInterface)
 			switch v := rolesInterface.(type) {
 			case []string:
 				roles = v
-				log.Printf("✅ Roles extracted as []string: %v", roles)
+				DebugLog("✅ Roles extracted as []string: %v", roles)
 			case []interface{}:
 				for _, r := range v {
 					if s, ok := r.(string); ok {
 						roles = append(roles, s)
 					}
 				}
-				log.Printf("✅ Roles extracted from []interface{}: %v", roles)
+				DebugLog("✅ Roles extracted from []interface{}: %v", roles)
 			default:
-				log.Printf("⚠️ Unknown roles type: %T", rolesInterface)
+				DebugLog("⚠️ Unknown roles type: %T", rolesInterface)
 			}
 		} else {
-			log.Printf("🔐 No 'roles' found in claims")
+			DebugLog("🔐 No 'roles' found in claims")
 		}
 
 		// If no roles found, try 'role' (singular from AAA service)
 		if len(roles) == 0 {
-			log.Printf("🔐 No roles found, trying 'role' (singular)...")
+			DebugLog("🔐 No roles found, trying 'role' (singular)...")
 			if roleInterface, exists := claims["role"]; exists {
-				log.Printf("🔐 Found 'role' in claims: %+v (type: %T)", roleInterface, roleInterface)
+				DebugLog("🔐 Found 'role' in claims: %+v (type: %T)", roleInterface, roleInterface)
 				if role, ok := roleInterface.(string); ok {
 					roles = []string{role}
-					log.Printf("✅ Role extracted as string: %v", roles)
+					DebugLog("✅ Role extracted as string: %v", roles)
 				} else {
-					log.Printf("❌ Role is not a string: %T", roleInterface)
+					DebugLog("❌ Role is not a string: %T", roleInterface)
 				}
 			} else {
-				log.Printf("🔐 No 'role' found in claims either")
+				DebugLog("🔐 No 'role' found in claims either")
 			}
 		}
 
-		log.Printf("🔐 Final roles array: %v", roles)
+		DebugLog("🔐 Final roles array: %v", roles)
 
 		// Set all important JWT claims in context
 		userID := claims["user_id"]
@@ -98,12 +97,12 @@ func AuthMiddleware() gin.HandlerFunc {
 		email := claims["email"]
 		name := claims["name"]
 
-		log.Printf("🔐 Setting context values:")
-		log.Printf("   user_id: %v", userID)
-		log.Printf("   username: %v", username)
-		log.Printf("   email: %v", email)
-		log.Printf("   name: %v", name)
-		log.Printf("   roles: %v", roles)
+		DebugLog("🔐 Setting context values:")
+		DebugLog("   user_id: %v", userID)
+		DebugLog("   username: %v", username)
+		DebugLog("   email: %v", email)
+		DebugLog("   name: %v", name)
+		DebugLog("   roles: %v", roles)
 
 		c.Set("user_id", userID)
 		c.Set("username", username)
@@ -111,7 +110,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("name", name)
 		c.Set("roles", roles) // <-- roles is now a []string
 
-		log.Printf("✅ === AUTH MIDDLEWARE COMPLETE ===")
+		DebugLog("✅ === AUTH MIDDLEWARE COMPLETE ===")
 		c.Next()
 	}
 }
@@ -119,38 +118,38 @@ func AuthMiddleware() gin.HandlerFunc {
 // RequireRole creates a middleware that requires specific roles
 func RequireRole(requiredRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Printf("🔒 === ROLE CHECK START ===")
-		log.Printf("🔒 Request: %s %s", c.Request.Method, c.Request.URL.Path)
-		log.Printf("🔒 Required roles: %v", requiredRoles)
+		DebugLog("🔒 === ROLE CHECK START ===")
+		DebugLog("🔒 Request: %s %s", c.Request.Method, c.Request.URL.Path)
+		DebugLog("🔒 Required roles: %v", requiredRoles)
 
 		rolesInterface, exists := c.Get("roles")
 		if !exists {
-			log.Printf("❌ No roles found in context")
+			DebugLog("❌ No roles found in context")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "No roles found in token"})
 			return
 		}
 
 		roles, ok := rolesInterface.([]string)
 		if !ok {
-			log.Printf("❌ Invalid roles format in context: %T", rolesInterface)
+			DebugLog("❌ Invalid roles format in context: %T", rolesInterface)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid roles format in token"})
 			return
 		}
 
-		log.Printf("🔒 User roles: %v", roles)
+		DebugLog("🔒 User roles: %v", roles)
 
 		// Check if user has any of the required roles
 		hasRequiredRole := false
 		for _, requiredRole := range requiredRoles {
 			if contains(roles, requiredRole) {
 				hasRequiredRole = true
-				log.Printf("✅ User has required role: %s", requiredRole)
+				DebugLog("✅ User has required role: %s", requiredRole)
 				break
 			}
 		}
 
 		if !hasRequiredRole {
-			log.Printf("❌ User lacks required roles. User roles: %v, Required: %v", roles, requiredRoles)
+			DebugLog("❌ User lacks required roles. User roles: %v, Required: %v", roles, requiredRoles)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"success": false,
 				"message": "Insufficient permissions. Required roles: " + strings.Join(requiredRoles, ", "),
@@ -158,7 +157,7 @@ func RequireRole(requiredRoles ...string) gin.HandlerFunc {
 			return
 		}
 
-		log.Printf("✅ === ROLE CHECK PASSED ===")
+		DebugLog("✅ === ROLE CHECK PASSED ===")
 		c.Next()
 	}
 }
@@ -171,40 +170,40 @@ func RequireAnyRole(requiredRoles ...string) gin.HandlerFunc {
 // RequireAllRoles creates a middleware that requires all specified roles
 func RequireAllRoles(requiredRoles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Printf("🔒 === ALL ROLES CHECK START ===")
-		log.Printf("🔒 Request: %s %s", c.Request.Method, c.Request.URL.Path)
-		log.Printf("🔒 Required roles (ALL): %v", requiredRoles)
+		DebugLog("🔒 === ALL ROLES CHECK START ===")
+		DebugLog("🔒 Request: %s %s", c.Request.Method, c.Request.URL.Path)
+		DebugLog("🔒 Required roles (ALL): %v", requiredRoles)
 
 		rolesInterface, exists := c.Get("roles")
 		if !exists {
-			log.Printf("❌ No roles found in context")
+			DebugLog("❌ No roles found in context")
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "No roles found in token"})
 			return
 		}
 
 		roles, ok := rolesInterface.([]string)
 		if !ok {
-			log.Printf("❌ Invalid roles format in context: %T", rolesInterface)
+			DebugLog("❌ Invalid roles format in context: %T", rolesInterface)
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid roles format in token"})
 			return
 		}
 
-		log.Printf("🔒 User roles: %v", roles)
+		DebugLog("🔒 User roles: %v", roles)
 
 		// Check if user has ALL required roles
 		for _, requiredRole := range requiredRoles {
 			if !contains(roles, requiredRole) {
-				log.Printf("❌ User missing required role: %s", requiredRole)
+				DebugLog("❌ User missing required role: %s", requiredRole)
 				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 					"success": false,
 					"message": "Insufficient permissions. Required roles: " + strings.Join(requiredRoles, ", "),
 				})
 				return
 			}
-			log.Printf("✅ User has required role: %s", requiredRole)
+			DebugLog("✅ User has required role: %s", requiredRole)
 		}
 
-		log.Printf("✅ === ALL ROLES CHECK PASSED ===")
+		DebugLog("✅ === ALL ROLES CHECK PASSED ===")
 		c.Next()
 	}
 }

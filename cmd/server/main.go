@@ -166,7 +166,7 @@ func main() {
 	jobPostHandler := jobpost.NewJobPostHandler(jobPostService)
 
 	applicationRepo := application.NewApplicationRepository(db)
-	applicationService := application.NewApplicationService(applicationRepo, s3Manager)
+	applicationService := application.NewApplicationService(applicationRepo, jobPostRepo, s3Manager)
 	applicationHandler := application.NewApplicationHandler(applicationService)
 
 	employerAppRepo := employerapplication.NewEmployerApplicationRepository(db)

@@ -347,6 +347,18 @@ func (s *jobPostService) GetByID(id string) (*JobPost, error) {
 	// Populate employer details if missing
 	s.populateEmployerDetails(job)
 
+	// Get the actual count of applications for this job
+	// Note: The applications_count field in the database might not be up-to-date
+	// So we'll get the real count from the applications table
+	var applicationsCount int64
+	err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+		Where("job_id = ?", id).
+		Count(&applicationsCount).Error
+
+	if err == nil {
+		job.ApplicationsCount = int(applicationsCount)
+	}
+
 	return job, nil
 }
 
@@ -402,7 +414,27 @@ func (s *jobPostService) populateEmployerDetails(job *JobPost) {
 }
 
 func (s *jobPostService) GetByEmployer(employerID string) ([]JobPost, error) {
-	return s.repo.GetByEmployer(employerID)
+	jobs, err := s.repo.GetByEmployer(employerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 func (s *jobPostService) Search(filter *JobPostFilter) ([]JobPost, error) {
@@ -419,9 +451,19 @@ func (s *jobPostService) Search(filter *JobPostFilter) ([]JobPost, error) {
 		return nil, err
 	}
 
-	// Populate employer details for all jobs
+	// Populate employer details and applications count for all jobs
 	for i := range jobs {
 		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
 	}
 
 	return jobs, nil
@@ -437,7 +479,27 @@ func (s *jobPostService) GetFeaturedJobs(limit int) ([]JobPost, error) {
 		limit = 10
 	}
 
-	return s.repo.GetFeaturedJobs(limit)
+	jobs, err := s.repo.GetFeaturedJobs(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 func (s *jobPostService) GetRecentJobs(limit int) ([]JobPost, error) {
@@ -446,7 +508,27 @@ func (s *jobPostService) GetRecentJobs(limit int) ([]JobPost, error) {
 		limit = 20
 	}
 
-	return s.repo.GetRecentJobs(limit)
+	jobs, err := s.repo.GetRecentJobs(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 // Enhanced search and discovery methods
@@ -465,6 +547,21 @@ func (s *jobPostService) AdvancedSearch(request *AdvancedJobSearchRequest) (*Job
 	jobs, total, err := s.repo.AdvancedSearch(request)
 	if err != nil {
 		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
 	}
 
 	// Calculate pagination info
@@ -504,7 +601,27 @@ func (s *jobPostService) GetTrendingJobs(limit int) ([]JobPost, error) {
 		limit = 10
 	}
 
-	return s.repo.GetTrendingJobs(limit)
+	jobs, err := s.repo.GetTrendingJobs(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 func (s *jobPostService) GetSimilarJobs(jobID string, maxResults int) ([]JobPost, error) {
@@ -512,7 +629,27 @@ func (s *jobPostService) GetSimilarJobs(jobID string, maxResults int) ([]JobPost
 		maxResults = 5
 	}
 
-	return s.repo.GetSimilarJobs(jobID, maxResults)
+	jobs, err := s.repo.GetSimilarJobs(jobID, maxResults)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 func (s *jobPostService) GetRecommendedJobs(request *JobRecommendationRequest) (*JobRecommendationResponse, error) {
@@ -525,6 +662,21 @@ func (s *jobPostService) GetRecommendedJobs(request *JobRecommendationRequest) (
 	jobs, err := s.repo.GetRecommendedJobs(request)
 	if err != nil {
 		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
 	}
 
 	// Generate recommendation reason

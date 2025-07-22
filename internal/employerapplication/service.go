@@ -130,18 +130,19 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 			UserID:        app.UserID,
 			ID:            app.ApplicationID, // For consistency
 			Applicant: ApplicantInfo{
-				Name:        app.Name,
-				Email:       app.Email,
-				Skills:      skills,
-				Experience:  app.Experience,
-				Education:   app.Education,
-				Portfolio:   app.Portfolio,
-				LinkedIn:    app.LinkedIn,
-				Github:      app.Github,
-				ProfileName: app.ProfileName,
-				Location:    app.Location,
-				Summary:     "",        // Not available in current data
-				Phone:       app.Phone, // Use phone number from database
+				Name:            app.Name,
+				Email:           app.Email,
+				ProfilePhotoKey: app.AvatarKey,
+				Skills:          skills,
+				Experience:      app.Experience,
+				Education:       app.Education,
+				Portfolio:       app.Portfolio,
+				LinkedIn:        app.LinkedIn,
+				Github:          app.Github,
+				ProfileName:     app.ProfileName,
+				Location:        app.Location,
+				Summary:         "",        // Not available in current data
+				Phone:           app.Phone, // Use phone number from database
 			},
 		}
 		responses = append(responses, response)

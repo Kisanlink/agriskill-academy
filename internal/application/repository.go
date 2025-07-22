@@ -20,6 +20,8 @@ type ApplicationRepository interface {
 	UpdateStatus(appID, studentID, status string) error
 	UpdateStatusByEmployer(appID, jobID, employerID, status string) error
 	GetJobEmployerID(jobID string) (string, error)
+	GetApplicationsCountByJob(jobID string) (int, error)
+	GetCandidateName(applicationID string) (string, error)
 }
 
 type applicationRepository struct {
@@ -153,4 +155,23 @@ func (r *applicationRepository) GetJobEmployerID(jobID string) (string, error) {
 
 	middleware.DebugLog("DEBUG: Repository GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
 	return employerID, err
+}
+
+func (r *applicationRepository) GetApplicationsCountByJob(jobID string) (int, error) {
+	var count int64
+	err := r.db.Model(&Application{}).
+		Where("job_id = ?", jobID).
+		Count(&count).Error
+	return int(count), err
+}
+
+func (r *applicationRepository) GetCandidateName(applicationID string) (string, error) {
+	var candidateName string
+	err := r.db.Raw(`
+		SELECT u.name 
+		FROM applications a
+		JOIN users u ON u.id = a.student_id
+		WHERE a.id = ?
+	`, applicationID).Scan(&candidateName).Error
+	return candidateName, err
 }

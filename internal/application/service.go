@@ -3,6 +3,7 @@
 package application
 
 import (
+	"asa/internal/jobpost"
 	"asa/internal/middleware"
 	"context"
 	"errors"
@@ -24,15 +25,17 @@ type ApplicationService interface {
 	UpdateStatus(appID, studentID, status string) error
 	UpdateStatusByEmployer(appID, jobID, employerID, status string) error
 	UploadResumeToS3(file *multipart.FileHeader, studentID string) (string, error)
+	GetApplicationsCountByJob(jobID string) (int, error)
 }
 
 type applicationService struct {
-	repo ApplicationRepository
-	s3   *db.S3Manager
+	repo    ApplicationRepository
+	jobRepo jobpost.JobPostRepository
+	s3      *db.S3Manager
 }
 
-func NewApplicationService(repo ApplicationRepository, s3 *db.S3Manager) ApplicationService {
-	return &applicationService{repo: repo, s3: s3}
+func NewApplicationService(repo ApplicationRepository, jobRepo jobpost.JobPostRepository, s3 *db.S3Manager) ApplicationService {
+	return &applicationService{repo: repo, jobRepo: jobRepo, s3: s3}
 }
 
 func (s *applicationService) Apply(app *Application) error {
@@ -145,7 +148,32 @@ func (s *applicationService) UpdateStatusByEmployer(appID, jobID, employerID, st
 		return errors.New("employers cannot withdraw applications")
 	}
 
-	return s.repo.UpdateStatusByEmployer(appID, jobID, employerID, status)
+	// Update the application status
+	err := s.repo.UpdateStatusByEmployer(appID, jobID, employerID, status)
+	if err != nil {
+		return err
+	}
+
+	// If the application is accepted, update the job post with the hired candidate
+	if status == StatusAccepted {
+		// Get the candidate name
+		candidateName, err := s.repo.GetCandidateName(appID)
+		if err != nil {
+			middleware.DebugLog("DEBUG: Error getting candidate name: %v\n", err)
+			return fmt.Errorf("failed to get candidate name: %w", err)
+		}
+
+		// Update the job post with the hired candidate
+		err = s.jobRepo.UpdateHiredCandidate(jobID, candidateName)
+		if err != nil {
+			middleware.DebugLog("DEBUG: Error updating job with hired candidate: %v\n", err)
+			return fmt.Errorf("failed to update job with hired candidate: %w", err)
+		}
+
+		middleware.DebugLog("DEBUG: Successfully updated job %s with hired candidate: %s\n", jobID, candidateName)
+	}
+
+	return nil
 }
 
 func (s *applicationService) UploadResumeToS3(file *multipart.FileHeader, studentID string) (string, error) {
@@ -182,4 +210,8 @@ func (s *applicationService) UploadResumeToS3(file *multipart.FileHeader, studen
 
 	middleware.DebugLog("DEBUG: File uploaded successfully to S3 with key: %s\n", s3Key)
 	return s3Key, nil
+}
+
+func (s *applicationService) GetApplicationsCountByJob(jobID string) (int, error) {
+	return s.repo.GetApplicationsCountByJob(jobID)
 }

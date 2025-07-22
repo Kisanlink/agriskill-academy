@@ -165,12 +165,12 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(studentID strin
 
 	rows, err := r.db.Raw(`
 		SELECT 
-			a.id, a.job_id, a.student_id, a.applied_at, a.status, a.cover_letter, a.resume_key,
-			a.job_title, a.company, a.location, a.job_type, a.experience,
-			u.id as id, u.name, u.email,
-			up.profile_photo as avatar, up.resume as resume_url, up.skills::text as skills, up.location, 
-			up.experience as experience, up.education, up.portfolio, up.linkedin, up.github, up.name as name,
-			up.phone_number as phone
+			a.id AS application_id, a.job_id, a.student_id, a.applied_at, a.status AS application_status, a.cover_letter, a.resume_key,
+			a.job_title, a.company, a.location AS job_location, a.job_type,
+			u.id AS user_id, u.name AS user_name, u.email AS user_email,
+			up.profile_photo AS avatar_key, up.skills::text AS skills, up.location AS user_location, 
+			up.experience AS user_experience, up.education, up.portfolio, up.linkedin, up.github, up.name AS profile_name,
+			up.phone_number AS phone
 		FROM applications a
 		JOIN users u ON u.id = a.student_id
 		JOIN student_profiles up ON up.user_id = a.student_id

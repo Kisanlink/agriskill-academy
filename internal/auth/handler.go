@@ -565,57 +565,32 @@ func (h *AuthHandler) Verify(c *gin.Context) {
 }
 
 // @Summary Forgot Password
-// @Description Send password reset email to user
+// @Description Handle forgot password flow with OTP verification
 // @Tags Authentication
 // @Accept json
 // @Produce json
-// @Param request body map[string]interface{} true "Email for password reset"
-// @Success 200 {object} map[string]interface{} "Password reset email sent"
-// @Failure 400 {object} map[string]interface{} "Invalid email"
+// @Param request body map[string]interface{} true "Forgot password request (username for step 1, username+otp for step 2, username+otp+new_password for step 3)"
+// @Success 200 {object} map[string]interface{} "OTP sent/verified or password reset successful"
+// @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 500 {object} map[string]interface{} "Internal server error or AAA service unavailable"
 // @Router /api/auth/forgot-password [post]
 // POST /auth/forgot-password
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
-	var req struct {
-		Email string `json:"email" binding:"required,email"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid email"})
-		return
-	}
-	body, _ := json.Marshal(req)
-	resp, err := http.Post(config.AAAServiceBaseURL+"/forgot-password", "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Auth service unavailable"})
-		return
-	}
-	defer resp.Body.Close()
-	responseBody, _ := io.ReadAll(resp.Body)
-	c.Data(resp.StatusCode, "application/json", responseBody)
-}
-
-// @Summary Reset Password
-// @Description Reset user password using reset token
-// @Tags Authentication
-// @Accept json
-// @Produce json
-// @Param request body map[string]interface{} true "Reset password data"
-// @Success 200 {object} map[string]interface{} "Password reset successful"
-// @Failure 400 {object} map[string]interface{} "Invalid request"
-// @Failure 500 {object} map[string]interface{} "Internal server error or AAA service unavailable"
-// @Router /api/auth/reset-password [post]
-// POST /auth/reset-password
-func (h *AuthHandler) ResetPassword(c *gin.Context) {
-	var req struct {
-		Token       string `json:"token" binding:"required"`
-		NewPassword string `json:"new_password" binding:"required"`
-	}
+	var req map[string]interface{}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request"})
 		return
 	}
+
+	// Validate required fields based on step
+	username, hasUsername := req["username"].(string)
+	if !hasUsername || username == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Username is required"})
+		return
+	}
+
 	body, _ := json.Marshal(req)
-	resp, err := http.Post(config.AAAServiceBaseURL+"/reset-password", "application/json", bytes.NewBuffer(body))
+	resp, err := http.Post(config.AAAServiceBaseURL+"/api/v1/forgot-password", "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Auth service unavailable"})
 		return

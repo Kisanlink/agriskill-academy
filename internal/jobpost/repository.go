@@ -4,6 +4,7 @@ import (
 	"asa/internal/middleware"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
@@ -51,8 +52,13 @@ func NewJobPostRepository(db *gorm.DB) JobPostRepository {
 	return &jobPostRepository{db}
 }
 
-// BeforeCreate hook to map salary fields
+// BeforeCreate hook to map salary fields and generate UUID
 func (job *JobPost) BeforeCreate(tx *gorm.DB) error {
+	// Generate UUID for ID if it's empty
+	if job.ID == "" {
+		job.ID = uuid.New().String()
+	}
+
 	// Map nested salary to individual fields for database storage
 	job.SalaryMin = job.Salary.Min
 	job.SalaryMax = job.Salary.Max

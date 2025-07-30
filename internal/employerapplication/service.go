@@ -51,9 +51,7 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 				}
 			}
 		}
-
 		middleware.DebugLog("DEBUG: Processing application - ApplicationID: %s, JobID: %s, StudentID: %s\n", app.ApplicationID, app.JobID, app.StudentID)
-
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,
@@ -116,7 +114,7 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 				}
 			}
 		}
-
+    
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,

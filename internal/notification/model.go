@@ -2,6 +2,11 @@ package notification
 
 import (
 	"time"
+
+	"fmt"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // Notification Preferences Models
@@ -18,6 +23,18 @@ type NotificationPreferences struct {
 	DailyJobMatches    bool      `json:"daily_job_matches" gorm:"default:false"`
 	CreatedAt          time.Time `json:"created_at"`
 	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (n *NotificationPreferences) BeforeCreate(tx *gorm.DB) error {
+	if n.ID == "" {
+		n.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(n.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for NotificationPreferences ID: %w", err)
+		}
+	}
+	return nil
 }
 
 // Request/Response Models

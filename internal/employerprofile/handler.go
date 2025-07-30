@@ -307,6 +307,7 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 				return
 			}
 
+
 			// Upload to S3 and set only the S3 key
 			key, err := h.storage.SaveImage(logoFile, "employer_logos")
 			if err != nil {

@@ -3,7 +3,11 @@ package employerprofile
 import (
 	"time"
 
+	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"gorm.io/gorm"
 )
 
 type EmployerProfile struct {
@@ -80,6 +84,18 @@ type UpdateEmployerProfileRequest struct {
 	City           string `json:"city,omitempty"`
 	State          string `json:"state,omitempty"`
 	Pincode        string `json:"pincode,omitempty"`
+}
+
+// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
+func (e *EmployerProfile) BeforeCreate(tx *gorm.DB) error {
+	if e.ID == "" {
+		e.ID = uuid.New().String()
+	} else {
+		if _, err := uuid.Parse(e.ID); err != nil {
+			return fmt.Errorf("invalid UUID format for EmployerProfile ID: %w", err)
+		}
+	}
+	return nil
 }
 
 // TableName specifies the database table name for EmployerProfile

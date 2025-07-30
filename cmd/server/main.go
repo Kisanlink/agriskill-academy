@@ -14,6 +14,7 @@ import (
 	"asa/internal/application"
 	"asa/internal/auth"
 	"asa/internal/bookmark"
+	"asa/internal/contact"
 	"asa/internal/employerapplication"
 	"asa/internal/employerprofile"
 	"asa/internal/grpc"
@@ -55,6 +56,7 @@ func runAutoMigrate(db *gorm.DB) error {
 		&bookmark.Bookmark{},
 		&notification.NotificationPreferences{},
 		&employerapplication.Message{},
+		&contact.ContactRequest{},
 	}
 
 	for _, m := range models {
@@ -195,6 +197,10 @@ func main() {
 	adminService := admin.NewAdminService(adminRepo)
 	adminHandler := admin.NewAdminHandler(adminService)
 
+	contactRepo := contact.NewContactRepository(db)
+	contactService := contact.NewContactService(contactRepo)
+	contactHandler := contact.NewContactHandler(contactService)
+
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -212,6 +218,7 @@ func main() {
 	auth.RegisterRoutes(api, authHandler)
 	jobpost.RegisterPublicRoutes(api, jobPostHandler)
 	storage.RegisterPublicRoutes(api, storageHandler, fileServeHandler)
+	contact.RegisterPublicRoutes(api, contactHandler)
 
 	// Protected routes
 	authGroup := api.Group("/")
@@ -227,6 +234,7 @@ func main() {
 	storage.RegisterAuthenticatedRoutes(authGroup, storageHandler, fileServeHandler)
 	notification.RegisterRoutes(authGroup, notificationHandler)
 	worker.RegisterRoutes(authGroup, workerHandler)
+	contact.RegisterAdminRoutes(authGroup, contactHandler)
 
 	// Start server
 	port := os.Getenv("PORT")

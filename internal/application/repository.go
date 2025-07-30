@@ -77,7 +77,6 @@ func (r *applicationRepository) GetByJob(jobID string) ([]Application, error) {
 	for i, app := range apps {
 		middleware.DebugLog("DEBUG: Application %d - ID: %s, JobID: %s, StudentID: %s\n", i, app.ID, app.JobID, app.StudentID)
 	}
-
 	return apps, err
 }
 

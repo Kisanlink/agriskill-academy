@@ -160,7 +160,11 @@ func (r *employerApplicationRepository) AddMessage(msg *Message) error {
 	return err
 }
 
-func (r *employerApplicationRepository) GetApplicationsByStudent(studentID string) ([]JobApplicationWithApplicant, error) {
+// repository/employer_application_repository.go
+func (r *employerApplicationRepository) GetApplicationsByStudent(
+	studentID string,
+) ([]JobApplicationWithApplicant, error) {
+
 	var results []JobApplicationWithApplicant
 
 	rows, err := r.db.Raw(`
@@ -172,23 +176,15 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(studentID strin
 			up.experience AS user_experience, up.education, up.portfolio, up.linkedin, up.github, up.name AS profile_name,
 			up.phone_number AS phone
 		FROM applications a
-		JOIN users u ON u.id = a.student_id
-		JOIN student_profiles up ON up.user_id = a.student_id
+		JOIN users            u  ON u.id  = a.student_id
+		LEFT JOIN student_profiles up ON up.user_id = a.student_id
 		WHERE a.student_id = ?
-	`, studentID).Rows()
-	if err != nil {
+	`
+
+	if err := r.db.Raw(q, studentID).Scan(&results).Error; err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var app JobApplicationWithApplicant
-		err = r.db.ScanRows(rows, &app)
-		if err == nil {
-			results = append(results, app)
-		}
-	}
-	return results, err
+	return results, nil
 }
 
 func (r *employerApplicationRepository) GetMessages(applicationID string) ([]Message, error) {

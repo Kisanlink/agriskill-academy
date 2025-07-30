@@ -83,6 +83,10 @@ migrate:
 		chmod +x scripts/012_convert_binary_to_s3_keys.sh; \
 		./scripts/012_convert_binary_to_s3_keys.sh; \
 	fi
+	@if [ -f "scripts/014_add_contact_requests.sh" ]; then \
+		chmod +x scripts/014_add_contact_requests.sh; \
+		./scripts/014_add_contact_requests.sh; \
+	fi
 	@echo "Migrations applied successfully!"
 
 # Debug migration issues

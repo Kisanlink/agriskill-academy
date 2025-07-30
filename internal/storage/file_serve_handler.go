@@ -2,18 +2,68 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"net/http"
+	"path/filepath"
+	"strings"
+
+	"asa/internal/middleware"
+	db "asa/pkg/db"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type FileServeHandler struct {
+	s3 *db.S3Manager
 	db *gorm.DB
 }
 
-func NewFileServeHandler(db *gorm.DB) *FileServeHandler {
-	return &FileServeHandler{db: db}
+func NewFileServeHandler(s3 *db.S3Manager, database *gorm.DB) *FileServeHandler {
+	return &FileServeHandler{s3: s3, db: database}
+}
+
+// StudentProfile represents the student profile model for database lookup
+type StudentProfile struct {
+	ID              string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	UserID          string `gorm:"type:uuid;not null" json:"user_id"`
+	ProfilePhotoKey string `json:"profile_photo_key,omitempty"`
+	ResumeKey       string `json:"resume_key,omitempty"`
+}
+
+func (StudentProfile) TableName() string {
+	return "student_profiles"
+}
+
+// Application represents the application model for database lookup
+type Application struct {
+	ID        string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	ResumeKey string `json:"resume_key,omitempty"`
+}
+
+func (Application) TableName() string {
+	return "applications"
+}
+
+// Certificate represents the certificate model for database lookup
+type Certificate struct {
+	ID      string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	FileKey string `json:"file_key,omitempty"`
+}
+
+func (Certificate) TableName() string {
+	return "certificates"
+}
+
+// EmployerProfile represents the employer profile model for database lookup
+type EmployerProfile struct {
+	ID      string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	UserID  string `gorm:"type:uuid;not null" json:"user_id"`
+	LogoKey string `json:"logo_key,omitempty"`
+}
+
+func (EmployerProfile) TableName() string {
+	return "employer_profiles"
 }
 
 // GET /files/serve/resume/:user_id
@@ -24,36 +74,56 @@ func (h *FileServeHandler) ServeResume(c *gin.Context) {
 		return
 	}
 
-	// Get resume from student_profiles table
-	var profile struct {
-		Resume     []byte `gorm:"column:resume"`
-		ResumeName string `gorm:"column:resume_name"`
-		ResumeType string `gorm:"column:resume_type"`
-		ResumeSize int64  `gorm:"column:resume_size"`
-	}
+	middleware.DebugLog("DEBUG: ServeResume - UserID: %s\n", userID)
 
-	err := h.db.Table("student_profiles").
-		Select("resume, resume_name, resume_type, resume_size").
-		Where("user_id = ?", userID).
-		First(&profile).Error
-
+	// First, get the resume key from the student profile
+	var profile StudentProfile
+	err := h.db.Where("user_id = ?", userID).First(&profile).Error
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Resume not found"})
+		middleware.DebugLog("DEBUG: Profile not found for user %s: %v\n", userID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
 		return
 	}
 
-	if len(profile.Resume) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Resume file is empty"})
+	if profile.ResumeKey == "" {
+		middleware.DebugLog("DEBUG: No resume key for user %s\n", userID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Resume not set"})
 		return
 	}
 
-	// Set response headers
-	c.Header("Content-Type", profile.ResumeType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", profile.ResumeName))
-	c.Header("Content-Length", fmt.Sprintf("%d", profile.ResumeSize))
+	middleware.DebugLog("DEBUG: Found resume key: %s\n", profile.ResumeKey)
 
-	// Return binary data
-	c.Data(http.StatusOK, profile.ResumeType, profile.Resume)
+	// Normalize the key to use forward slashes for S3
+	normalizedKey := strings.ReplaceAll(profile.ResumeKey, "\\", "/")
+	middleware.DebugLog("DEBUG: Normalized resume key: %s\n", normalizedKey)
+
+	// Download the file from S3
+	reader, err := h.s3.DownloadFile(c, normalizedKey)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Failed to download resume from S3: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download resume"})
+		return
+	}
+	defer reader.Close()
+
+	// Determine content type based on file extension
+	ext := strings.ToLower(filepath.Ext(normalizedKey))
+	contentType := "application/pdf" // default
+	switch ext {
+	case ".doc":
+		contentType = "application/msword"
+	case ".docx":
+		contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".pdf":
+		contentType = "application/pdf"
+	}
+
+	middleware.DebugLog("DEBUG: Serving resume with content type: %s\n", contentType)
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(normalizedKey)))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/certificate/:certificate_id
@@ -64,36 +134,60 @@ func (h *FileServeHandler) ServeCertificate(c *gin.Context) {
 		return
 	}
 
-	// Get certificate from certificates table
-	var certificate struct {
-		File     []byte `gorm:"column:file"`
-		FileName string `gorm:"column:file_name"`
-		FileType string `gorm:"column:file_type"`
-		FileSize int64  `gorm:"column:file_size"`
-	}
+	middleware.DebugLog("DEBUG: ServeCertificate - CertificateID: %s\n", certificateID)
 
-	err := h.db.Table("certificates").
-		Select("file, file_name, file_type, file_size").
-		Where("id = ?", certificateID).
-		First(&certificate).Error
-
+	// First, get the file key from the certificate
+	var certificate Certificate
+	err := h.db.Where("id = ?", certificateID).First(&certificate).Error
 	if err != nil {
+		middleware.DebugLog("DEBUG: Certificate not found for ID %s: %v\n", certificateID, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "Certificate not found"})
 		return
 	}
 
-	if len(certificate.File) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Certificate file is empty"})
+	if certificate.FileKey == "" {
+		middleware.DebugLog("DEBUG: No file key for certificate %s\n", certificateID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Certificate file not set"})
 		return
 	}
 
-	// Set response headers
-	c.Header("Content-Type", certificate.FileType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", certificate.FileName))
-	c.Header("Content-Length", fmt.Sprintf("%d", certificate.FileSize))
+	middleware.DebugLog("DEBUG: Found certificate file key: %s\n", certificate.FileKey)
 
-	// Return binary data
-	c.Data(http.StatusOK, certificate.FileType, certificate.File)
+	// Normalize the key to use forward slashes for S3
+	normalizedKey := strings.ReplaceAll(certificate.FileKey, "\\", "/")
+	middleware.DebugLog("DEBUG: Normalized certificate key: %s\n", normalizedKey)
+
+	// Download the file from S3
+	reader, err := h.s3.DownloadFile(c, normalizedKey)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Failed to download certificate from S3: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download certificate"})
+		return
+	}
+	defer reader.Close()
+
+	// Determine content type based on file extension
+	ext := strings.ToLower(filepath.Ext(normalizedKey))
+	contentType := "application/pdf" // default
+	switch ext {
+	case ".doc":
+		contentType = "application/msword"
+	case ".docx":
+		contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".pdf":
+		contentType = "application/pdf"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".png":
+		contentType = "image/png"
+	}
+
+	middleware.DebugLog("DEBUG: Serving certificate with content type: %s\n", contentType)
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(normalizedKey)))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/profile-photo/:user_id
@@ -104,36 +198,58 @@ func (h *FileServeHandler) ServeProfilePhoto(c *gin.Context) {
 		return
 	}
 
-	// Get profile photo from student_profiles table
-	var profile struct {
-		ProfilePhoto     []byte `gorm:"column:profile_photo"`
-		ProfilePhotoName string `gorm:"column:profile_photo_name"`
-		ProfilePhotoType string `gorm:"column:profile_photo_type"`
-		ProfilePhotoSize int64  `gorm:"column:profile_photo_size"`
-	}
+	middleware.DebugLog("DEBUG: ServeProfilePhoto - UserID: %s\n", userID)
 
-	err := h.db.Table("student_profiles").
-		Select("profile_photo, profile_photo_name, profile_photo_type, profile_photo_size").
-		Where("user_id = ?", userID).
-		First(&profile).Error
-
+	// First, get the profile photo key from the student profile
+	var profile StudentProfile
+	err := h.db.Where("user_id = ?", userID).First(&profile).Error
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Profile photo not found"})
+		middleware.DebugLog("DEBUG: Profile not found for user %s: %v\n", userID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Profile not found"})
 		return
 	}
 
-	if len(profile.ProfilePhoto) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Profile photo is empty"})
+	if profile.ProfilePhotoKey == "" {
+		middleware.DebugLog("DEBUG: No profile photo key for user %s\n", userID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Profile photo not set"})
 		return
 	}
 
-	// Set response headers
-	c.Header("Content-Type", profile.ProfilePhotoType)
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", profile.ProfilePhotoName))
-	c.Header("Content-Length", fmt.Sprintf("%d", profile.ProfilePhotoSize))
+	middleware.DebugLog("DEBUG: Found profile photo key: %s\n", profile.ProfilePhotoKey)
 
-	// Return binary data
-	c.Data(http.StatusOK, profile.ProfilePhotoType, profile.ProfilePhoto)
+	// Normalize the key to use forward slashes for S3
+	normalizedKey := strings.ReplaceAll(profile.ProfilePhotoKey, "\\", "/")
+	middleware.DebugLog("DEBUG: Normalized key: %s\n", normalizedKey)
+
+	// Download the file from S3
+	reader, err := h.s3.DownloadFile(c, normalizedKey)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Failed to download from S3: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download profile photo"})
+		return
+	}
+	defer reader.Close()
+
+	// Determine content type based on file extension
+	ext := strings.ToLower(filepath.Ext(normalizedKey))
+	contentType := "image/jpeg" // default
+	switch ext {
+	case ".png":
+		contentType = "image/png"
+	case ".gif":
+		contentType = "image/gif"
+	case ".webp":
+		contentType = "image/webp"
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	}
+
+	middleware.DebugLog("DEBUG: Serving profile photo with content type: %s\n", contentType)
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(normalizedKey)))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/logo/:employer_id
@@ -144,36 +260,58 @@ func (h *FileServeHandler) ServeLogo(c *gin.Context) {
 		return
 	}
 
-	// Get logo from employer_profiles table
-	var profile struct {
-		Logo     []byte `gorm:"column:logo"`
-		LogoName string `gorm:"column:logo_name"`
-		LogoType string `gorm:"column:logo_type"`
-		LogoSize int64  `gorm:"column:logo_size"`
-	}
+	middleware.DebugLog("DEBUG: ServeLogo - EmployerID: %s\n", employerID)
 
-	err := h.db.Table("employer_profiles").
-		Select("logo, logo_name, logo_type, logo_size").
-		Where("user_id = ?", employerID).
-		First(&profile).Error
-
+	// First, get the logo key from the employer profile
+	var profile EmployerProfile
+	err := h.db.Where("user_id = ?", employerID).First(&profile).Error
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Logo not found"})
+		middleware.DebugLog("DEBUG: Employer profile not found for user %s: %v\n", employerID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Employer profile not found"})
 		return
 	}
 
-	if len(profile.Logo) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Logo is empty"})
+	if profile.LogoKey == "" {
+		middleware.DebugLog("DEBUG: No logo key for employer %s\n", employerID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Logo not set"})
 		return
 	}
 
-	// Set response headers
-	c.Header("Content-Type", profile.LogoType)
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", profile.LogoName))
-	c.Header("Content-Length", fmt.Sprintf("%d", profile.LogoSize))
+	middleware.DebugLog("DEBUG: Found logo key: %s\n", profile.LogoKey)
 
-	// Return binary data
-	c.Data(http.StatusOK, profile.LogoType, profile.Logo)
+	// Normalize the key to use forward slashes for S3
+	normalizedKey := strings.ReplaceAll(profile.LogoKey, "\\", "/")
+	middleware.DebugLog("DEBUG: Normalized logo key: %s\n", normalizedKey)
+
+	// Download the file from S3
+	reader, err := h.s3.DownloadFile(c, normalizedKey)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Failed to download logo from S3: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download logo"})
+		return
+	}
+	defer reader.Close()
+
+	// Determine content type based on file extension
+	ext := strings.ToLower(filepath.Ext(normalizedKey))
+	contentType := "image/png" // default
+	switch ext {
+	case ".jpg", ".jpeg":
+		contentType = "image/jpeg"
+	case ".png":
+		contentType = "image/png"
+	case ".gif":
+		contentType = "image/gif"
+	case ".webp":
+		contentType = "image/webp"
+	}
+
+	middleware.DebugLog("DEBUG: Serving logo with content type: %s\n", contentType)
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(normalizedKey)))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/avatar/:user_id
@@ -183,37 +321,29 @@ func (h *FileServeHandler) ServeAvatar(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-
-	// Get avatar from users table
-	var user struct {
-		Avatar     []byte `gorm:"column:avatar"`
-		AvatarName string `gorm:"column:avatar_name"`
-		AvatarType string `gorm:"column:avatar_type"`
-		AvatarSize int64  `gorm:"column:avatar_size"`
+	// Assume avatar key is avatars/{user_id}.jpg (or similar convention)
+	keyPrefix := "avatars/" + userID
+	var files []db.S3File
+	filters := []db.Filter{
+		h.s3.BuildFilter("prefix", db.FilterOpEqual, keyPrefix),
 	}
-
-	err := h.db.Table("users").
-		Select("avatar, avatar_name, avatar_type, avatar_size").
-		Where("id = ?", userID).
-		First(&user).Error
-
-	if err != nil {
+	err := h.s3.List(c, filters, &files)
+	if err != nil || len(files) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Avatar not found"})
 		return
 	}
-
-	if len(user.Avatar) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Avatar is empty"})
+	file := files[0]
+	reader, err := h.s3.DownloadFile(c, file.Key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download avatar"})
 		return
 	}
-
-	// Set response headers
-	c.Header("Content-Type", user.AvatarType)
-	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", user.AvatarName))
-	c.Header("Content-Length", fmt.Sprintf("%d", user.AvatarSize))
-
-	// Return binary data
-	c.Data(http.StatusOK, user.AvatarType, user.Avatar)
+	defer reader.Close()
+	c.Header("Content-Type", file.ContentType)
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(file.Key)))
+	c.Header("Content-Length", fmt.Sprintf("%d", file.Size))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }
 
 // GET /files/serve/application-resume/:application_id
@@ -224,34 +354,54 @@ func (h *FileServeHandler) ServeApplicationResume(c *gin.Context) {
 		return
 	}
 
-	// Get resume from applications table
-	var application struct {
-		ResumeFile     []byte `gorm:"column:resume_file"`
-		ResumeFileName string `gorm:"column:resume_file_name"`
-		ResumeFileType string `gorm:"column:resume_file_type"`
-		ResumeFileSize int64  `gorm:"column:resume_file_size"`
-	}
+	middleware.DebugLog("DEBUG: ServeApplicationResume - ApplicationID: %s\n", applicationID)
 
-	err := h.db.Table("applications").
-		Select("resume_file, resume_file_name, resume_file_type, resume_file_size").
-		Where("id = ?", applicationID).
-		First(&application).Error
-
+	// First, get the resume key from the application
+	var application Application
+	err := h.db.Where("id = ?", applicationID).First(&application).Error
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Application resume not found"})
+		middleware.DebugLog("DEBUG: Application not found for ID %s: %v\n", applicationID, err)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Application not found"})
 		return
 	}
 
-	if len(application.ResumeFile) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Application resume is empty"})
+	if application.ResumeKey == "" {
+		middleware.DebugLog("DEBUG: No resume key for application %s\n", applicationID)
+		c.JSON(http.StatusNotFound, gin.H{"error": "Application resume not set"})
 		return
 	}
 
-	// Set response headers
-	c.Header("Content-Type", application.ResumeFileType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", application.ResumeFileName))
-	c.Header("Content-Length", fmt.Sprintf("%d", application.ResumeFileSize))
+	middleware.DebugLog("DEBUG: Found application resume key: %s\n", application.ResumeKey)
 
-	// Return binary data
-	c.Data(http.StatusOK, application.ResumeFileType, application.ResumeFile)
+	// Normalize the key to use forward slashes for S3
+	normalizedKey := strings.ReplaceAll(application.ResumeKey, "\\", "/")
+	middleware.DebugLog("DEBUG: Normalized application resume key: %s\n", normalizedKey)
+
+	// Download the file from S3
+	reader, err := h.s3.DownloadFile(c, normalizedKey)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Failed to download application resume from S3: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to download application resume"})
+		return
+	}
+	defer reader.Close()
+
+	// Determine content type based on file extension
+	ext := strings.ToLower(filepath.Ext(normalizedKey))
+	contentType := "application/pdf" // default
+	switch ext {
+	case ".doc":
+		contentType = "application/msword"
+	case ".docx":
+		contentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+	case ".pdf":
+		contentType = "application/pdf"
+	}
+
+	middleware.DebugLog("DEBUG: Serving application resume with content type: %s\n", contentType)
+
+	c.Header("Content-Type", contentType)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(normalizedKey)))
+	c.Status(http.StatusOK)
+	_, _ = io.Copy(c.Writer, reader)
 }

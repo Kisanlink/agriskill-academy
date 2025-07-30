@@ -347,6 +347,18 @@ func (s *jobPostService) GetByID(id string) (*JobPost, error) {
 	// Populate employer details if missing
 	s.populateEmployerDetails(job)
 
+	// Get the actual count of applications for this job
+	// Note: The applications_count field in the database might not be up-to-date
+	// So we'll get the real count from the applications table
+	var applicationsCount int64
+	err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+		Where("job_id = ?", id).
+		Count(&applicationsCount).Error
+
+	if err == nil {
+		job.ApplicationsCount = int(applicationsCount)
+	}
+
 	return job, nil
 }
 
@@ -355,31 +367,74 @@ func (s *jobPostService) populateEmployerDetails(job *JobPost) {
 	middleware.DebugLog("DEBUG: populateEmployerDetails called for job %s\n", job.ID)
 	middleware.DebugLog("DEBUG: Current employerName: '%s', employerEmail: '%s'\n", job.EmployerName, job.EmployerEmail)
 
-	if job.EmployerName == "" || job.EmployerEmail == "" {
-		middleware.DebugLog("DEBUG: Fetching employer profile for user ID: %s\n", job.EmployerID)
-		employerProfile, err := s.employerRepo.GetByUserID(job.EmployerID)
-		if err != nil {
-			middleware.DebugLog("DEBUG: Error fetching employer profile: %v\n", err)
-		} else if employerProfile != nil {
-			middleware.DebugLog("DEBUG: Found employer profile: %+v\n", employerProfile)
-			if job.EmployerName == "" {
-				job.EmployerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
-				middleware.DebugLog("DEBUG: Set employerName to: '%s'\n", job.EmployerName)
-			}
-			if job.EmployerEmail == "" {
-				job.EmployerEmail = employerProfile.OfficialEmail
-				middleware.DebugLog("DEBUG: Set employerEmail to: '%s'\n", job.EmployerEmail)
-			}
-		} else {
-			middleware.DebugLog("DEBUG: No employer profile found\n")
+	// Always fetch employer profile to populate company details
+	middleware.DebugLog("DEBUG: Fetching employer profile for user ID: %s\n", job.EmployerID)
+	employerProfile, err := s.employerRepo.GetByUserID(job.EmployerID)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Error fetching employer profile: %v\n", err)
+	} else if employerProfile != nil {
+		middleware.DebugLog("DEBUG: Found employer profile: %+v\n", employerProfile)
+
+		// Populate basic employer details if missing
+		if job.EmployerName == "" {
+			job.EmployerName = employerProfile.RecruiterName
+			middleware.DebugLog("DEBUG: Set employerName to: '%s'\n", job.EmployerName)
 		}
+		if job.EmployerEmail == "" {
+			job.EmployerEmail = employerProfile.OfficialEmail
+			middleware.DebugLog("DEBUG: Set employerEmail to: '%s'\n", job.EmployerEmail)
+		}
+
+		// Populate company details
+		job.CompanyName = employerProfile.CompanyName
+		job.CompanyDescription = employerProfile.CompanyDescription
+		job.Industry = employerProfile.Industry
+		job.CompanySize = employerProfile.CompanySize
+		job.WebsiteURL = employerProfile.WebsiteURL
+		job.CompanyAddress = employerProfile.CompanyAddress
+		job.City = employerProfile.City
+		job.State = employerProfile.State
+		job.Pincode = employerProfile.Pincode
+
+		// Convert arrays from employer profile
+		if employerProfile.JobCategories != nil {
+			job.JobCategories = []string(employerProfile.JobCategories)
+		}
+		if employerProfile.HiringLocations != nil {
+			job.HiringLocations = []string(employerProfile.HiringLocations)
+		}
+		if employerProfile.HiringTypes != nil {
+			job.HiringTypes = []string(employerProfile.HiringTypes)
+		}
+
+		middleware.DebugLog("DEBUG: Populated company details - Company: %s, Industry: %s\n", job.CompanyName, job.Industry)
 	} else {
-		middleware.DebugLog("DEBUG: Employer details already populated\n")
+		middleware.DebugLog("DEBUG: No employer profile found\n")
 	}
 }
 
 func (s *jobPostService) GetByEmployer(employerID string) ([]JobPost, error) {
-	return s.repo.GetByEmployer(employerID)
+	jobs, err := s.repo.GetByEmployer(employerID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 func (s *jobPostService) Search(filter *JobPostFilter) ([]JobPost, error) {
@@ -396,9 +451,19 @@ func (s *jobPostService) Search(filter *JobPostFilter) ([]JobPost, error) {
 		return nil, err
 	}
 
-	// Populate employer details for all jobs
+	// Populate employer details and applications count for all jobs
 	for i := range jobs {
 		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
 	}
 
 	return jobs, nil
@@ -414,7 +479,27 @@ func (s *jobPostService) GetFeaturedJobs(limit int) ([]JobPost, error) {
 		limit = 10
 	}
 
-	return s.repo.GetFeaturedJobs(limit)
+	jobs, err := s.repo.GetFeaturedJobs(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 func (s *jobPostService) GetRecentJobs(limit int) ([]JobPost, error) {
@@ -423,7 +508,27 @@ func (s *jobPostService) GetRecentJobs(limit int) ([]JobPost, error) {
 		limit = 20
 	}
 
-	return s.repo.GetRecentJobs(limit)
+	jobs, err := s.repo.GetRecentJobs(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 // Enhanced search and discovery methods
@@ -442,6 +547,21 @@ func (s *jobPostService) AdvancedSearch(request *AdvancedJobSearchRequest) (*Job
 	jobs, total, err := s.repo.AdvancedSearch(request)
 	if err != nil {
 		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
 	}
 
 	// Calculate pagination info
@@ -481,7 +601,27 @@ func (s *jobPostService) GetTrendingJobs(limit int) ([]JobPost, error) {
 		limit = 10
 	}
 
-	return s.repo.GetTrendingJobs(limit)
+	jobs, err := s.repo.GetTrendingJobs(limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 func (s *jobPostService) GetSimilarJobs(jobID string, maxResults int) ([]JobPost, error) {
@@ -489,7 +629,27 @@ func (s *jobPostService) GetSimilarJobs(jobID string, maxResults int) ([]JobPost
 		maxResults = 5
 	}
 
-	return s.repo.GetSimilarJobs(jobID, maxResults)
+	jobs, err := s.repo.GetSimilarJobs(jobID, maxResults)
+	if err != nil {
+		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
+	}
+
+	return jobs, nil
 }
 
 func (s *jobPostService) GetRecommendedJobs(request *JobRecommendationRequest) (*JobRecommendationResponse, error) {
@@ -502,6 +662,21 @@ func (s *jobPostService) GetRecommendedJobs(request *JobRecommendationRequest) (
 	jobs, err := s.repo.GetRecommendedJobs(request)
 	if err != nil {
 		return nil, err
+	}
+
+	// Populate employer details and applications count for all jobs
+	for i := range jobs {
+		s.populateEmployerDetails(&jobs[i])
+
+		// Get the actual count of applications for this job
+		var applicationsCount int64
+		err = s.repo.(*jobPostRepository).db.Model(&struct{}{}).Table("applications").
+			Where("job_id = ?", jobs[i].ID).
+			Count(&applicationsCount).Error
+
+		if err == nil {
+			jobs[i].ApplicationsCount = int(applicationsCount)
+		}
 	}
 
 	// Generate recommendation reason
@@ -649,7 +824,7 @@ func (s *jobPostService) ProcessJobAlerts() error {
 			// TODO: Send notification to user
 			// This would integrate with the notification service
 			// For now, we just log it
-			// log.Printf("Found %d matching jobs for alert %s (user: %s)", len(jobs), alert.ID, alert.UserID)
+			// middleware.DebugLog("Found %d matching jobs for alert %s (user: %s)", len(jobs), alert.ID, alert.UserID)
 		}
 	}
 

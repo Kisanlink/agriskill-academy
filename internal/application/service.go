@@ -3,10 +3,17 @@
 package application
 
 import (
+	"asa/internal/jobpost"
 	"asa/internal/middleware"
+	"context"
 	"errors"
 	"fmt"
+	"mime/multipart"
+	"path/filepath"
+	"strings"
 	"time"
+
+	db "asa/pkg/db"
 )
 
 type ApplicationService interface {
@@ -17,20 +24,22 @@ type ApplicationService interface {
 	Remove(appID, studentID string) error
 	UpdateStatus(appID, studentID, status string) error
 	UpdateStatusByEmployer(appID, jobID, employerID, status string) error
+	UploadResumeToS3(file *multipart.FileHeader, studentID string) (string, error)
+	GetApplicationsCountByJob(jobID string) (int, error)
 }
 
 type applicationService struct {
-	repo ApplicationRepository
+	repo    ApplicationRepository
+	jobRepo jobpost.JobPostRepository
+	s3      *db.S3Manager
 }
 
-func NewApplicationService(repo ApplicationRepository) ApplicationService {
-	return &applicationService{repo}
+func NewApplicationService(repo ApplicationRepository, jobRepo jobpost.JobPostRepository, s3 *db.S3Manager) ApplicationService {
+	return &applicationService{repo: repo, jobRepo: jobRepo, s3: s3}
 }
 
 func (s *applicationService) Apply(app *Application) error {
 	middleware.DebugLog("DEBUG: Service Apply called for JobID: %s, StudentID: %s\n", app.JobID, app.StudentID)
-
-	// (UUID generation removed; handled by BeforeCreate hook)
 
 	exists, err := s.repo.Exists(app.JobID, app.StudentID)
 	if err != nil {
@@ -139,5 +148,70 @@ func (s *applicationService) UpdateStatusByEmployer(appID, jobID, employerID, st
 		return errors.New("employers cannot withdraw applications")
 	}
 
-	return s.repo.UpdateStatusByEmployer(appID, jobID, employerID, status)
+	// Update the application status
+	err := s.repo.UpdateStatusByEmployer(appID, jobID, employerID, status)
+	if err != nil {
+		return err
+	}
+
+	// If the application is accepted, update the job post with the hired candidate
+	if status == StatusAccepted {
+		// Get the candidate name
+		candidateName, err := s.repo.GetCandidateName(appID)
+		if err != nil {
+			middleware.DebugLog("DEBUG: Error getting candidate name: %v\n", err)
+			return fmt.Errorf("failed to get candidate name: %w", err)
+		}
+
+		// Update the job post with the hired candidate
+		err = s.jobRepo.UpdateHiredCandidate(jobID, candidateName)
+		if err != nil {
+			middleware.DebugLog("DEBUG: Error updating job with hired candidate: %v\n", err)
+			return fmt.Errorf("failed to update job with hired candidate: %w", err)
+		}
+
+		middleware.DebugLog("DEBUG: Successfully updated job %s with hired candidate: %s\n", jobID, candidateName)
+	}
+
+	return nil
+}
+
+func (s *applicationService) UploadResumeToS3(file *multipart.FileHeader, studentID string) (string, error) {
+	middleware.DebugLog("DEBUG: Uploading resume for student %s, file: %s", studentID, file.Filename)
+
+	// Open the file
+	src, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+	defer src.Close()
+
+	// Generate S3 key
+	timestamp := time.Now().UnixNano()
+	ext := filepath.Ext(file.Filename)
+	baseName := strings.TrimSuffix(file.Filename, ext)
+	safeBaseName := strings.ReplaceAll(baseName, " ", "_")
+	filename := fmt.Sprintf("%d_%s%s", timestamp, safeBaseName, ext)
+	s3Key := fmt.Sprintf("application_resumes/%s_%s", studentID, filename)
+
+	// Get content type
+	contentType := file.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	// Upload to S3
+	ctx := context.Background()
+	err = s.s3.UploadFile(ctx, s3Key, src, contentType, nil)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Error uploading file to S3: %v\n", err)
+		return "", err
+	}
+
+	middleware.DebugLog("DEBUG: File uploaded successfully to S3 with key: %s\n", s3Key)
+	return s3Key, nil
+}
+
+func (s *applicationService) GetApplicationsCountByJob(jobID string) (int, error) {
+	return s.repo.GetApplicationsCountByJob(jobID)
 }

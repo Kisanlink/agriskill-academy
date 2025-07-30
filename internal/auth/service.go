@@ -270,18 +270,18 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		}
 
 		profile := &studentprofile.StudentProfile{
-			UserID:       user.ID,
-			Name:         user.Name,
-			Email:        user.Email,
-			Location:     location,
-			Skills:       []string{},
-			Resume:       nil, // Binary data, not string
-			ProfilePhoto: nil, // Binary data, not string
-			Experience:   0.0,
-			Education:    "",
-			Portfolio:    "",
-			Linkedin:     "",
-			Github:       "",
+			UserID:          user.ID,
+			Name:            user.Name,
+			Email:           user.Email,
+			Location:        location,
+			Skills:          []string{},
+			ResumeKey:       "", // S3 key for resume file
+			ProfilePhotoKey: "", // S3 key for profile photo
+			Experience:      0.0,
+			Education:       "",
+			Portfolio:       "",
+			Linkedin:        "",
+			Github:          "",
 		}
 		middleware.DebugLog("🔍 Student profile data: %+v\n", profile)
 		if err := s.studentProfileRepo.Create(profile); err != nil {
@@ -410,19 +410,19 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 		}
 
 		profile := &studentprofile.StudentProfile{
-			UserID:       user.ID,
-			Name:         user.Name,
-			Email:        user.Email,
-			Location:     location,
-			PhoneNumber:  phoneNumber, // <-- set here
-			Skills:       []string{},
-			Resume:       nil, // Binary data, not string
-			ProfilePhoto: nil, // Binary data, not string
-			Experience:   0.0,
-			Education:    "",
-			Portfolio:    "",
-			Linkedin:     "",
-			Github:       "",
+			UserID:          user.ID,
+			Name:            user.Name,
+			Email:           user.Email,
+			Location:        location,
+			PhoneNumber:     phoneNumber, // <-- set here
+			Skills:          []string{},
+			ResumeKey:       "", // S3 key for resume file
+			ProfilePhotoKey: "", // S3 key for profile photo
+			Experience:      0.0,
+			Education:       "",
+			Portfolio:       "",
+			Linkedin:        "",
+			Github:          "",
 		}
 		middleware.DebugLog("🔍 Student profile data: %+v\n", profile)
 		if err := s.studentProfileRepo.Create(profile); err != nil {
@@ -591,7 +591,7 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 	if req.LinkedinProfile != "" {
 		profile.Linkedin = req.LinkedinProfile
 	}
-	// ProfilePhoto and Resume are now binary data, not strings
+	// ProfilePhoto and Resume are now S3 keys, not strings
 	// These should be handled by the file upload handlers, not the auth service
 	// if req.ProfilePhoto != "" {
 	//     profile.ProfilePhoto = req.ProfilePhoto

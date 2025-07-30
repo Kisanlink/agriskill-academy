@@ -2,9 +2,9 @@ package employerprofile
 
 import (
 	"asa/internal/middleware"
+	"asa/internal/storage"
 	"asa/pkg/authz"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -14,10 +14,11 @@ import (
 
 type EmployerProfileHandler struct {
 	service EmployerProfileService
+	storage storage.StorageService
 }
 
-func NewEmployerProfileHandler(s EmployerProfileService) *EmployerProfileHandler {
-	return &EmployerProfileHandler{s}
+func NewEmployerProfileHandler(s EmployerProfileService, storageSvc storage.StorageService) *EmployerProfileHandler {
+	return &EmployerProfileHandler{s, storageSvc}
 }
 
 func getJWT(c *gin.Context) string {
@@ -26,6 +27,35 @@ func getJWT(c *gin.Context) string {
 		return authHeader[7:]
 	}
 	return ""
+}
+
+// IsValidImageFile validates if the file is a valid image type
+func IsValidImageFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
+	for _, allowedExt := range allowedTypes {
+		if ext == allowedExt {
+			return true
+		}
+	}
+	return false
+}
+
+// getMimeTypeFromExtension returns MIME type based on file extension
+func getMimeTypeFromExtension(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 // @Summary Get Employer Profile
@@ -189,9 +219,6 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 	}
 
 	// Handle logo fields - only update if provided
-	if req.Logo != nil {
-		existingProfile.Logo = req.Logo
-	}
 	if req.LogoName != "" {
 		existingProfile.LogoName = req.LogoName
 	}
@@ -200,6 +227,9 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 	}
 	if req.LogoSize != 0 {
 		existingProfile.LogoSize = req.LogoSize
+	}
+	if req.LogoKey != "" {
+		existingProfile.LogoKey = req.LogoKey
 	}
 
 	if err := h.service.UpdateProfile(existingProfile); err != nil {
@@ -258,16 +288,7 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 			middleware.DebugLog("🔍 DEBUG: Logo found - Name: %s, Size: %d\n", logoFile.Filename, logoFile.Size)
 
 			// Validate file type
-			ext := strings.ToLower(filepath.Ext(logoFile.Filename))
-			allowedTypes := []string{".jpg", ".jpeg", ".png", ".gif", ".webp"}
-			isValid := false
-			for _, allowedExt := range allowedTypes {
-				if ext == allowedExt {
-					isValid = true
-					break
-				}
-			}
-			if !isValid {
+			if !IsValidImageFile(logoFile.Filename) {
 				middleware.DebugLog("❌ DEBUG: Invalid logo type: %s\n", logoFile.Filename)
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
@@ -286,37 +307,19 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 				return
 			}
 
-			// Read file into bytes
-			file, err := logoFile.Open()
-			if err != nil {
-				middleware.DebugLog("❌ DEBUG: Failed to open logo file: %v\n", err)
-				c.JSON(http.StatusBadRequest, gin.H{
-					"success": false,
-					"message": "Failed to read logo file",
-				})
-				return
-			}
-			defer file.Close()
 
-			fileBytes, err := io.ReadAll(file)
+			// Upload to S3 and set only the S3 key
+			key, err := h.storage.SaveImage(logoFile, "employer_logos")
 			if err != nil {
-				middleware.DebugLog("❌ DEBUG: Failed to read logo file bytes: %v\n", err)
+				middleware.DebugLog("❌ DEBUG: Failed to upload logo: %v\n", err)
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
-					"message": "Failed to read logo file",
+					"message": "Failed to upload logo",
 				})
 				return
 			}
-
-			// Set logo data in request
-			req.Logo = fileBytes
-			req.LogoName = logoFile.Filename
-			req.LogoType = logoFile.Header.Get("Content-Type")
-			if req.LogoType == "" {
-				req.LogoType = getMimeTypeFromExtension(logoFile.Filename)
-			}
-			req.LogoSize = logoFile.Size
-			middleware.DebugLog("✅ DEBUG: Logo data set - Size: %d bytes, Type: %s, Name: %s\n", len(fileBytes), req.LogoType, req.LogoName)
+			req.LogoKey = key
+			middleware.DebugLog("✅ DEBUG: Logo S3 key set: %s\n", key)
 		}
 
 		// Handle other form fields
@@ -481,13 +484,10 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 		middleware.DebugLog("🔍 DEBUG: Updated hiring types: %v\n", req.HiringTypes)
 	}
 
-	// Handle logo fields - only update if provided
-	if req.Logo != nil {
-		existingProfile.Logo = req.Logo
-		existingProfile.LogoName = req.LogoName
-		existingProfile.LogoType = req.LogoType
-		existingProfile.LogoSize = req.LogoSize
-		middleware.DebugLog("🔍 DEBUG: Updated logo - Name: %s, Size: %d\n", req.LogoName, req.LogoSize)
+	// Update logo key if provided
+	if req.LogoKey != "" {
+		existingProfile.LogoKey = req.LogoKey
+		middleware.DebugLog("🔍 DEBUG: Updated logo - Key: %s\n", req.LogoKey)
 	}
 
 	middleware.DebugLog("🔍 DEBUG: Updating employer profile in database\n")
@@ -647,7 +647,7 @@ func (h *EmployerProfileHandler) UploadLogo(c *gin.Context) {
 		return
 	}
 
-	// Read file into bytes
+	// Validate file can be opened (for S3 upload later)
 	file, err := fileHeader.Open()
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -657,15 +657,6 @@ func (h *EmployerProfileHandler) UploadLogo(c *gin.Context) {
 		return
 	}
 	defer file.Close()
-
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"message": "Failed to read file",
-		})
-		return
-	}
 
 	// Get or create employer profile
 	profile, err := h.service.GetProfile(userID)
@@ -678,13 +669,13 @@ func (h *EmployerProfileHandler) UploadLogo(c *gin.Context) {
 	}
 
 	// Update logo data
-	profile.Logo = fileBytes
 	profile.LogoName = fileHeader.Filename
 	profile.LogoType = fileHeader.Header.Get("Content-Type")
 	if profile.LogoType == "" {
 		profile.LogoType = getMimeTypeFromExtension(fileHeader.Filename)
 	}
 	profile.LogoSize = fileHeader.Size
+	// Note: LogoKey will be set by the service when uploading to S3
 
 	// Save profile
 	err = h.service.UpdateProfile(profile)
@@ -709,19 +700,200 @@ func (h *EmployerProfileHandler) UploadLogo(c *gin.Context) {
 	})
 }
 
-// Helper function to get MIME type from file extension
-func getMimeTypeFromExtension(filename string) string {
-	ext := strings.ToLower(filepath.Ext(filename))
-	switch ext {
-	case ".jpg", ".jpeg":
-		return "image/jpeg"
-	case ".png":
-		return "image/png"
-	case ".gif":
-		return "image/gif"
-	case ".webp":
-		return "image/webp"
-	default:
-		return "application/octet-stream"
+// @Summary Upload My Employer Logo
+// @Description Upload a logo file to the current user's employer profile
+// @Tags Employer Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param logo formData file true "Logo file (JPG, PNG, GIF, WebP, max 5MB)"
+// @Success 200 {object} map[string]interface{} "Logo uploaded successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid file type or size"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/employers/me/logo [post]
+// POST /employers/me/logo
+func (h *EmployerProfileHandler) UploadMyLogo(c *gin.Context) {
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
 	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	// Get the file from the request
+	fileHeader, err := c.FormFile("logo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Logo file is required",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Validate file type
+	if !IsValidImageFile(fileHeader.Filename) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid file type. Allowed: JPG, PNG, GIF, WebP",
+		})
+		return
+	}
+
+	// Validate file size (5MB max)
+	if fileHeader.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File size exceeds maximum allowed size (5MB)",
+		})
+		return
+	}
+
+	// Upload to S3
+	key, err := h.storage.SaveImage(fileHeader, "employer_logos")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to upload logo",
+		})
+		return
+	}
+
+	// Get or create employer profile
+	profile, err := h.service.GetProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "Employer profile not found",
+		})
+		return
+	}
+
+	// Update logo key
+	profile.LogoKey = key
+
+	// Save profile
+	err = h.service.UpdateProfile(profile)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to update profile with logo",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Logo uploaded successfully",
+		"data": gin.H{
+			"file_url": fmt.Sprintf("/api/files/serve/logo/%s", userID),
+		},
+	})
+}
+
+// @Summary Update My Employer Logo
+// @Description Update the logo file for the current user's employer profile
+// @Tags Employer Profile
+// @Accept multipart/form-data
+// @Produce json
+// @Security BearerAuth
+// @Param logo formData file true "Logo file (JPG, PNG, GIF, WebP, max 5MB)"
+// @Success 200 {object} map[string]interface{} "Logo updated successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid file type or size"
+// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Router /api/employers/me/logo [put]
+// PUT /employers/me/logo
+func (h *EmployerProfileHandler) UpdateMyLogo(c *gin.Context) {
+	username := c.GetString("email")
+	userID := c.GetString("user_id")
+	jwtToken := getJWT(c)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_employer_profiles", "update", userID, jwtToken)
+	if err != nil || !allowed {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
+		return
+	}
+
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	// Get the file from the request
+	fileHeader, err := c.FormFile("logo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Logo file is required",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	// Validate file type
+	if !IsValidImageFile(fileHeader.Filename) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Invalid file type. Allowed: JPG, PNG, GIF, WebP",
+		})
+		return
+	}
+
+	// Validate file size (5MB max)
+	if fileHeader.Size > 5*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "File size exceeds maximum allowed size (5MB)",
+		})
+		return
+	}
+
+	// Upload to S3
+	key, err := h.storage.SaveImage(fileHeader, "employer_logos")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to upload logo",
+		})
+		return
+	}
+
+	// Get existing profile
+	profile, err := h.service.GetProfile(userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"message": "Employer profile not found",
+		})
+		return
+	}
+
+	// Update logo key
+	profile.LogoKey = key
+
+	// Save profile
+	err = h.service.UpdateProfile(profile)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to update profile",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Logo updated successfully",
+		"data":    profile,
+	})
 }

@@ -78,6 +78,20 @@ type JobPost struct {
 	ApplicationsCount   int            `json:"applications_count" gorm:"default:0"`
 	CompletedAt         *time.Time     `json:"completed_at"`
 	HiredCandidateName  *string        `json:"hired_candidate_name"`
+
+	// Company details from employer profile (virtual fields)
+	CompanyName        string   `json:"company_name,omitempty" gorm:"-"`
+	CompanyDescription string   `json:"company_description,omitempty" gorm:"-"`
+	Industry           string   `json:"industry,omitempty" gorm:"-"`
+	CompanySize        string   `json:"company_size,omitempty" gorm:"-"`
+	WebsiteURL         string   `json:"website_url,omitempty" gorm:"-"`
+	JobCategories      []string `json:"job_categories,omitempty" gorm:"-"`
+	HiringLocations    []string `json:"hiring_locations,omitempty" gorm:"-"`
+	HiringTypes        []string `json:"hiring_types,omitempty" gorm:"-"`
+	CompanyAddress     string   `json:"company_address,omitempty" gorm:"-"`
+	City               string   `json:"city,omitempty" gorm:"-"`
+	State              string   `json:"state,omitempty" gorm:"-"`
+	Pincode            string   `json:"pincode,omitempty" gorm:"-"`
 }
 
 // Request Models

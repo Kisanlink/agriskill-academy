@@ -5,12 +5,17 @@ package storage
 import (
 	"asa/internal/middleware"
 	"asa/pkg/authz"
-	"io"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+)
+
+var (
+	ErrFileTooLarge    = fmt.Errorf("file size exceeds maximum allowed size")
+	ErrInvalidFileType = fmt.Errorf("file type not allowed")
 )
 
 type StorageHandler struct {
@@ -212,17 +217,10 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 			return
 		}
 
-		// Read file into byte array
-		file, err := profilePhotoFile.Open()
+		// Upload to S3 and get the key
+		key, err := h.service.SaveImage(profilePhotoFile, "profile_photos")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read profile photo file"})
-			return
-		}
-		defer file.Close()
-
-		fileBytes, err := io.ReadAll(file)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read profile photo file"})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to upload profile photo"})
 			return
 		}
 
@@ -236,7 +234,7 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 
 		// Add profile photo data to response
 		responseData["profile_photo"] = gin.H{
-			"file_data": fileBytes,
+			"file_key":  key,
 			"file_name": fileName,
 			"file_type": fileType,
 			"file_size": fileSize,
@@ -268,17 +266,10 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 			return
 		}
 
-		// Read file into byte array
-		file, err := resumeFile.Open()
+		// Upload to S3 and get the key
+		key, err := h.service.SaveResume(resumeFile, "resumes")
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read resume file"})
-			return
-		}
-		defer file.Close()
-
-		fileBytes, err := io.ReadAll(file)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read resume file"})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to upload resume"})
 			return
 		}
 
@@ -292,7 +283,7 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 
 		// Add resume data to response
 		responseData["resume"] = gin.H{
-			"file_data": fileBytes,
+			"file_key":  key,
 			"file_name": fileName,
 			"file_type": fileType,
 			"file_size": fileSize,
@@ -305,7 +296,7 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 		return
 	}
 
-	// Return the binary data for the frontend to use in profile update
+	// Return the S3 key data for the frontend to use in profile update
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Files processed successfully",
@@ -892,17 +883,10 @@ func (h *StorageHandler) UploadEmployerLogo(c *gin.Context) {
 		return
 	}
 
-	// Read file into byte array
-	file, err := logoFile.Open()
+	// Upload to S3 and get the key
+	key, err := h.service.SaveImage(logoFile, "logos")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read logo file"})
-		return
-	}
-	defer file.Close()
-
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read logo file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to upload logo"})
 		return
 	}
 
@@ -914,13 +898,13 @@ func (h *StorageHandler) UploadEmployerLogo(c *gin.Context) {
 	}
 	fileSize := logoFile.Size
 
-	// Return the binary data for the frontend to use in employer profile update
+	// Return the S3 key for the frontend to use in employer profile update
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Logo processed successfully",
 		"data": gin.H{
 			"logo": gin.H{
-				"file_data": fileBytes,
+				"file_key":  key,
 				"file_name": fileName,
 				"file_type": fileType,
 				"file_size": fileSize,

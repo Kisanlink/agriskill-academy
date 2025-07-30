@@ -20,6 +20,7 @@ type JobPostRepository interface {
 	IncrementApplicationsCount(jobID string) error
 	GetFeaturedJobs(limit int) ([]JobPost, error)
 	GetRecentJobs(limit int) ([]JobPost, error)
+	UpdateHiredCandidate(jobID string, candidateName string) error
 
 	// Enhanced search and discovery methods
 	AdvancedSearch(request *AdvancedJobSearchRequest) ([]JobPost, int, error)
@@ -112,6 +113,17 @@ func (r *jobPostRepository) GetByEmployer(employerID string) ([]JobPost, error) 
 	var jobs []JobPost
 	err := r.db.Where("employer_id = ?", employerID).Find(&jobs).Error
 	return jobs, err
+}
+
+func (r *jobPostRepository) UpdateHiredCandidate(jobID string, candidateName string) error {
+	now := time.Now()
+	return r.db.Model(&JobPost{}).
+		Where("id = ?", jobID).
+		Updates(map[string]interface{}{
+			"hired_candidate_name": candidateName,
+			"status":               "completed",
+			"completed_at":         &now,
+		}).Error
 }
 
 func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {

@@ -3,9 +3,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"mime/multipart"
 	"os"
 	"time"
 
@@ -14,6 +14,7 @@ import (
 	"asa/internal/application"
 	"asa/internal/auth"
 	"asa/internal/bookmark"
+	"asa/internal/contact"
 	"asa/internal/employerapplication"
 	"asa/internal/employerprofile"
 	"asa/internal/grpc"
@@ -26,9 +27,12 @@ import (
 
 	_ "asa/docs" // Import swagger docs
 
+	kdb "asa/pkg/db"
+
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -52,6 +56,7 @@ func runAutoMigrate(db *gorm.DB) error {
 		&bookmark.Bookmark{},
 		&notification.NotificationPreferences{},
 		&employerapplication.Message{},
+		&contact.ContactRequest{},
 	}
 
 	for _, m := range models {
@@ -63,31 +68,6 @@ func runAutoMigrate(db *gorm.DB) error {
 
 	log.Println("AutoMigrate completed successfully!")
 	return nil
-}
-
-// mockStorageService satisfies storage.Service but disables file uploads
-type mockStorageService struct{}
-
-func (m *mockStorageService) SaveFile(_ *multipart.FileHeader, _ string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled in profile handlers")
-}
-func (m *mockStorageService) SaveImage(_ *multipart.FileHeader, _ string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled in profile handlers")
-}
-func (m *mockStorageService) SaveDocument(_ *multipart.FileHeader, _ string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled in profile handlers")
-}
-func (m *mockStorageService) SaveResume(_ *multipart.FileHeader, _ string) (string, error) {
-	return "", fmt.Errorf("file uploads are now handled in profile handlers")
-}
-func (m *mockStorageService) DeleteFile(string) error {
-	return fmt.Errorf("file operations are now handled in profile handlers")
-}
-func (m *mockStorageService) ListFiles(_ string) ([]storage.FileInfo, error) {
-	return nil, nil
-}
-func (m *mockStorageService) GetFileInfo(string) (*storage.FileInfo, error) {
-	return nil, fmt.Errorf("file operations are now handled in profile handlers")
 }
 
 func main() {
@@ -102,6 +82,46 @@ func main() {
 	if err := runAutoMigrate(db); err != nil {
 		log.Fatalf("Failed to run auto migration: %v", err)
 	}
+
+	// S3 Storage Service setup
+	s3Region := os.Getenv("AWS_REGION")
+	if s3Region == "" {
+		s3Region = "us-east-1"
+	}
+	s3Bucket := os.Getenv("AWS_S3_BUCKET")
+	if s3Bucket == "" {
+		log.Fatalf("AWS_S3_BUCKET env var is required for S3 storage")
+	}
+	s3Endpoint := os.Getenv("AWS_S3_ENDPOINT")
+	s3ForcePathStyle := os.Getenv("AWS_S3_FORCE_PATH_STYLE") == "true"
+	s3DisableSSL := os.Getenv("AWS_S3_DISABLE_SSL") == "true"
+	s3AccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
+	s3SecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+
+	if s3AccessKeyID == "" || s3SecretAccessKey == "" {
+		log.Fatalf("AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars are required for S3 storage")
+	}
+
+	s3Config := &kdb.Config{
+		S3Region:          s3Region,
+		S3Bucket:          s3Bucket,
+		S3Endpoint:        s3Endpoint,
+		S3ForcePathStyle:  s3ForcePathStyle,
+		S3DisableSSL:      s3DisableSSL,
+		S3AccessKeyID:     s3AccessKeyID,
+		S3SecretAccessKey: s3SecretAccessKey,
+		LogLevel:          "info",
+	}
+	s3Logger := zap.NewNop()
+	s3Manager := kdb.NewS3Manager(s3Config, s3Logger)
+	if err := s3Manager.Connect(context.Background()); err != nil {
+		log.Fatalf("Failed to connect to S3: %v", err)
+	}
+	baseURL := os.Getenv("ASA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:3000/api"
+	}
+	storageService := storage.NewS3StorageService(s3Manager, s3Bucket, baseURL)
 
 	// Create Gin router with middleware
 	router := gin.Default()
@@ -141,14 +161,14 @@ func main() {
 	authHandler := auth.NewAuthHandler(authService)
 
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
-	employerProfileHandler := employerprofile.NewEmployerProfileHandler(employerProfileService)
+	employerProfileHandler := employerprofile.NewEmployerProfileHandler(employerProfileService, storageService)
 
 	jobPostRepo := jobpost.NewJobPostRepository(db)
 	jobPostService := jobpost.NewJobPostService(jobPostRepo, employerProfileRepo)
 	jobPostHandler := jobpost.NewJobPostHandler(jobPostService)
 
 	applicationRepo := application.NewApplicationRepository(db)
-	applicationService := application.NewApplicationService(applicationRepo)
+	applicationService := application.NewApplicationService(applicationRepo, jobPostRepo, s3Manager)
 	applicationHandler := application.NewApplicationHandler(applicationService)
 
 	employerAppRepo := employerapplication.NewEmployerApplicationRepository(db)
@@ -160,11 +180,11 @@ func main() {
 	bookmarkHandler := bookmark.NewBookmarkHandler(bookmarkService)
 
 	studentProfileService := studentprofile.NewStudentProfileService(studentProfileRepo)
-	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService)
+	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService, storageService)
 
 	// File serving and storage handlers
-	fileServeHandler := storage.NewFileServeHandler(db)
-	storageHandler := storage.NewStorageHandler(&mockStorageService{})
+	fileServeHandler := storage.NewFileServeHandler(s3Manager, db)
+	storageHandler := storage.NewStorageHandler(storageService)
 
 	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
 	notificationService := notification.NewNotificationService(notificationPrefsRepo)
@@ -176,6 +196,10 @@ func main() {
 	adminRepo := admin.NewAdminRepository(db)
 	adminService := admin.NewAdminService(adminRepo)
 	adminHandler := admin.NewAdminHandler(adminService)
+
+	contactRepo := contact.NewContactRepository(db)
+	contactService := contact.NewContactService(contactRepo)
+	contactHandler := contact.NewContactHandler(contactService)
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
@@ -194,6 +218,7 @@ func main() {
 	auth.RegisterRoutes(api, authHandler)
 	jobpost.RegisterPublicRoutes(api, jobPostHandler)
 	storage.RegisterPublicRoutes(api, storageHandler, fileServeHandler)
+	contact.RegisterPublicRoutes(api, contactHandler)
 
 	// Protected routes
 	authGroup := api.Group("/")
@@ -209,6 +234,7 @@ func main() {
 	storage.RegisterAuthenticatedRoutes(authGroup, storageHandler, fileServeHandler)
 	notification.RegisterRoutes(authGroup, notificationHandler)
 	worker.RegisterRoutes(authGroup, workerHandler)
+	contact.RegisterAdminRoutes(authGroup, contactHandler)
 
 	// Start server
 	port := os.Getenv("PORT")

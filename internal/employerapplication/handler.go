@@ -3,7 +3,6 @@ package employerapplication
 import (
 	"asa/internal/middleware"
 	"asa/pkg/authz"
-	"log"
 	"net/http"
 	"strings"
 
@@ -76,7 +75,7 @@ func (h *EmployerApplicationHandler) GetApplicationsForJob(c *gin.Context) {
 
 	apps, err := h.service.GetApplicationsForJob(jobID, status)
 	if err != nil {
-		log.Printf("DEBUG: GetApplicationsForJob error: %v\n", err)
+		middleware.DebugLog("DEBUG: GetApplicationsForJob error: %v\n", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch applications"})
 		return
 	}

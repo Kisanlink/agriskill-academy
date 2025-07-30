@@ -118,29 +118,23 @@ type UpdateProfileRequest struct {
 
 // @Description Student profile model
 type StudentProfile struct {
-	ID               string        `json:"id" example:"uuid-string"`
-	UserID           string        `json:"user_id" example:"uuid-string"`
-	Name             string        `json:"name" example:"John Doe"`
-	Email            string        `json:"email" example:"john@example.com"`
-	Location         string        `json:"location" example:"Mumbai, India"`
-	PhoneNumber      string        `json:"phone_number" example:"9876543210"`
-	ProfilePhoto     []byte        `json:"profile_photo"`
-	ProfilePhotoName string        `json:"profile_photo_name" example:"profile.jpg"`
-	ProfilePhotoType string        `json:"profile_photo_type" example:"image/jpeg"`
-	ProfilePhotoSize int64         `json:"profile_photo_size" example:"1024000"`
-	Resume           []byte        `json:"resume"`
-	ResumeName       string        `json:"resume_name" example:"resume.pdf"`
-	ResumeType       string        `json:"resume_type" example:"application/pdf"`
-	ResumeSize       int64         `json:"resume_size" example:"2048576"`
-	Certificates     []Certificate `json:"certificates"`
-	Skills           []string      `json:"skills" example:"Go,Python,JavaScript"`
-	Experience       float64       `json:"experience" example:"3.5"`
-	Education        string        `json:"education" example:"B.Tech Computer Science"`
-	Portfolio        string        `json:"portfolio" example:"https://github.com/johndoe"`
-	Linkedin         string        `json:"linkedin" example:"https://linkedin.com/in/johndoe"`
-	Github           string        `json:"github" example:"https://github.com/johndoe"`
-	CreatedAt        string        `json:"created_at" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt        string        `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+	ID              string        `json:"id" example:"uuid-string"`
+	UserID          string        `json:"user_id" example:"uuid-string"`
+	Name            string        `json:"name" example:"John Doe"`
+	Email           string        `json:"email" example:"john@example.com"`
+	Location        string        `json:"location" example:"Mumbai, India"`
+	PhoneNumber     string        `json:"phone_number" example:"9876543210"`
+	ProfilePhotoKey string        `json:"profile_photo_key,omitempty" example:"profile_photos/user123.jpg"`
+	ResumeKey       string        `json:"resume_key,omitempty" example:"resumes/user123_resume.pdf"`
+	Certificates    []Certificate `json:"certificates"`
+	Skills          []string      `json:"skills" example:"Go,Python,JavaScript"`
+	Experience      float64       `json:"experience" example:"3.5"`
+	Education       string        `json:"education" example:"B.Tech Computer Science"`
+	Portfolio       string        `json:"portfolio" example:"https://github.com/johndoe"`
+	Linkedin        string        `json:"linkedin" example:"https://linkedin.com/in/johndoe"`
+	Github          string        `json:"github" example:"https://github.com/johndoe"`
+	CreatedAt       string        `json:"created_at" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt       string        `json:"updated_at" example:"2024-01-01T00:00:00Z"`
 }
 
 // @Description Certificate model
@@ -148,10 +142,10 @@ type Certificate struct {
 	ID               string `json:"id" example:"uuid-string"`
 	StudentProfileID string `json:"student_profile_id" example:"uuid-string"`
 	Name             string `json:"name" example:"AWS Certified Solutions Architect"`
-	File             []byte `json:"file"`
-	FileName         string `json:"file_name" example:"aws-certificate.pdf"`
-	FileType         string `json:"file_type" example:"application/pdf"`
-	FileSize         int64  `json:"file_size" example:"1024000"`
+	FileKey          string `json:"file_key,omitempty" example:"certificates/cert123.pdf"`
+	FileName         string `json:"file_name,omitempty" example:"aws-certificate.pdf"`
+	FileType         string `json:"file_type,omitempty" example:"application/pdf"`
+	FileSize         int64  `json:"file_size,omitempty" example:"1024000"`
 	IssueDate        string `json:"issue_date" example:"2024-01-01"`
 }
 
@@ -202,10 +196,10 @@ type Application struct {
 	JobID          string `json:"job_id" example:"uuid-string"`
 	StudentID      string `json:"student_id" example:"uuid-string"`
 	CoverLetter    string `json:"cover_letter" example:"I am excited to apply..."`
-	ResumeFile     []byte `json:"resume_file"`
-	ResumeFileName string `json:"resume_file_name" example:"resume.pdf"`
-	ResumeFileType string `json:"resume_file_type" example:"application/pdf"`
-	ResumeFileSize int64  `json:"resume_file_size" example:"2048576"`
+	ResumeKey      string `json:"resume_key,omitempty" example:"application_resumes/app123.pdf"`
+	ResumeFileName string `json:"resume_file_name,omitempty" example:"resume.pdf"`
+	ResumeFileType string `json:"resume_file_type,omitempty" example:"application/pdf"`
+	ResumeFileSize int64  `json:"resume_file_size,omitempty" example:"2048576"`
 	Status         string `json:"status" example:"applied"`
 	AppliedAt      string `json:"applied_at" example:"2024-01-01T00:00:00Z"`
 }
@@ -306,7 +300,7 @@ type UpdateJobPostRequest struct {
 // @Description Update certificate request
 type UpdateCertificateRequest struct {
 	Name      string `json:"name" binding:"required" example:"AWS Certified Solutions Architect"`
-	File      []byte `json:"file" binding:"required"`
+	FileKey   string `json:"file_key,omitempty" example:"certificates/cert123.pdf"`
 	FileName  string `json:"file_name,omitempty" example:"aws-certificate.pdf"`
 	FileType  string `json:"file_type,omitempty" example:"application/pdf"`
 	FileSize  int64  `json:"file_size,omitempty" example:"1024000"`
@@ -315,24 +309,18 @@ type UpdateCertificateRequest struct {
 
 // @Description Update student profile request
 type UpdateStudentProfileRequest struct {
-	UserID           string        `json:"user_id,omitempty" example:"uuid-string"`
-	Name             string        `json:"name,omitempty" example:"John Doe"`
-	Email            string        `json:"email,omitempty" example:"john@example.com"`
-	Location         string        `json:"location,omitempty" example:"Mumbai, India"`
-	PhoneNumber      string        `json:"phone_number,omitempty" example:"9876543210"`
-	ProfilePhoto     []byte        `json:"profile_photo,omitempty"`
-	ProfilePhotoName string        `json:"profile_photo_name,omitempty" example:"profile.jpg"`
-	ProfilePhotoType string        `json:"profile_photo_type,omitempty" example:"image/jpeg"`
-	ProfilePhotoSize int64         `json:"profile_photo_size,omitempty" example:"1024000"`
-	Resume           []byte        `json:"resume,omitempty"`
-	ResumeName       string        `json:"resume_name,omitempty" example:"resume.pdf"`
-	ResumeType       string        `json:"resume_type,omitempty" example:"application/pdf"`
-	ResumeSize       int64         `json:"resume_size,omitempty" example:"2048576"`
-	Skills           []string      `json:"skills,omitempty" example:"Go,Python,JavaScript"`
-	Experience       *float64      `json:"experience,omitempty" example:"3.5"`
-	Education        string        `json:"education,omitempty" example:"B.Tech Computer Science"`
-	Portfolio        string        `json:"portfolio,omitempty" example:"https://github.com/johndoe"`
-	Linkedin         string        `json:"linkedin,omitempty" example:"https://linkedin.com/in/johndoe"`
-	Github           string        `json:"github,omitempty" example:"https://github.com/johndoe"`
-	Certificates     []Certificate `json:"certificates,omitempty"`
+	UserID          string        `json:"user_id,omitempty" example:"uuid-string"`
+	Name            string        `json:"name,omitempty" example:"John Doe"`
+	Email           string        `json:"email,omitempty" example:"john@example.com"`
+	Location        string        `json:"location,omitempty" example:"Mumbai, India"`
+	PhoneNumber     string        `json:"phone_number,omitempty" example:"9876543210"`
+	ProfilePhotoKey string        `json:"profile_photo_key,omitempty" example:"profile_photos/user123.jpg"`
+	ResumeKey       string        `json:"resume_key,omitempty" example:"resumes/user123_resume.pdf"`
+	Skills          []string      `json:"skills,omitempty" example:"Go,Python,JavaScript"`
+	Experience      *float64      `json:"experience,omitempty" example:"3.5"`
+	Education       string        `json:"education,omitempty" example:"B.Tech Computer Science"`
+	Portfolio       string        `json:"portfolio,omitempty" example:"https://github.com/johndoe"`
+	Linkedin        string        `json:"linkedin,omitempty" example:"https://linkedin.com/in/johndoe"`
+	Github          string        `json:"github,omitempty" example:"https://github.com/johndoe"`
+	Certificates    []Certificate `json:"certificates,omitempty"`
 }

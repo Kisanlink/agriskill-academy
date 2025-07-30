@@ -20,6 +20,8 @@ type ApplicationRepository interface {
 	UpdateStatus(appID, studentID, status string) error
 	UpdateStatusByEmployer(appID, jobID, employerID, status string) error
 	GetJobEmployerID(jobID string) (string, error)
+	GetApplicationsCountByJob(jobID string) (int, error)
+	GetCandidateName(applicationID string) (string, error)
 }
 
 type applicationRepository struct {
@@ -44,9 +46,37 @@ func (r *applicationRepository) GetByJob(jobID string) ([]Application, error) {
 	middleware.DebugLog("DEBUG: Repository GetByJob - JobID: %s\n", jobID)
 
 	var apps []Application
-	err := r.db.Where("job_id = ?", jobID).Order("applied_at DESC").Find(&apps).Error
+	err := r.db.Raw(`
+		SELECT 
+			a.id,
+			a.job_id,
+			a.student_id,
+			a.applied_at,
+			a.status,
+			a.cover_letter,
+			a.resume_key,
+			a.resume_file_name,
+			a.resume_file_type,
+			a.resume_file_size,
+			a.job_title,
+			a.company,
+			a.location,
+			a.job_type,
+			a.experience,
+			a.updated_at,
+			COALESCE(sp.phone_number, '') as student_phone_number
+		FROM applications a
+		LEFT JOIN student_profiles sp ON a.student_id = sp.user_id
+		WHERE a.job_id = ?
+		ORDER BY a.applied_at DESC
+	`, jobID).Scan(&apps).Error
 
 	middleware.DebugLog("DEBUG: Repository GetByJob result - Found %d applications, Error: %v\n", len(apps), err)
+
+	// Debug log each application to see the ID
+	for i, app := range apps {
+		middleware.DebugLog("DEBUG: Application %d - ID: %s, JobID: %s, StudentID: %s\n", i, app.ID, app.JobID, app.StudentID)
+	}
 	return apps, err
 }
 
@@ -124,4 +154,23 @@ func (r *applicationRepository) GetJobEmployerID(jobID string) (string, error) {
 
 	middleware.DebugLog("DEBUG: Repository GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
 	return employerID, err
+}
+
+func (r *applicationRepository) GetApplicationsCountByJob(jobID string) (int, error) {
+	var count int64
+	err := r.db.Model(&Application{}).
+		Where("job_id = ?", jobID).
+		Count(&count).Error
+	return int(count), err
+}
+
+func (r *applicationRepository) GetCandidateName(applicationID string) (string, error) {
+	var candidateName string
+	err := r.db.Raw(`
+		SELECT u.name 
+		FROM applications a
+		JOIN users u ON u.id = a.student_id
+		WHERE a.id = ?
+	`, applicationID).Scan(&candidateName).Error
+	return candidateName, err
 }

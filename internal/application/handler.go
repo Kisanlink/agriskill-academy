@@ -6,7 +6,6 @@ import (
 	"asa/internal/middleware"
 	"asa/pkg/authz"
 	"fmt"
-	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -120,25 +119,7 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 		})
 		return
 	}
-
-	// Read file into bytes
-	fileReader, err := file.Open()
-	if err != nil {
-		middleware.DebugLog("DEBUG: Failed to open file: %v\n", err)
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to read file"})
-		return
-	}
-	defer fileReader.Close()
-
-	fileBytes, err := io.ReadAll(fileReader)
-	if err != nil {
-		middleware.DebugLog("DEBUG: Failed to read file bytes: %v\n", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read file"})
-		return
-	}
-
-	middleware.DebugLog("DEBUG: File read successfully - Size: %d bytes\n", len(fileBytes))
-
+  
 	// Get file metadata
 	fileName := file.Filename
 	fileType := file.Header.Get("Content-Type")
@@ -147,12 +128,20 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 	}
 	fileSize := file.Size
 
+	// Upload file to S3 and get the key
+	resumeKey, err := h.service.UploadResumeToS3(file, studentID)
+	if err != nil {
+		middleware.DebugLog("DEBUG: Failed to upload resume to S3: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to upload resume"})
+		return
+	}
+
 	app := &Application{
 		ID:             uuid.New().String(),
 		JobID:          jobId,
 		StudentID:      studentID,
 		CoverLetter:    coverLetter,
-		ResumeFile:     fileBytes,
+		ResumeKey:      resumeKey,
 		ResumeFileName: fileName,
 		ResumeFileType: fileType,
 		ResumeFileSize: fileSize,
@@ -174,6 +163,7 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 			"id":               app.ID,
 			"job_id":           app.JobID,
 			"student_id":       app.StudentID,
+			"resume_key":       app.ResumeKey,
 			"resume_file_name": app.ResumeFileName,
 			"resume_file_type": app.ResumeFileType,
 			"resume_file_size": app.ResumeFileSize,

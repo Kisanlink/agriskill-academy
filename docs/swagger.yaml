@@ -209,6 +209,8 @@ definitions:
     type: object
   employerprofile.EmployerProfile:
     type: object
+  employerprofile.UpdateEmployerProfileRequest:
+    type: object
   jobpost.AdvancedJobSearchRequest:
     properties:
       benefits:
@@ -582,10 +584,8 @@ definitions:
     type: object
   studentprofile.Certificate:
     properties:
-      file:
-        items:
-          type: integer
-        type: array
+      file_key:
+        type: string
       file_name:
         type: string
       file_size:
@@ -607,10 +607,12 @@ definitions:
   studentprofile.StudentProfile:
     properties:
       certificates:
+        description: Optional professional information
         items:
           $ref: '#/definitions/studentprofile.Certificate'
         type: array
       created_at:
+        description: System managed fields
         type: string
       education:
         type: string
@@ -625,32 +627,19 @@ definitions:
       linkedin:
         type: string
       location:
+        description: Optional contact and location
         type: string
       name:
+        description: Required basic information
         type: string
       phone_number:
         type: string
       portfolio:
         type: string
-      profile_photo:
-        items:
-          type: integer
-        type: array
-      profile_photo_name:
+      profile_photo_key:
+        description: S3 file keys for profile media
         type: string
-      profile_photo_size:
-        type: integer
-      profile_photo_type:
-        type: string
-      resume:
-        items:
-          type: integer
-        type: array
-      resume_name:
-        type: string
-      resume_size:
-        type: integer
-      resume_type:
+      resume_key:
         type: string
       skills:
         items:
@@ -667,22 +656,13 @@ definitions:
     type: object
   studentprofile.UpdateCertificateRequest:
     properties:
-      file:
-        items:
-          type: integer
-        type: array
-      file_name:
-        type: string
-      file_size:
-        type: integer
-      file_type:
+      file_key:
         type: string
       issue_date:
         type: string
       name:
         type: string
     required:
-    - file
     - issue_date
     - name
     type: object
@@ -1862,7 +1842,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/employerprofile.EmployerProfile'
+          $ref: '#/definitions/employerprofile.UpdateEmployerProfileRequest'
       produces:
       - application/json
       responses:
@@ -1884,6 +1864,45 @@ paths:
       security:
       - BearerAuth: []
       summary: Update Employer Profile
+      tags:
+      - Employer Profile
+  /api/employers/me/logo:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a logo file for the current employer profile
+      parameters:
+      - description: Logo file (JPG, PNG, GIF, WebP, max 5MB)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logo uploaded successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid file type or size
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Employer Logo
       tags:
       - Employer Profile
   /api/employers/me/profile:
@@ -1917,6 +1936,45 @@ paths:
       security:
       - BearerAuth: []
       summary: Get My Employer Profile
+      tags:
+      - Employer Profile
+    put:
+      consumes:
+      - application/json
+      description: Update the current user's employer profile
+      parameters:
+      - description: Profile update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/employerprofile.UpdateEmployerProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update My Employer Profile
       tags:
       - Employer Profile
   /api/employers/profile:
@@ -3956,13 +4014,13 @@ paths:
       summary: Upload Image
       tags:
       - File Storage
-  /api/upload/image/profile-photo:
+  /api/upload/image/employer-logo:
     post:
       consumes:
       - multipart/form-data
-      description: Upload a profile photo for the current user
+      description: Upload a logo file for employer profile
       parameters:
-      - description: Profile photo (JPG, PNG, GIF, WebP, max 5MB)
+      - description: Logo file (JPG, PNG, GIF, WebP, max 5MB)
         in: formData
         name: file
         required: true
@@ -3971,7 +4029,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Profile photo processed successfully
+          description: Logo processed successfully
           schema:
             additionalProperties: true
             type: object
@@ -3992,7 +4050,49 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Upload Profile Photo
+      summary: Upload Employer Logo
+      tags:
+      - File Storage
+  /api/upload/image/profile-photo:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a profile photo and/or resume for the current user
+      parameters:
+      - description: Profile photo (JPG, PNG, GIF, WebP, max 5MB)
+        in: formData
+        name: file
+        type: file
+      - description: Resume file (PDF, DOC, DOCX, max 10MB)
+        in: formData
+        name: resume
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Files processed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid file format or size
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload Profile Photo and Resume
       tags:
       - File Storage
   /api/upload/student/certificate:

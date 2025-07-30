@@ -15,10 +15,10 @@ type User struct {
 	Email      string    `json:"email" binding:"required,email"`
 	Password   string    `json:"password" binding:"required"`
 	Role       string    `json:"role" binding:"required"`
-	Avatar     []byte    `json:"avatar" gorm:"type:bytea"`
-	AvatarName string    `json:"avatar_name"`
-	AvatarType string    `json:"avatar_type"`
-	AvatarSize int64     `json:"avatar_size"`
+	AvatarKey  string    `json:"avatar_key,omitempty"`
+	AvatarName string    `json:"avatar_name,omitempty"`
+	AvatarType string    `json:"avatar_type,omitempty"`
+	AvatarSize int64     `json:"avatar_size,omitempty"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
@@ -46,10 +46,10 @@ type SignupRequest struct {
 	Email           string `json:"email" binding:"required"`     // Email for our local DB
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
-	Role            string `json:"role" binding:"required,oneof=student employer"` // "student" or "employer"
-	PhoneNumber     string `json:"phone_number" binding:"required"`                // Changed to string for frontend compatibility
-	CountryCode     string `json:"country_code,omitempty"`                         // Optional, defaults to "+91"
-	AadhaarNumber   string `json:"aadhaar_number,omitempty"`                       // Optional
+	Role            string `json:"role" binding:"required,oneof=student employer asa_admin"` // "student" or "employer"
+	PhoneNumber     string `json:"phone_number" binding:"required"`                          // Changed to string for frontend compatibility
+	CountryCode     string `json:"country_code,omitempty"`                                   // Optional, defaults to "+91"
+	AadhaarNumber   string `json:"aadhaar_number,omitempty"`                                 // Optional
 
 	// Employer-only fields (optional)
 	CompanyName    string `json:"company_name,omitempty"`

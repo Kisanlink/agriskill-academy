@@ -39,7 +39,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 		query = `
 			SELECT 
 				a.id AS application_id, a.job_id, a.student_id, a.applied_at, a.status AS application_status,
-				a.cover_letter, a.resume_file AS student_resume_file,
+				a.cover_letter, a.resume_key AS student_resume_key,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
 				up.profile_photo AS avatar, 
@@ -62,7 +62,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 		query = `
 			SELECT 
 				a.id AS application_id, a.job_id, a.student_id, a.applied_at, a.status AS application_status,
-				a.cover_letter, a.resume_file AS student_resume_file,
+				a.cover_letter, a.resume_key AS student_resume_key,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
 				up.profile_photo AS avatar, 
@@ -167,38 +167,14 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(
 
 	var results []JobApplicationWithApplicant
 
-	const q = `
-		SELECT
-			-- application-side fields (ALIAS THEM!)
-			a.id          AS application_id,
-			a.job_id      AS job_id,
-			a.student_id  AS student_id,
-			a.applied_at,
-			a.status      AS application_status,
-			a.cover_letter,
-			a.resume_file AS student_resume_file,
-
-			a.job_title,
-			a.company,
-			a.location    AS job_location,
-			a.job_type,
-
-			-- user / profile fields
-			u.id          AS user_id,
-			u.name        AS user_name,
-			u.email       AS user_email,
-
-			COALESCE(up.profile_photo,'')            AS avatar,
-			COALESCE(up.resume,'')                   AS resume_url,
-			COALESCE(up.skills::text,'')             AS skills,
-			COALESCE(up.location,'')                 AS user_location,
-			COALESCE(CAST(up.experience AS TEXT),'') AS user_experience,
-			COALESCE(up.education,'')                AS education,
-			COALESCE(up.portfolio,'')                AS portfolio,
-			COALESCE(up.linkedin,'')                 AS linkedin,
-			COALESCE(up.github,'')                   AS github,
-			COALESCE(up.name, u.name)                AS profile_name,
-			COALESCE(up.phone_number,'')             AS phone
+	rows, err := r.db.Raw(`
+		SELECT 
+			a.id AS application_id, a.job_id, a.student_id, a.applied_at, a.status AS application_status, a.cover_letter, a.resume_key,
+			a.job_title, a.company, a.location AS job_location, a.job_type,
+			u.id AS user_id, u.name AS user_name, u.email AS user_email,
+			up.profile_photo AS avatar_key, up.skills::text AS skills, up.location AS user_location, 
+			up.experience AS user_experience, up.education, up.portfolio, up.linkedin, up.github, up.name AS profile_name,
+			up.phone_number AS phone
 		FROM applications a
 		JOIN users            u  ON u.id  = a.student_id
 		LEFT JOIN student_profiles up ON up.user_id = a.student_id

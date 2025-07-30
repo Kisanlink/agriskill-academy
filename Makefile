@@ -79,6 +79,14 @@ migrate:
 		chmod +x scripts/010_convert_file_storage_to_binary.sh; \
 		./scripts/010_convert_file_storage_to_binary.sh; \
 	fi
+	@if [ -f "scripts/012_convert_binary_to_s3_keys.sh" ]; then \
+		chmod +x scripts/012_convert_binary_to_s3_keys.sh; \
+		./scripts/012_convert_binary_to_s3_keys.sh; \
+	fi
+	@if [ -f "scripts/014_add_contact_requests.sh" ]; then \
+		chmod +x scripts/014_add_contact_requests.sh; \
+		./scripts/014_add_contact_requests.sh; \
+	fi
 	@echo "Migrations applied successfully!"
 
 # Debug migration issues
@@ -101,6 +109,8 @@ migrate-reset:
 # Initial setup
 setup:
 	@echo "Setting up ASA Backend development environment..."
+	@echo "Installing dependencies..."
+	go mod tidy
 	@echo "Installing air for hot reload..."
 	go install github.com/cosmtrek/air@latest
 	@echo "Setting up uploads directory..."
@@ -114,4 +124,17 @@ setup:
 	@echo "1. Create a .env file with your database configuration"
 	@echo "2. Run 'make migrate' to set up the database"
 	@echo "3. Run 'make run' to start the application"
-	@echo "4. Or run 'make air' for development with hot reload" 
+	@echo "4. Or run 'make air' for development with hot reload"
+
+# Install dependencies
+deps:
+	@echo "Installing Go dependencies..."
+	go mod download
+	go mod tidy
+	@echo "Dependencies installed successfully!"
+
+# Build with dependencies
+build: deps
+	@echo "Building ASA Backend..."
+	go build -o bin/asa cmd/server/main.go
+	@echo "Build complete! Binary: bin/asa" 

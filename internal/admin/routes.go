@@ -8,7 +8,7 @@ import (
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *AdminHandler) {
 	admin := rg.Group("/admin")
-	admin.Use(middleware.RequireRole("admin"))
+	admin.Use(middleware.RequireRole("asa_admin"))
 	{
 		// Analytics endpoints
 		analytics := admin.Group("/analytics")

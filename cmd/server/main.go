@@ -17,7 +17,7 @@ import (
 	"asa/internal/contact"
 	"asa/internal/employerapplication"
 	"asa/internal/employerprofile"
-	"asa/internal/grpc"
+
 	"asa/internal/jobpost"
 	"asa/internal/middleware"
 	"asa/internal/notification"
@@ -83,45 +83,50 @@ func main() {
 		log.Fatalf("Failed to run auto migration: %v", err)
 	}
 
-	// S3 Storage Service setup
-	s3Region := os.Getenv("AWS_REGION")
-	if s3Region == "" {
-		s3Region = "us-east-1"
-	}
+	// Storage Service setup
+	var storageService storage.StorageService
+	var s3Manager *kdb.S3Manager
+
+	// Check if AWS S3 is configured
 	s3Bucket := os.Getenv("AWS_S3_BUCKET")
-	if s3Bucket == "" {
-		log.Fatalf("AWS_S3_BUCKET env var is required for S3 storage")
-	}
-	s3Endpoint := os.Getenv("AWS_S3_ENDPOINT")
-	s3ForcePathStyle := os.Getenv("AWS_S3_FORCE_PATH_STYLE") == "true"
-	s3DisableSSL := os.Getenv("AWS_S3_DISABLE_SSL") == "true"
 	s3AccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
 	s3SecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 
-	if s3AccessKeyID == "" || s3SecretAccessKey == "" {
-		log.Fatalf("AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY env vars are required for S3 storage")
-	}
-
-	s3Config := &kdb.Config{
-		S3Region:          s3Region,
-		S3Bucket:          s3Bucket,
-		S3Endpoint:        s3Endpoint,
-		S3ForcePathStyle:  s3ForcePathStyle,
-		S3DisableSSL:      s3DisableSSL,
-		S3AccessKeyID:     s3AccessKeyID,
-		S3SecretAccessKey: s3SecretAccessKey,
-		LogLevel:          "info",
-	}
-	s3Logger := zap.NewNop()
-	s3Manager := kdb.NewS3Manager(s3Config, s3Logger)
-	if err := s3Manager.Connect(context.Background()); err != nil {
-		log.Fatalf("Failed to connect to S3: %v", err)
-	}
 	baseURL := os.Getenv("ASA_BASE_URL")
 	if baseURL == "" {
 		baseURL = "http://localhost:3000/api"
 	}
-	storageService := storage.NewS3StorageService(s3Manager, s3Bucket, baseURL)
+
+	if s3Bucket != "" && s3AccessKeyID != "" && s3SecretAccessKey != "" {
+		// Use S3 storage
+		log.Printf("Using S3 storage with bucket: %s", s3Bucket)
+		s3Region := os.Getenv("AWS_REGION")
+		if s3Region == "" {
+			s3Region = "us-east-1"
+		}
+		s3Endpoint := os.Getenv("AWS_S3_ENDPOINT")
+		s3ForcePathStyle := os.Getenv("AWS_S3_FORCE_PATH_STYLE") == "true"
+		s3DisableSSL := os.Getenv("AWS_S3_DISABLE_SSL") == "true"
+
+		s3Config := &kdb.Config{
+			S3Region:          s3Region,
+			S3Bucket:          s3Bucket,
+			S3Endpoint:        s3Endpoint,
+			S3ForcePathStyle:  s3ForcePathStyle,
+			S3DisableSSL:      s3DisableSSL,
+			S3AccessKeyID:     s3AccessKeyID,
+			S3SecretAccessKey: s3SecretAccessKey,
+			LogLevel:          "info",
+		}
+		s3Logger := zap.NewNop()
+		s3Manager = kdb.NewS3Manager(s3Config, s3Logger)
+		if err := s3Manager.Connect(context.Background()); err != nil {
+			log.Fatalf("Failed to connect to S3: %v", err)
+		}
+		storageService = storage.NewS3StorageService(s3Manager, s3Bucket, baseURL)
+	} else {
+		log.Fatalf("AWS S3 configuration is required. Please set AWS_S3_BUCKET, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY environment variables.")
+	}
 
 	// Create Gin router with middleware
 	router := gin.Default()
@@ -133,31 +138,11 @@ func main() {
 	studentProfileRepo := studentprofile.NewStudentProfileRepository(db)
 	authRepo := auth.NewUserRepository(db)
 
-	// Initialize AAA gRPC client (optional - will use local auth if not available)
-	var aaaClient *grpc.AAAGrpcClient = nil
-	aaaHost := os.Getenv("AAA_HOST")
-	aaaPort := os.Getenv("AAA_GRPC_PORT")
-
-	if aaaHost != "" && aaaPort != "" {
-		aaaEndpoint := fmt.Sprintf("%s:%s", aaaHost, aaaPort)
-		log.Printf("Attempting to connect to AAA gRPC service at: %s", aaaEndpoint)
-
-		// Try to initialize gRPC client, but don't fail if it's not available
-		// This allows the service to run with local authentication only
-		grpcClient, err := initGrpcClient(aaaEndpoint)
-		if err != nil {
-			log.Printf("Warning: Failed to connect to AAA gRPC service: %v", err)
-			log.Printf("Continuing with local authentication only")
-		} else {
-			aaaClient = grpcClient
-			log.Printf("Successfully connected to AAA gRPC service")
-		}
-	} else {
-		log.Printf("AAA_HOST or AAA_GRPC_PORT not set, using local authentication only")
-	}
+	// Using local authentication only - no AAA service dependency
+	log.Printf("Using local authentication with kisanlink-db")
 
 	// Services and handlers
-	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo, aaaClient)
+	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo)
 	authHandler := auth.NewAuthHandler(authService)
 
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
@@ -244,18 +229,4 @@ func main() {
 
 	log.Printf("Starting ASA backend server on port %s", port)
 	router.Run(":" + port)
-}
-
-// initGrpcClient initializes the gRPC client with proper error handling
-func initGrpcClient(endpoint string) (*grpc.AAAGrpcClient, error) {
-	log.Printf("🔌 Attempting to connect to gRPC service at: %s", endpoint)
-
-	// Create gRPC client using the correct function signature
-	client, err := grpc.NewAAAGrpcClient(endpoint)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to gRPC server: %w", err)
-	}
-
-	log.Printf("✅ Successfully connected to gRPC service")
-	return client, nil
 }

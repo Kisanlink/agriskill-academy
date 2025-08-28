@@ -41,7 +41,7 @@ func (h *BookmarkHandler) Save(c *gin.Context) {
 	username := c.GetString("email")
 	jobID := c.Param("jobId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_bookmarks", "create", jobID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_bookmarks", "create", jobID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -72,7 +72,7 @@ func (h *BookmarkHandler) Remove(c *gin.Context) {
 	username := c.GetString("email")
 	jobID := c.Param("jobId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_bookmarks", "delete", jobID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_bookmarks", "delete", jobID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -101,7 +101,7 @@ func (h *BookmarkHandler) Remove(c *gin.Context) {
 func (h *BookmarkHandler) GetSaved(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_bookmarks", "read", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_bookmarks", "read", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return

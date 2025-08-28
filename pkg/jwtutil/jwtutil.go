@@ -8,7 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte(getSecret()) // Use the same secret as AAA service
+var jwtSecret = []byte(getSecret()) // Use the same secret as local authentication
 
 // getSecret returns the JWT secret with fallback
 func getSecret() string {

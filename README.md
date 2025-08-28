@@ -1,8 +1,8 @@
-# ASA Backend - Technical Documentation
+# ASA Job Portal Backend - Technical Documentation
 
 ## Overview
 
-ASA Backend is a Go-based microservice architecture implementing a comprehensive job portal for agricultural students and employers. The system employs JWT-based authentication with role-based access control (RBAC), PostgreSQL database with GORM ORM, and implements a custom AAA (Authentication, Authorization, and Accounting) service integration pattern.
+ASA Job Portal Backend is a Go-based REST API implementing a comprehensive job portal for agricultural students and employers. The system employs JWT-based authentication with role-based access control (RBAC), PostgreSQL database with GORM ORM, and implements local authentication and authorization without external dependencies.
 
 ## Architecture Overview
 
@@ -14,31 +14,38 @@ ASA Backend is a Go-based microservice architecture implementing a comprehensive
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                                        │
                                                        ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │   AAA Service   │    │   PostgreSQL    │
-                       │   (External)    │    │   Database      │
-                       └─────────────────┘    └─────────────────┘
+                                              ┌─────────────────┐
+                                              │   PostgreSQL    │
+                                              │   Database      │
+                                              └─────────────────┘
 ```
 
 ### Core Components
 
-#### 1. Authentication & Authorization (AAA) Integration
-The system implements a hybrid AAA approach with both local and external service integration:
+#### 1. Local Authentication & Authorization
+The system implements a complete local authentication and authorization system:
 
-**Local AAA Implementation:**
-- **Location:** `pkg/authz/authz.go`
-- **Purpose:** Fallback authorization when external AAA service is unavailable
+**Local Authentication Implementation:**
+- **Location:** `internal/auth/` and `pkg/authz/authz.go`
+- **Purpose:** Complete user authentication and authorization without external dependencies
 - **Implementation:** Custom permission checking based on JWT claims and resource/action mapping
 
-**External AAA Service Integration:**
-- **Configuration:** `AAA_SERVICE_URL` environment variable
-- **Protocol:** HTTP REST API calls to external AAA service
-- **Fallback:** Automatic fallback to local AAA when external service fails
+**Authentication Features:**
+- User registration and login
+- Password hashing with bcrypt
+- JWT token generation and validation
+- Role-based access control (student, employer, admin)
+- Password reset functionality (mock implementation)
 
-**AAA Service Interface:**
+**Authorization System:**
 ```go
-type AAAService interface {
-    CheckPermission(username, resource, action, resourceID, token string) (bool, error)
+type AuthService interface {
+    Signup(req *SignupRequest) (*SignupResponse, error)
+    Login(username, password string) (*LoginResponse, error)
+    GetUserByID(userID string) (*User, error)
+    UpdateProfile(userID string, req *UpdateProfileRequest) error
+    SendResetLink(email string) error
+    ResetPassword(token, newPassword string) error
 }
 ```
 
@@ -137,9 +144,8 @@ POSTGRES_PASS=your_password
 DB_NAME=asa_db
 DB_SSLMODE=disable
 
-# AAA Service Configuration
-AAA_SERVICE_URL=aaa_service_url  # External AAA service URL
-SECRET_KEY=your_aaa_secret             # AAA service secret
+# JWT Configuration
+SECRET_KEY=your_jwt_secret_key             # JWT signing secret
 
 # Server Configuration
 PORT=3333
@@ -159,8 +165,10 @@ CORS_ALLOW_ORIGINS=your_cors_urls                   # Comma-separated list of al
 ```go
 POST   /api/auth/signup          // User registration
 POST   /api/auth/login           // User authentication
-POST   /api/auth/logout          // User logout
-GET    /api/auth/me              // Current user info
+POST   /api/auth/forgot-password // Request password reset
+POST   /api/auth/reset-password  // Reset password with token
+GET    /api/auth/profile         // Get current user profile
+PUT    /api/auth/profile         // Update current user profile
 ```
 
 ### Student Profile Management
@@ -269,8 +277,8 @@ make setup            # Setup development environment
 2. Configure proper CORS origins
 3. Use production database with SSL
 4. Implement proper logging and monitoring
-5. Configure external AAA service URL
-6. Set up file storage with CDN integration
+5. Set up file storage with CDN integration
+6. Configure strong JWT secret
 
 ### Security Considerations
 - JWT token expiration and refresh mechanisms
@@ -279,6 +287,7 @@ make setup            # Setup development environment
 - CORS configuration for production domains
 - Rate limiting implementation
 - Input validation and sanitization
+- Password hashing with bcrypt
 
 ## Monitoring and Debugging
 
@@ -315,5 +324,44 @@ middleware.DebugLog("DEBUG: Operation details - %+v\n", data)
 ### Common Issues
 1. **Database Connection:** Verify PostgreSQL service and credentials
 2. **File Uploads:** Check directory permissions and storage space
-3. **AAA Service:** Verify external service availability and configuration
+3. **JWT Issues:** Verify SECRET_KEY configuration
 4. **CORS Issues:** Check CORS_ALLOW_ORIGINS configuration
+5. **Authentication:** Verify user credentials and role assignments
+
+## API Documentation
+
+### Swagger Documentation
+The API includes comprehensive Swagger documentation:
+- **URL:** `/swagger/index.html` (when running in development)
+- **Generated from:** `docs/swagger.go`
+- **Auto-generated:** `docs/docs.go` and `docs/swagger.json`
+
+### Authentication Flow
+1. **Registration:** `POST /api/auth/signup`
+2. **Login:** `POST /api/auth/login`
+3. **Token Usage:** Include `Authorization: Bearer <token>` header
+4. **Profile Access:** `GET /api/auth/profile`
+
+### Role-Based Access
+- **Student:** Can create profiles, apply for jobs, manage applications
+- **Employer:** Can create job posts, manage applications, view profiles
+- **Admin:** Full system access for analytics and user management
+
+## Contributing
+
+### Code Style
+- Follow Go formatting standards (`gofmt`)
+- Use meaningful variable and function names
+- Include proper error handling
+- Add comments for complex logic
+
+### Testing
+- Write unit tests for business logic
+- Test API endpoints with proper authentication
+- Verify database migrations work correctly
+
+### Security
+- Never commit sensitive data (passwords, keys)
+- Validate all user inputs
+- Use parameterized queries
+- Implement proper error handling

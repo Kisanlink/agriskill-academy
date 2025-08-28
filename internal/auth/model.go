@@ -47,7 +47,7 @@ func (u *User) BeforeDeleteGORM(tx *gorm.DB) error {
 
 type SignupRequest struct {
 	Name            string `json:"name" binding:"required"`
-	Username        string `json:"user_name" binding:"required"` // Username for AAA service
+	Username        string `json:"user_name" binding:"required"` // Username for local authentication
 	Email           string `json:"email" binding:"required"`     // Email for our local DB
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
@@ -69,8 +69,17 @@ type SignupRequest struct {
 }
 
 type LoginRequest struct {
-	Username string `json:"user_name" binding:"required"` // Username for AAA service
+	Username string `json:"user_name" binding:"required"` // Username for local authentication
 	Password string `json:"password" binding:"required"`
+}
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
 }
 
 type UpdateProfileRequest struct {

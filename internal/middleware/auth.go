@@ -47,7 +47,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		DebugLog("✅ JWT token parsed successfully")
 		DebugLog("🔐 All JWT claims: %+v", claims)
 
-		// Extract roles from JWT claims - handle both 'role' (AAA) and 'roles' (local)
+		// Extract roles from JWT claims - handle both 'role' (legacy) and 'roles' (local)
 		var roles []string
 
 		DebugLog("🔐 Extracting roles from JWT claims...")
@@ -73,7 +73,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			DebugLog("🔐 No 'roles' found in claims")
 		}
 
-		// If no roles found, try 'role' (singular from AAA service)
+		// If no roles found, try 'role' (singular from legacy auth)
 		if len(roles) == 0 {
 			DebugLog("🔐 No roles found, trying 'role' (singular)...")
 			if roleInterface, exists := claims["role"]; exists {

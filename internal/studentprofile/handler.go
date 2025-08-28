@@ -50,7 +50,7 @@ func (h *StudentProfileHandler) GetProfile(c *gin.Context) {
 	username := c.GetString("username")
 	profileID := c.Param("studentId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "read", profileID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "read", profileID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -82,7 +82,7 @@ func (h *StudentProfileHandler) UpdateProfile(c *gin.Context) {
 	username := c.GetString("username")
 	profileID := c.Param("studentId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", profileID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", profileID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -124,7 +124,7 @@ func (h *StudentProfileHandler) GetMyProfile(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "read", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "read", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -161,7 +161,7 @@ func (h *StudentProfileHandler) AddCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	studentID := c.Param("studentId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_certificates", "create", studentID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_certificates", "create", studentID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -216,7 +216,7 @@ func (h *StudentProfileHandler) DeleteMyCertificate(c *gin.Context) {
 	userID := c.GetString("user_id")
 	certificateID := c.Param("certificateId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_certificates", "delete", certificateID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_certificates", "delete", certificateID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -268,7 +268,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 
 	middleware.DebugLog("🔍 DEBUG: Username: %s, UserID: %s\n", username, userID)
 
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		middleware.DebugLog("❌ DEBUG: Permission denied - Error: %v, Allowed: %v\n", err, allowed)
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
@@ -573,7 +573,7 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -657,7 +657,7 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -769,7 +769,7 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -936,7 +936,7 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -1044,7 +1044,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -1231,7 +1231,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return

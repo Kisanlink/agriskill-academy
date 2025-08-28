@@ -49,7 +49,7 @@ func getJWT(c *gin.Context) string {
 func (h *ApplicationHandler) Apply(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_applications", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -212,7 +212,7 @@ func (h *ApplicationHandler) GetMyApplications(c *gin.Context) {
 	username := c.GetString("username")
 	studentID := c.GetString("user_id") // From JWT middleware
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "read", studentID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_applications", "read", studentID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -242,7 +242,7 @@ func (h *ApplicationHandler) GetApplicationsByJob(c *gin.Context) {
 	username := c.GetString("username")
 	jobID := c.Param("id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "read", jobID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_applications", "read", jobID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -281,7 +281,7 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 	username := c.GetString("username")
 	appID := c.Param("applicationId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "read", appID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_applications", "read", appID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -322,7 +322,7 @@ func (h *ApplicationHandler) Remove(c *gin.Context) {
 	username := c.GetString("username")
 	appID := c.Param("applicationId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "delete", appID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_applications", "delete", appID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -351,7 +351,7 @@ func (h *ApplicationHandler) UpdateStatus(c *gin.Context) {
 	username := c.GetString("username")
 	appID := c.Param("applicationId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "update", appID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_applications", "update", appID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -388,7 +388,7 @@ func (h *ApplicationHandler) UpdateStatusByEmployer(c *gin.Context) {
 	username := c.GetString("username")
 	appID := c.Param("applicationId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_applications", "update", appID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_applications", "update", appID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return

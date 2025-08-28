@@ -69,7 +69,7 @@ func (s *adminService) GetUserByID(userID string) (*UserDetailResponse, error) {
 }
 
 func (s *adminService) UpdateUser(userID string, req *UpdateUserRequest) error {
-	// Role validation is now handled by AAA service
+	// Role validation is now handled by local authentication
 	// We don't validate roles in local DB anymore
 
 	// Validate status if provided

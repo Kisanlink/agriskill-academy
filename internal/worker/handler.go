@@ -44,7 +44,7 @@ func getJWT(c *gin.Context) string {
 func (h *WorkerHandler) EnqueueJob(c *gin.Context) {
 	username := c.GetString("username")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_jobs", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_jobs", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return

@@ -2,21 +2,14 @@ package auth
 
 import (
 	"asa/internal/employerprofile"
-	"asa/internal/grpc"
 	"asa/internal/middleware"
 	"asa/internal/studentprofile"
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"strings"
 	"time"
-
-	"asa/config"
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -32,7 +25,7 @@ func contains(list []string, val string) bool {
 	return false
 }
 
-// HashPassword - copy this exact function from AAA service
+// HashPassword - hash password using bcrypt
 func HashPassword(password string) (string, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -41,7 +34,7 @@ func HashPassword(password string) (string, error) {
 	return string(hashedPassword), nil
 }
 
-// VerifyPassword - copy this exact function from AAA service
+// VerifyPassword - verify password using bcrypt
 func VerifyPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
@@ -49,7 +42,6 @@ func VerifyPassword(hashedPassword, password string) error {
 type AuthService interface {
 	Login(username, password string) (*User, string, error)
 	Signup(req *SignupRequest) (*User, string, error)
-	SignupWithID(req *SignupRequest, userID string, phoneNumber string) (*User, string, error)
 	VerifyToken(tokenStr string) (bool, error)
 	SendResetLink(email string) error
 	ResetPassword(token, newPassword string) error
@@ -64,15 +56,13 @@ type authService struct {
 	repo               UserRepository
 	employerRepo       employerprofile.EmployerProfileRepository
 	studentProfileRepo studentprofile.StudentProfileRepository
-	grpcClient         *grpc.AAAGrpcClient
 }
 
-func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository, grpcClient *grpc.AAAGrpcClient) AuthService {
+func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository) AuthService {
 	return &authService{
 		repo:               repo,
 		employerRepo:       employerRepo,
 		studentProfileRepo: studentProfileRepo,
-		grpcClient:         grpcClient,
 	}
 }
 
@@ -148,16 +138,18 @@ func (s *authService) ListAllUsers() ([]User, error) {
 	return s.repo.ListAllUsers()
 }
 
-// Password functions removed - now handled by AAA service
-
-// Login
+// Login - now validates password locally
 func (s *authService) Login(username, password string) (*User, string, error) {
 	user, err := s.repo.FindByEmail(username) // Use email as username
 	if err != nil {
 		return nil, "", errors.New("invalid credentials")
 	}
-	// Password validation is now handled by AAA service
-	// We only need to check if user exists in our local DB
+
+	// Validate password locally
+	if err := VerifyPassword(user.Password, password); err != nil {
+		return nil, "", errors.New("invalid credentials")
+	}
+
 	token, err := generateToken(user)
 	if err != nil {
 		return nil, "", err
@@ -185,10 +177,10 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		return nil, "", errors.New("email already registered")
 	}
 
-	// 3. Create user (store hashed password and role locally as well)
+	// 3. Create user (store hashed password and role locally)
 	middleware.DebugLog("🔍 Creating user with name: %s, username: %s, email: %s\n", req.Name, req.Username, req.Email)
 
-	// Hash the password using the same method as AAA service
+	// Hash the password
 	hashedPassword, err := HashPassword(req.Password)
 	if err != nil {
 		middleware.DebugLog("❌ Failed to hash password: %v\n", err)
@@ -294,155 +286,6 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		middleware.DebugLog("⚠️ Unknown role: %s, no profile created\n", req.Role)
 	}
 
-	// Assign role to user in AAA service
-	if err := s.assignRoleToUser(user.ID, req.Role); err != nil {
-		middleware.DebugLog("❌ Failed to assign role '%s' to user '%s' in AAA service: %v\n", req.Role, user.ID, err)
-		// Decide how to handle this - maybe return an error or continue?
-		// For now, we'll return the original error.
-		return nil, "", fmt.Errorf("failed to assign role to AAA service: %w", err)
-	}
-
-	return user, token, nil
-}
-
-// SignupWithID - creates a user with a specific ID (for AAA integration)
-func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumber string) (*User, string, error) {
-	middleware.DebugLog("🔍 AuthService.SignupWithID called with: %+v, userID: %s\n", req, userID)
-
-	// 1. Validate password confirmation
-	if req.Password != req.ConfirmPassword {
-		middleware.DebugLog("❌ Password mismatch\n")
-		return nil, "", errors.New("passwords do not match")
-	}
-
-	// 2. Check if user exists with the specific ID
-	middleware.DebugLog("🔍 Checking if user exists with ID: %s\n", userID)
-	existingUser, err := s.repo.GetByID(context.Background(), userID, &User{})
-	if err != nil {
-		middleware.DebugLog("🔍 User not found with ID (expected): %v\n", err)
-	} else if existingUser != nil {
-		middleware.DebugLog("❌ User already exists with ID: %+v\n", existingUser)
-		return nil, "", errors.New("user ID already exists")
-	}
-
-	// 3. Create user with the specified ID
-	middleware.DebugLog("🔍 Creating user with ID: %s, name: %s, username: %s, email: %s\n", userID, req.Name, req.Username, req.Email)
-
-	// Hash the password using the same method as AAA service
-	hashedPassword, err := HashPassword(req.Password)
-	if err != nil {
-		middleware.DebugLog("❌ Failed to hash password: %v\n", err)
-		return nil, "", fmt.Errorf("failed to hash password: %w", err)
-	}
-	middleware.DebugLog("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
-
-	user := &User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: hashedPassword, // Store hashed password locally
-		Role:     req.Role,       // Store role locally
-	}
-	err = s.repo.CreateWithID(user, userID)
-	if err != nil {
-		middleware.DebugLog("❌ Failed to create user in DB: %v\n", err)
-		return nil, "", err
-	}
-	middleware.DebugLog("✅ User created successfully with specified ID: %+v\n", user)
-
-	// 4. Generate token
-	token, err := generateToken(user)
-	if err != nil {
-		return nil, "", err
-	}
-
-	// 5. Create corresponding profile based on role from request
-	middleware.DebugLog("🔍 Creating profile for role: %s\n", req.Role)
-	roles := []string{req.Role} // Use role from request since it's not stored in DB
-	if contains(roles, "employer") {
-		middleware.DebugLog("🔍 Creating employer profile for user: %s\n", user.ID)
-		// Build location string safely
-		location := ""
-		if req.City != "" && req.State != "" {
-			location = req.City + ", " + req.State
-		} else if req.City != "" {
-			location = req.City
-		} else if req.State != "" {
-			location = req.State
-		}
-
-		profile := &employerprofile.EmployerProfile{
-			UserID:             user.ID,
-			CompanyName:        req.CompanyName,
-			WebsiteURL:         req.Website,
-			Industry:           req.IndustryType,
-			CompanySize:        req.CompanySize,
-			CompanyDescription: "", // optional
-			RecruiterName:      req.Name,
-			Designation:        "Recruiter",
-			OfficialEmail:      req.Email,
-			PhoneNumber:        phoneNumber, // <-- set here
-			LinkedinProfile:    "",
-			GSTINNumber:        req.GstinNumber,
-			CompanyAddress:     req.CompanyAddress,
-			City:               req.City,
-			State:              req.State,
-			Pincode:            req.Pincode,
-			JobCategories:      []string{},
-			HiringLocations:    []string{location},
-			HiringTypes:        []string{"full-time"},
-		}
-		middleware.DebugLog("🔍 Employer profile data: %+v\n", profile)
-		if err := s.employerRepo.Create(profile); err != nil {
-			middleware.DebugLog("❌ Failed to create employer profile: %v\n", err)
-			return nil, "", fmt.Errorf("failed to create employer profile: %w", err)
-		}
-		middleware.DebugLog("✅ Employer profile created successfully\n")
-
-	} else if contains(roles, "student") {
-		middleware.DebugLog("🔍 Creating student profile for user: %s\n", user.ID)
-		// Build location string safely
-		location := ""
-		if req.City != "" && req.State != "" {
-			location = req.City + ", " + req.State
-		} else if req.City != "" {
-			location = req.City
-		} else if req.State != "" {
-			location = req.State
-		}
-
-		profile := &studentprofile.StudentProfile{
-			UserID:          user.ID,
-			Name:            user.Name,
-			Email:           user.Email,
-			Location:        location,
-			PhoneNumber:     phoneNumber, // <-- set here
-			Skills:          []string{},
-			ResumeKey:       "", // S3 key for resume file
-			ProfilePhotoKey: "", // S3 key for profile photo
-			Experience:      0.0,
-			Education:       "",
-			Portfolio:       "",
-			Linkedin:        "",
-			Github:          "",
-		}
-		middleware.DebugLog("🔍 Student profile data: %+v\n", profile)
-		if err := s.studentProfileRepo.Create(context.Background(), profile); err != nil {
-			middleware.DebugLog("❌ Failed to create student profile: %v\n", err)
-			return nil, "", fmt.Errorf("failed to create user profile: %w", err)
-		}
-		middleware.DebugLog("✅ Student profile created successfully\n")
-	} else {
-		middleware.DebugLog("⚠️ Unknown role: %s, no profile created\n", req.Role)
-	}
-
-	// Assign role to user in AAA service
-	if err := s.assignRoleToUser(user.ID, req.Role); err != nil {
-		middleware.DebugLog("❌ Failed to assign role '%s' to user '%s' in AAA service: %v\n", req.Role, user.ID, err)
-		// Decide how to handle this - maybe return an error or continue?
-		// For now, we'll return the original error.
-		return nil, "", fmt.Errorf("failed to assign role to AAA service: %w", err)
-	}
-
 	return user, token, nil
 }
 
@@ -459,7 +302,7 @@ func (s *authService) SendResetLink(email string) error {
 
 // Reset password using token (mock logic)
 func (s *authService) ResetPassword(token, newPassword string) error {
-	// Password reset is now handled by AAA service
+	// Password reset is now handled locally
 	// This method is kept for backward compatibility but doesn't modify local DB
 	return nil
 }
@@ -618,51 +461,3 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 
 	return s.studentProfileRepo.Update(context.Background(), profile)
 }
-
-// assignRoleToUser assigns a role to a user in AAA service via HTTP
-func (s *authService) assignRoleToUser(userID, roleName string) error {
-	middleware.DebugLog("🔐 Assigning role '%s' to user '%s' in AAA service\n", roleName, userID)
-
-	// Prepare payload for AAA service - use correct field names
-	payload := map[string]interface{}{
-		"user_id": userID,
-		"role":    roleName,
-	}
-
-	// Try the first format
-	body, err := json.Marshal(payload)
-	if err != nil {
-		middleware.DebugLog("❌ Failed to marshal assign role payload: %v\n", err)
-		return fmt.Errorf("failed to marshal assign role payload: %w", err)
-	}
-
-	middleware.DebugLog("📤 AAA assign role request body: %s\n", string(body))
-
-	// Make HTTP request to AAA service
-	resp, err := http.Post(config.AAAServiceBaseURL+"/api/v1/assign-role", "application/json", bytes.NewBuffer(body))
-	if err != nil {
-		middleware.DebugLog("❌ AAA assign role request failed: %v\n", err)
-		return fmt.Errorf("AAA assign role request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	responseBody, _ := io.ReadAll(resp.Body)
-	middleware.DebugLog("📥 AAA assign role response status: %d\n", resp.StatusCode)
-	middleware.DebugLog("📥 AAA assign role response body: %s\n", string(responseBody))
-
-	// Check if request was successful
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		middleware.DebugLog("❌ AAA assign role failed with status %d\n", resp.StatusCode)
-		return fmt.Errorf("AAA assign role failed with status %d: %s", resp.StatusCode, string(responseBody))
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		middleware.DebugLog("❌ AAA assign role failed with status %d\n", resp.StatusCode)
-		return fmt.Errorf("AAA assign role failed with status %d: %s", resp.StatusCode, string(responseBody))
-	}
-
-	middleware.DebugLog("✅ Role '%s' assigned successfully to user '%s'\n", roleName, userID)
-	return nil
-}
-
-// gRPC methods removed - using HTTP AAA service integration instead

@@ -11,11 +11,8 @@ import (
 )
 
 var (
-	DB                *gorm.DB
-	AAAServiceBaseURL string
-	AAASecret         string
-	// New gRPC configuration
-	AAAGrpcEndpoint string
+	DB        *gorm.DB
+	JWTSecret string
 )
 
 func LoadEnv() {
@@ -24,13 +21,7 @@ func LoadEnv() {
 		log.Println("Warning: .env file not found, using system environment variables")
 	}
 
-	AAAServiceBaseURL = os.Getenv("AAA_SERVICE_URL")
-	AAASecret = os.Getenv("SECRET_KEY")
-	// Load gRPC endpoint
-	AAAGrpcEndpoint = os.Getenv("AAA_GRPC_ENDPOINT")
-	if AAAGrpcEndpoint == "" {
-		AAAGrpcEndpoint = "localhost:50052" // Default gRPC endpoint
-	}
+	JWTSecret = os.Getenv("SECRET_KEY")
 }
 
 func InitDB() (*gorm.DB, error) {

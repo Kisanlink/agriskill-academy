@@ -15,7 +15,7 @@ func contains(list []string, val string) bool {
 	return false
 }
 
-// CheckLocalPermission checks permissions locally using JWT claims instead of calling AAA service
+// CheckLocalPermission checks permissions locally using JWT claims
 func CheckLocalPermission(username, resource, action, resourceID, jwtToken string) (bool, error) {
 	middleware.DebugLog("🔍 === LOCAL PERMISSION CHECK START ===")
 	middleware.DebugLog("🔍 Username: %s", username)
@@ -34,7 +34,7 @@ func CheckLocalPermission(username, resource, action, resourceID, jwtToken strin
 	middleware.DebugLog("✅ JWT token parsed successfully")
 	middleware.DebugLog("🔍 All JWT claims: %+v", claims)
 
-	// Extract roles from JWT claims - handle both 'role' (AAA) and 'roles' (local)
+	// Extract roles from JWT claims - handle both 'role' (legacy) and 'roles' (local)
 	var roles []string
 
 	middleware.DebugLog("🔍 Extracting roles from JWT claims...")
@@ -60,7 +60,7 @@ func CheckLocalPermission(username, resource, action, resourceID, jwtToken strin
 		middleware.DebugLog("🔍 No 'roles' found in claims")
 	}
 
-	// If no roles found, try 'role' (singular from AAA service)
+	// If no roles found, try 'role' (singular from legacy auth)
 	if len(roles) == 0 {
 		middleware.DebugLog("🔍 No roles found, trying 'role' (singular)...")
 		if roleInterface, exists := claims["role"]; exists {
@@ -476,9 +476,9 @@ func checkJobPermissions(roles []string, action, resourceID, username string, cl
 	}
 }
 
-// Legacy function for backward compatibility - now calls local permission check
+// Legacy function for backward compatibility - redirects to local permission check
 func CheckAAAPermission(username, resource, action, resourceID, jwtToken string) (bool, error) {
 	middleware.DebugLog("🔍 === LEGACY AAA PERMISSION CHECK ===")
-	middleware.DebugLog("🔍 Calling CheckLocalPermission instead of AAA service")
+	middleware.DebugLog("🔍 Calling CheckLocalPermission for local authentication")
 	return CheckLocalPermission(username, resource, action, resourceID, jwtToken)
 }

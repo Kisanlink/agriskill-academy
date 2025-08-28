@@ -8,7 +8,7 @@
 //
 // @title ASA Job Portal API
 // @version 1.0
-// @description A comprehensive job portal API for students and employers
+// @description A comprehensive job portal API for students and employers with local authentication
 // @termsOfService http://swagger.io/terms/
 //
 // @contact.name API Support
@@ -83,6 +83,17 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required" example:"password123"`
 }
 
+// @Description Forgot password request
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email" example:"john@example.com"`
+}
+
+// @Description Reset password request
+type ResetPasswordRequest struct {
+	Token       string `json:"token" binding:"required" example:"reset_token_here"`
+	NewPassword string `json:"new_password" binding:"required" example:"newpassword123"`
+}
+
 // @Description Profile update request
 type UpdateProfileRequest struct {
 	Name               string   `json:"name,omitempty" example:"John Doe"`
@@ -116,7 +127,7 @@ type UpdateProfileRequest struct {
 	HiringTypes        []string `json:"hiring_types,omitempty" example:"Full-time,Remote"`
 }
 
-// @Description Student profile model
+// @Description Student profile response
 type StudentProfile struct {
 	ID              string        `json:"id" example:"uuid-string"`
 	UserID          string        `json:"user_id" example:"uuid-string"`
@@ -149,7 +160,7 @@ type Certificate struct {
 	IssueDate        string `json:"issue_date" example:"2024-01-01"`
 }
 
-// @Description Employer profile model
+// @Description Employer profile response
 type EmployerProfile struct {
 	ID                 string   `json:"id" example:"uuid-string"`
 	UserID             string   `json:"user_id" example:"uuid-string"`
@@ -190,7 +201,7 @@ type JobPost struct {
 	UpdatedAt       string   `json:"updated_at" example:"2024-01-01T00:00:00Z"`
 }
 
-// @Description Job application model
+// @Description Application model
 type Application struct {
 	ID             string `json:"id" example:"uuid-string"`
 	JobID          string `json:"job_id" example:"uuid-string"`
@@ -204,7 +215,7 @@ type Application struct {
 	AppliedAt      string `json:"applied_at" example:"2024-01-01T00:00:00Z"`
 }
 
-// @Description Upload response model
+// @Description File upload response
 type UploadResponse struct {
 	Success  bool   `json:"success" example:"true"`
 	Message  string `json:"message" example:"File uploaded successfully"`

@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // PostgreSQLTextArray is a custom type for PostgreSQL text arrays
@@ -187,7 +190,7 @@ func (s *StudentProfile) BeforeUpdate(tx *gorm.DB) error {
 				filteredSkills = append(filteredSkills, skill)
 			}
 		}
-		s.Skills = Skills(filteredSkills)
+		s.Skills = PostgreSQLTextArray(filteredSkills)
 	}
 
 	return nil

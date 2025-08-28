@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"asa/internal/middleware"
 	"asa/internal/storage"
 
 	"github.com/gin-gonic/gin"
@@ -619,7 +618,7 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
 		Name:             req.Name,
-		FileName:         req.FileKey, // Changed from File: req.File to FileKey: req.FileKey
+		FileKey:          req.FileKey,
 		IssueDate:        req.IssueDate,
 	}
 

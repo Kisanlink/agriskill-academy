@@ -167,7 +167,7 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(
 
 	var results []JobApplicationWithApplicant
 
-	rows, err := r.db.Raw(`
+	err := r.db.Raw(`
 		SELECT 
 			a.id AS application_id, a.job_id, a.student_id, a.applied_at, a.status AS application_status, a.cover_letter, a.resume_key,
 			a.job_title, a.company, a.location AS job_location, a.job_type,
@@ -179,9 +179,8 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(
 		JOIN users            u  ON u.id  = a.student_id
 		LEFT JOIN student_profiles up ON up.user_id = a.student_id
 		WHERE a.student_id = ?
-	`
-
-	if err := r.db.Raw(q, studentID).Scan(&results).Error; err != nil {
+	`, studentID).Scan(&results).Error
+	if err != nil {
 		return nil, err
 	}
 	return results, nil

@@ -1,26 +1,21 @@
 package auth
 
 import (
-	"time"
-
-	"fmt"
-
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
 )
 
 type User struct {
-	ID         string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	Name       string    `json:"name"`
-	Email      string    `json:"email" binding:"required,email"`
-	Password   string    `json:"password" binding:"required"`
-	Role       string    `json:"role" binding:"required"`
-	AvatarKey  string    `json:"avatar_key,omitempty"`
-	AvatarName string    `json:"avatar_name,omitempty"`
-	AvatarType string    `json:"avatar_type,omitempty"`
-	AvatarSize int64     `json:"avatar_size,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	base.BaseModel
+	Name       string `json:"name"`
+	Email      string `json:"email" binding:"required,email"`
+	Password   string `json:"password" binding:"required"`
+	Role       string `json:"role" binding:"required"`
+	AvatarKey  string `json:"avatar_key,omitempty"`
+	AvatarName string `json:"avatar_name,omitempty"`
+	AvatarType string `json:"avatar_type,omitempty"`
+	AvatarSize int64  `json:"avatar_size,omitempty"`
 }
 
 // TableName specifies the database table name for User
@@ -28,16 +23,26 @@ func (User) TableName() string {
 	return "users"
 }
 
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (u *User) BeforeCreate(tx *gorm.DB) error {
-	if u.ID == "" {
-		u.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(u.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for User ID: %w", err)
-		}
+// NewUser creates a new User with proper initialization
+func NewUser() *User {
+	return &User{
+		BaseModel: *base.NewBaseModel("USER", hash.Medium),
 	}
-	return nil
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (u *User) BeforeCreateGORM(tx *gorm.DB) error {
+	return u.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (u *User) BeforeUpdateGORM(tx *gorm.DB) error {
+	return u.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (u *User) BeforeDeleteGORM(tx *gorm.DB) error {
+	return u.BeforeDelete()
 }
 
 type SignupRequest struct {

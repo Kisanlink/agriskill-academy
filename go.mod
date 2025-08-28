@@ -3,11 +3,11 @@ module asa
 go 1.24.4
 
 require (
+	github.com/Kisanlink/kisanlink-db v0.1.9
 	github.com/aws/aws-sdk-go v1.53.0
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/kisanlink/protobuf v0.0.0-20250623092544-c7227880b138
 	github.com/lib/pq v1.10.9

@@ -4,9 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"fmt"
-
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
@@ -54,18 +53,16 @@ func (fs *FlexibleSalary) MarshalJSON() ([]byte, error) {
 }
 
 type JobPost struct {
-	ID                  string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	base.BaseModel
 	Title               string         `json:"title"`
 	RoleOverview        string         `json:"role_overview"`
 	Requirements        string         `json:"requirements"`
 	Location            string         `json:"location"`
 	RequiredSkills      pq.StringArray `gorm:"type:text[]" json:"required_skills"`
-	EmployerID          string         `gorm:"type:uuid" json:"employer_id"`
+	EmployerID          string         `gorm:"type:varchar(255)" json:"employer_id"`
 	EmployerName        string         `json:"employer_name"`
 	EmployerEmail       string         `json:"employer_email"`
 	Status              string         `json:"status"` // draft, published, closed, completed
-	CreatedAt           time.Time      `json:"created_at"`
-	UpdatedAt           time.Time      `json:"updated_at"`
 	ApplicationDeadline time.Time      `json:"application_deadline"`
 	JobType             string         `json:"job_type"`                                      // full-time, part-time, contract, internship
 	Experience          string         `json:"experience"`                                    // entry, mid, senior
@@ -92,6 +89,33 @@ type JobPost struct {
 	City               string   `json:"city,omitempty" gorm:"-"`
 	State              string   `json:"state,omitempty" gorm:"-"`
 	Pincode            string   `json:"pincode,omitempty" gorm:"-"`
+}
+
+// TableName specifies the database table name for JobPost
+func (JobPost) TableName() string {
+	return "job_posts"
+}
+
+// NewJobPost creates a new JobPost with proper initialization
+func NewJobPost() *JobPost {
+	return &JobPost{
+		BaseModel: *base.NewBaseModel("JOBP", hash.Large),
+	}
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (j *JobPost) BeforeCreateGORM(tx *gorm.DB) error {
+	return j.BaseModel.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (j *JobPost) BeforeUpdateGORM(tx *gorm.DB) error {
+	return j.BaseModel.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (j *JobPost) BeforeDeleteGORM(tx *gorm.DB) error {
+	return j.BeforeDelete()
 }
 
 // Request Models
@@ -276,8 +300,8 @@ type JobAlertResponse struct {
 
 // JobAlert represents the job_alerts table structure
 type JobAlert struct {
-	ID             string         `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID         string         `gorm:"type:uuid;not null" json:"user_id"`
+	base.BaseModel
+	UserID         string         `gorm:"type:varchar(255)" json:"user_id"`
 	Keywords       pq.StringArray `gorm:"type:text[]" json:"keywords"`
 	Location       string         `gorm:"type:varchar(255)" json:"location"`
 	JobType        pq.StringArray `gorm:"type:text[]" json:"job_type"`
@@ -289,8 +313,6 @@ type JobAlert struct {
 	IsRemote       *bool          `json:"is_remote"`
 	Frequency      string         `gorm:"type:varchar(20);not null;default:'weekly';check:frequency IN ('daily', 'weekly', 'immediate')" json:"frequency"`
 	IsActive       bool           `gorm:"not null;default:true" json:"is_active"`
-	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // TableName specifies the database table name for JobAlert
@@ -298,16 +320,26 @@ func (JobAlert) TableName() string {
 	return "job_alerts"
 }
 
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (j *JobAlert) BeforeCreate(tx *gorm.DB) error {
-	if j.ID == "" {
-		j.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(j.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for JobAlert ID: %w", err)
-		}
+// NewJobAlert creates a new JobAlert with proper initialization
+func NewJobAlert() *JobAlert {
+	return &JobAlert{
+		BaseModel: *base.NewBaseModel("JALT", hash.Medium),
 	}
-	return nil
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (j *JobAlert) BeforeCreateGORM(tx *gorm.DB) error {
+	return j.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (j *JobAlert) BeforeUpdateGORM(tx *gorm.DB) error {
+	return j.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (j *JobAlert) BeforeDeleteGORM(tx *gorm.DB) error {
+	return j.BeforeDelete()
 }
 
 // Job Discovery Models

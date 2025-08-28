@@ -5,9 +5,8 @@ package application
 import (
 	"time"
 
-	"fmt"
-
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
 )
 
@@ -34,9 +33,9 @@ var ValidStatuses = []string{
 }
 
 type Application struct {
-	ID                 string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	JobID              string    `gorm:"type:uuid" json:"job_id" binding:"required"`
-	StudentID          string    `gorm:"type:uuid" json:"student_id" binding:"required"`
+	base.BaseModel
+	JobID              string    `gorm:"type:varchar(255)" json:"job_id" binding:"required"`
+	StudentID          string    `gorm:"type:varchar(255)" json:"student_id" binding:"required"`
 	AppliedAt          time.Time `json:"applied_at"`
 	Status             string    `json:"status"`
 	CoverLetter        string    `json:"cover_letter"`
@@ -49,7 +48,6 @@ type Application struct {
 	Location           string    `json:"location"`
 	JobType            string    `json:"job_type"`
 	Experience         string    `json:"experience"`
-	UpdatedAt          time.Time `json:"updated_at"`
 	StudentPhoneNumber string    `json:"student_phone_number,omitempty"`
 }
 
@@ -58,16 +56,26 @@ func (Application) TableName() string {
 	return "applications"
 }
 
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (a *Application) BeforeCreate(tx *gorm.DB) error {
-	if a.ID == "" {
-		a.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(a.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for Application ID: %w", err)
-		}
+// NewApplication creates a new Application with proper initialization
+func NewApplication() *Application {
+	return &Application{
+		BaseModel: *base.NewBaseModel("APPL", hash.Large),
 	}
-	return nil
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (a *Application) BeforeCreateGORM(tx *gorm.DB) error {
+	return a.BaseModel.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (a *Application) BeforeUpdateGORM(tx *gorm.DB) error {
+	return a.BaseModel.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (a *Application) BeforeDeleteGORM(tx *gorm.DB) error {
+	return a.BaseModel.BeforeDelete()
 }
 
 // Request/Response Models

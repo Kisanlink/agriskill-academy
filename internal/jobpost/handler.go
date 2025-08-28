@@ -64,7 +64,7 @@ func (h *JobPostHandler) Create(c *gin.Context) {
 	employerName := c.GetString("username")
 	employerEmail := c.GetString("email")
 
-	job, err := h.service.CreateJobPost(&req, employerID, employerName, employerEmail)
+	job, err := h.service.CreateJobPost(c.Request.Context(), &req, employerID, employerName, employerEmail)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to create job: " + err.Error()})
 		return
@@ -162,7 +162,7 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 	employerEmail := c.GetString("email")
 
 	// Create job with published status directly
-	job, err := h.service.CreateJobPostWithStatus(&req, employerID, employerName, employerEmail, "published")
+	job, err := h.service.CreateJobPostWithStatus(c.Request.Context(), &req, employerID, employerName, employerEmail, "published")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to publish job: " + err.Error()})
 		return
@@ -211,7 +211,7 @@ func (h *JobPostHandler) Update(c *gin.Context) {
 	}
 
 	// Get existing job to verify ownership
-	existingJob, err := h.service.GetByID(id)
+	existingJob, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Job not found"})
 		return
@@ -222,7 +222,7 @@ func (h *JobPostHandler) Update(c *gin.Context) {
 		return
 	}
 
-	job, err := h.service.UpdateJobPost(id, &req)
+	job, err := h.service.UpdateJobPost(c.Request.Context(), id, &req)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to update job: " + err.Error()})
 		return
@@ -266,7 +266,7 @@ func (h *JobPostHandler) Delete(c *gin.Context) {
 	}
 
 	// Get existing job to verify ownership
-	existingJob, err := h.service.GetByID(id)
+	existingJob, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Job not found"})
 		return
@@ -277,7 +277,7 @@ func (h *JobPostHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Delete(id); err != nil {
+	if err := h.service.Delete(c.Request.Context(), id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to delete job"})
 		return
 	}
@@ -312,7 +312,7 @@ func (h *JobPostHandler) GetByID(c *gin.Context) {
 	}
 
 	id := c.Param("id")
-	job, err := h.service.GetByID(id)
+	job, err := h.service.GetByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Job not found"})
 		return
@@ -1129,7 +1129,7 @@ func (h *JobPostHandler) PublishDraft(c *gin.Context) {
 	}
 
 	// Verify ownership
-	existingJob, err := h.service.GetByID(jobID)
+	existingJob, err := h.service.GetByID(c.Request.Context(), jobID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Job not found"})
 		return

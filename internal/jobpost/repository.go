@@ -2,18 +2,16 @@ package jobpost
 
 import (
 	"asa/internal/middleware"
+	"context"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
 type JobPostRepository interface {
-	Create(job *JobPost) error
-	Update(job *JobPost) error
-	Delete(id string) error
-	GetByID(id string) (*JobPost, error)
+	base.Repository[*JobPost]
 	GetByEmployer(employerID string) ([]JobPost, error)
 	Search(filter *JobPostFilter) ([]JobPost, error)
 	GetJobsByIDs(ids []string) ([]JobPost, error)
@@ -45,74 +43,223 @@ type JobPostRepository interface {
 }
 
 type jobPostRepository struct {
+	*base.BaseRepository[*JobPost]
 	db *gorm.DB
 }
 
 func NewJobPostRepository(db *gorm.DB) JobPostRepository {
-	return &jobPostRepository{db}
+	return &jobPostRepository{
+		BaseRepository: base.NewBaseRepository[*JobPost](),
+		db:             db,
+	}
 }
 
-// BeforeCreate hook to map salary fields and generate UUID
-func (job *JobPost) BeforeCreate(tx *gorm.DB) error {
-	// Generate UUID for ID if it's empty
-	if job.ID == "" {
-		job.ID = uuid.New().String()
-	}
-
+func (r *jobPostRepository) Create(ctx context.Context, job *JobPost) error {
 	// Map nested salary to individual fields for database storage
 	job.SalaryMin = job.Salary.Min
 	job.SalaryMax = job.Salary.Max
 	job.SalaryCurrency = job.Salary.Currency
 
 	// Debug logging
-	middleware.DebugLog("DEBUG: BeforeCreate hook - Salary: %+v, Min: %f, Max: %f, Currency: %s\n",
+	middleware.DebugLog("DEBUG: Create - Salary: %+v, Min: %f, Max: %f, Currency: %s\n",
 		job.Salary, job.SalaryMin, job.SalaryMax, job.SalaryCurrency)
 
-	return nil
+	return r.db.Create(job).Error
 }
 
-// BeforeUpdate hook to map salary fields
-func (job *JobPost) BeforeUpdate(tx *gorm.DB) error {
-	// Map nested salary to individual fields for database storage
-	job.SalaryMin = job.Salary.Min
-	job.SalaryMax = job.Salary.Max
-	job.SalaryCurrency = job.Salary.Currency
-	return nil
-}
+func (r *jobPostRepository) GetByID(ctx context.Context, id string, job *JobPost) (*JobPost, error) {
+	err := r.db.First(job, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
 
-// AfterFind hook to map database fields to nested salary structure
-func (job *JobPost) AfterFind(tx *gorm.DB) error {
 	// Map individual fields to nested salary structure for JSON response
 	job.Salary = Salary{
 		Min:      job.SalaryMin,
 		Max:      job.SalaryMax,
 		Currency: job.SalaryCurrency,
 	}
-	return nil
+	return job, nil
 }
 
-func (r *jobPostRepository) Create(job *JobPost) error {
-	return r.db.Create(job).Error
-}
-
-func (r *jobPostRepository) Update(job *JobPost) error {
+func (r *jobPostRepository) Update(ctx context.Context, job *JobPost) error {
+	// Map nested salary to individual fields for database storage
+	job.SalaryMin = job.Salary.Min
+	job.SalaryMax = job.Salary.Max
+	job.SalaryCurrency = job.Salary.Currency
 	return r.db.Save(job).Error
 }
 
-func (r *jobPostRepository) Delete(id string) error {
-	return r.db.Delete(&JobPost{}, "id = ?", id).Error
+func (r *jobPostRepository) Delete(ctx context.Context, id string, job *JobPost) error {
+	return r.db.Delete(job, "id = ?", id).Error
 }
 
-func (r *jobPostRepository) GetByID(id string) (*JobPost, error) {
-	var job JobPost
-	err := r.db.First(&job, "id = ?", id).Error
-	return &job, err
+func (r *jobPostRepository) SoftDelete(ctx context.Context, id string, deletedBy string) error {
+	return r.db.Model(&JobPost{}).Where("id = ?", id).Update("deleted_at", gorm.Expr("NOW()")).Error
+}
+
+func (r *jobPostRepository) Restore(ctx context.Context, id string) error {
+	return r.db.Model(&JobPost{}).Where("id = ?", id).Update("deleted_at", nil).Error
+}
+
+func (r *jobPostRepository) List(ctx context.Context, limit, offset int) ([]*JobPost, error) {
+	var jobs []*JobPost
+	err := r.db.Limit(limit).Offset(offset).Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for _, job := range jobs {
+		job.Salary = Salary{
+			Min:      job.SalaryMin,
+			Max:      job.SalaryMax,
+			Currency: job.SalaryCurrency,
+		}
+	}
+	return jobs, nil
+}
+
+func (r *jobPostRepository) ListWithDeleted(ctx context.Context, limit, offset int) ([]*JobPost, error) {
+	var jobs []*JobPost
+	err := r.db.Unscoped().Limit(limit).Offset(offset).Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for _, job := range jobs {
+		job.Salary = Salary{
+			Min:      job.SalaryMin,
+			Max:      job.SalaryMax,
+			Currency: job.SalaryCurrency,
+		}
+	}
+	return jobs, nil
+}
+
+func (r *jobPostRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.Model(&JobPost{}).Count(&count).Error
+	return count, err
+}
+
+func (r *jobPostRepository) CountWithDeleted(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.Model(&JobPost{}).Unscoped().Count(&count).Error
+	return count, err
+}
+
+func (r *jobPostRepository) Exists(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.db.Model(&JobPost{}).Where("id = ?", id).Count(&count).Error
+	return count > 0, err
+}
+
+func (r *jobPostRepository) ExistsWithDeleted(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.db.Model(&JobPost{}).Unscoped().Where("id = ?", id).Count(&count).Error
+	return count > 0, err
+}
+
+func (r *jobPostRepository) GetByCreatedBy(ctx context.Context, createdBy string, limit, offset int) ([]*JobPost, error) {
+	var jobs []*JobPost
+	err := r.db.Where("created_by = ?", createdBy).Limit(limit).Offset(offset).Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for _, job := range jobs {
+		job.Salary = Salary{
+			Min:      job.SalaryMin,
+			Max:      job.SalaryMax,
+			Currency: job.SalaryCurrency,
+		}
+	}
+	return jobs, nil
+}
+
+func (r *jobPostRepository) GetByUpdatedBy(ctx context.Context, updatedBy string, limit, offset int) ([]*JobPost, error) {
+	var jobs []*JobPost
+	err := r.db.Where("updated_by = ?", updatedBy).Limit(limit).Offset(offset).Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for _, job := range jobs {
+		job.Salary = Salary{
+			Min:      job.SalaryMin,
+			Max:      job.SalaryMax,
+			Currency: job.SalaryCurrency,
+		}
+	}
+	return jobs, nil
+}
+
+func (r *jobPostRepository) GetByDeletedBy(ctx context.Context, deletedBy string, limit, offset int) ([]*JobPost, error) {
+	var jobs []*JobPost
+	err := r.db.Where("deleted_by = ?", deletedBy).Limit(limit).Offset(offset).Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for _, job := range jobs {
+		job.Salary = Salary{
+			Min:      job.SalaryMin,
+			Max:      job.SalaryMax,
+			Currency: job.SalaryCurrency,
+		}
+	}
+	return jobs, nil
+}
+
+func (r *jobPostRepository) CreateMany(ctx context.Context, jobs []*JobPost) error {
+	// Map salary fields for all jobs
+	for _, job := range jobs {
+		job.SalaryMin = job.Salary.Min
+		job.SalaryMax = job.Salary.Max
+		job.SalaryCurrency = job.Salary.Currency
+	}
+	return r.db.Create(jobs).Error
+}
+
+func (r *jobPostRepository) UpdateMany(ctx context.Context, jobs []*JobPost) error {
+	// Map salary fields for all jobs
+	for _, job := range jobs {
+		job.SalaryMin = job.Salary.Min
+		job.SalaryMax = job.Salary.Max
+		job.SalaryCurrency = job.Salary.Currency
+	}
+	return r.db.Save(jobs).Error
+}
+
+func (r *jobPostRepository) DeleteMany(ctx context.Context, ids []string) error {
+	return r.db.Delete(&JobPost{}, ids).Error
+}
+
+func (r *jobPostRepository) SoftDeleteMany(ctx context.Context, ids []string, deletedBy string) error {
+	return r.db.Model(&JobPost{}).Where("id IN ?", ids).Update("deleted_at", gorm.Expr("NOW()")).Error
 }
 
 func (r *jobPostRepository) GetByEmployer(employerID string) ([]JobPost, error) {
 	var jobs []JobPost
 	err := r.db.Where("employer_id = ?", employerID).Find(&jobs).Error
-	return jobs, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
+	return jobs, nil
 }
 
 func (r *jobPostRepository) UpdateHiredCandidate(jobID string, candidateName string) error {
@@ -200,6 +347,19 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 	query = query.Order("created_at DESC")
 
 	err := query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
+
 	middleware.DebugLog("🔍 Job Search Debug - Found %d jobs\n", len(jobs))
 	return jobs, err
 }
@@ -207,7 +367,19 @@ func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {
 func (r *jobPostRepository) GetJobsByIDs(ids []string) ([]JobPost, error) {
 	var jobs []JobPost
 	err := r.db.Where("id IN ?", ids).Find(&jobs).Error
-	return jobs, err
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
+	return jobs, nil
 }
 
 func (r *jobPostRepository) IncrementApplicationsCount(jobID string) error {
@@ -232,6 +404,18 @@ func (r *jobPostRepository) GetFeaturedJobs(limit int) ([]JobPost, error) {
 		Limit(limit)
 
 	err := query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
 	return jobs, err
 }
 
@@ -247,6 +431,18 @@ func (r *jobPostRepository) GetRecentJobs(limit int) ([]JobPost, error) {
 		Limit(limit)
 
 	err := query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
 	return jobs, err
 }
 
@@ -467,6 +663,18 @@ func (r *jobPostRepository) GetTrendingJobs(limit int) ([]JobPost, error) {
 		Limit(limit)
 
 	err := query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
 	return jobs, err
 }
 
@@ -508,6 +716,18 @@ func (r *jobPostRepository) GetSimilarJobs(jobID string, maxResults int) ([]JobP
 	query = query.Order("created_at DESC").Limit(maxResults)
 
 	err = query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
 	return jobs, err
 }
 
@@ -543,6 +763,18 @@ func (r *jobPostRepository) GetRecommendedJobs(request *JobRecommendationRequest
 	query = query.Order("created_at DESC").Limit(request.MaxResults)
 
 	err := query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map salary fields for all jobs
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
 	return jobs, err
 }
 
@@ -562,18 +794,27 @@ func (r *jobPostRepository) DeleteJobAlert(alertID string) error {
 func (r *jobPostRepository) GetJobAlertByID(alertID string) (*JobAlert, error) {
 	var alert JobAlert
 	err := r.db.First(&alert, "id = ?", alertID).Error
-	return &alert, err
+	if err != nil {
+		return nil, err
+	}
+	return &alert, nil
 }
 
 func (r *jobPostRepository) GetJobAlertsByUser(userID string) ([]JobAlert, error) {
 	var alerts []JobAlert
 	err := r.db.Where("user_id = ?", userID).Find(&alerts).Error
+	if err != nil {
+		return nil, err
+	}
 	return alerts, err
 }
 
 func (r *jobPostRepository) GetActiveJobAlerts() ([]JobAlert, error) {
 	var alerts []JobAlert
 	err := r.db.Where("is_active = ?", true).Find(&alerts).Error
+	if err != nil {
+		return nil, err
+	}
 	return alerts, err
 }
 
@@ -631,6 +872,18 @@ func (r *jobPostRepository) GetJobsMatchingAlert(alert *JobAlert) ([]JobPost, er
 	query = query.Order("created_at DESC")
 
 	err := query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map individual fields to nested salary structure for JSON response
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
 	return jobs, err
 }
 
@@ -644,6 +897,18 @@ func (r *jobPostRepository) CreateDraft(job *JobPost) error {
 func (r *jobPostRepository) GetDraftsByEmployer(employerID string) ([]JobPost, error) {
 	var jobs []JobPost
 	err := r.db.Where("employer_id = ? AND status = ?", employerID, "draft").Order("updated_at DESC").Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Map individual fields to nested salary structure for JSON response
+	for i := range jobs {
+		jobs[i].Salary = Salary{
+			Min:      jobs[i].SalaryMin,
+			Max:      jobs[i].SalaryMax,
+			Currency: jobs[i].SalaryCurrency,
+		}
+	}
 	return jobs, err
 }
 

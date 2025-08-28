@@ -41,12 +41,16 @@ func NewApplicationService(repo ApplicationRepository, jobRepo jobpost.JobPostRe
 func (s *applicationService) Apply(app *Application) error {
 	middleware.DebugLog("DEBUG: Service Apply called for JobID: %s, StudentID: %s\n", app.JobID, app.StudentID)
 
-	exists, err := s.repo.Exists(app.JobID, app.StudentID)
+	// Check if application already exists using a custom query
+	var count int64
+	err := s.repo.(*applicationRepository).db.Model(&Application{}).
+		Where("job_id = ? AND student_id = ?", app.JobID, app.StudentID).
+		Count(&count).Error
 	if err != nil {
 		middleware.DebugLog("DEBUG: Error checking if application exists: %v\n", err)
 		return err
 	}
-	if exists {
+	if count > 0 {
 		middleware.DebugLog("DEBUG: Application already exists\n")
 		return fmt.Errorf("application already exists")
 	}
@@ -74,7 +78,7 @@ func (s *applicationService) Apply(app *Application) error {
 
 	middleware.DebugLog("DEBUG: Application object before save: %+v\n", app)
 
-	err = s.repo.Create(app)
+	err = s.repo.Create(context.Background(), app)
 	if err != nil {
 		middleware.DebugLog("DEBUG: Error creating application in database: %v\n", err)
 		return err
@@ -116,11 +120,22 @@ func (s *applicationService) GetApplicationsByJob(jobID, employerID string) ([]A
 }
 
 func (s *applicationService) GetApplicationByID(appID string) (*Application, error) {
-	return s.repo.GetByID(appID)
+	return s.repo.GetByID(context.Background(), appID, &Application{})
 }
 
 func (s *applicationService) Remove(appID, studentID string) error {
-	return s.repo.Delete(appID, studentID)
+	// First get the application to verify ownership
+	app, err := s.repo.GetByID(context.Background(), appID, &Application{})
+	if err != nil {
+		return err
+	}
+
+	// Verify the application belongs to the student
+	if app.StudentID != studentID {
+		return errors.New("not authorized to delete this application")
+	}
+
+	return s.repo.Delete(context.Background(), appID, &Application{})
 }
 
 func (s *applicationService) UpdateStatus(appID, studentID, status string) error {

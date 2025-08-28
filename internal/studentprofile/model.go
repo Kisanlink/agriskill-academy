@@ -7,9 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
 )
 
@@ -99,8 +99,8 @@ func (a *PostgreSQLTextArray) UnmarshalJSON(data []byte) error {
 }
 
 type Certificate struct {
-	ID               string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	StudentProfileID string `gorm:"type:uuid" json:"student_profile_id,omitempty"`
+	base.BaseModel
+	StudentProfileID string `gorm:"type:varchar(255)" json:"student_profile_id,omitempty"`
 	Name             string `json:"name" binding:"required"`
 	FileKey          string `json:"file_key,omitempty"`
 	FileName         string `json:"file_name,omitempty"`
@@ -114,21 +114,31 @@ func (Certificate) TableName() string {
 	return "certificates"
 }
 
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (c *Certificate) BeforeCreate(tx *gorm.DB) error {
-	if c.ID == "" {
-		c.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(c.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for Certificate ID: %w", err)
-		}
+// NewCertificate creates a new Certificate with proper initialization
+func NewCertificate() *Certificate {
+	return &Certificate{
+		BaseModel: *base.NewBaseModel("CERT", hash.Small),
 	}
-	return nil
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (c *Certificate) BeforeCreateGORM(tx *gorm.DB) error {
+	return c.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (c *Certificate) BeforeUpdateGORM(tx *gorm.DB) error {
+	return c.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (c *Certificate) BeforeDeleteGORM(tx *gorm.DB) error {
+	return c.BeforeDelete()
 }
 
 type StudentProfile struct {
-	ID     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID string `gorm:"type:uuid;not null" json:"user_id" binding:"required"`
+	base.BaseModel
+	UserID string `gorm:"type:varchar(255);not null" json:"user_id" binding:"required"`
 
 	// Required basic information
 	Name  string `gorm:"not null" json:"name" binding:"required"`
@@ -150,10 +160,6 @@ type StudentProfile struct {
 	Portfolio    string              `json:"portfolio,omitempty"`
 	Linkedin     string              `json:"linkedin,omitempty"`
 	Github       string              `json:"github,omitempty"`
-
-	// System managed fields
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 // TableName specifies the database table name for StudentProfile
@@ -161,20 +167,20 @@ func (StudentProfile) TableName() string {
 	return "student_profiles"
 }
 
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (s *StudentProfile) BeforeCreate(tx *gorm.DB) error {
-	if s.ID == "" {
-		s.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(s.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for StudentProfile ID: %w", err)
-		}
+// NewStudentProfile creates a new StudentProfile with proper initialization
+func NewStudentProfile() *StudentProfile {
+	return &StudentProfile{
+		BaseModel: *base.NewBaseModel("STUD", hash.Medium),
 	}
-	return nil
 }
 
-// BeforeUpdate is a GORM hook to handle Skills field conversion
-func (s *StudentProfile) BeforeUpdate(tx *gorm.DB) error {
+// BeforeCreateGORM is called by GORM before creating a new record
+func (s *StudentProfile) BeforeCreateGORM(tx *gorm.DB) error {
+	return s.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (s *StudentProfile) BeforeUpdateGORM(tx *gorm.DB) error {
 	// Ensure Skills is properly formatted as an array
 	// This handles cases where the frontend might send a single string
 	if len(s.Skills) == 1 && s.Skills[0] == "" {
@@ -193,7 +199,12 @@ func (s *StudentProfile) BeforeUpdate(tx *gorm.DB) error {
 		s.Skills = PostgreSQLTextArray(filteredSkills)
 	}
 
-	return nil
+	return s.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (s *StudentProfile) BeforeDeleteGORM(tx *gorm.DB) error {
+	return s.BeforeDelete()
 }
 
 // UpdateStudentProfileRequest - For profile updates (all fields optional except validation)

@@ -1,29 +1,40 @@
 package bookmark
 
 import (
-	"time"
-
-	"fmt"
-
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
 )
 
 type Bookmark struct {
-	ID        string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID    string    `gorm:"type:uuid" json:"user_id"`
-	JobID     string    `gorm:"type:uuid" json:"job_id"`
-	CreatedAt time.Time `json:"created_at"`
+	base.BaseModel
+	UserID string `gorm:"type:varchar(255)" json:"user_id"`
+	JobID  string `gorm:"type:varchar(255)" json:"job_id"`
 }
 
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (b *Bookmark) BeforeCreate(tx *gorm.DB) error {
-	if b.ID == "" {
-		b.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(b.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for Bookmark ID: %w", err)
-		}
+// TableName specifies the database table name for Bookmark
+func (Bookmark) TableName() string {
+	return "bookmarks"
+}
+
+// NewBookmark creates a new Bookmark with proper initialization
+func NewBookmark() *Bookmark {
+	return &Bookmark{
+		BaseModel: *base.NewBaseModel("BOOK", hash.Small),
 	}
-	return nil
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (b *Bookmark) BeforeCreateGORM(tx *gorm.DB) error {
+	return b.BaseModel.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (b *Bookmark) BeforeUpdateGORM(tx *gorm.DB) error {
+	return b.BaseModel.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (b *Bookmark) BeforeDeleteGORM(tx *gorm.DB) error {
+	return b.BaseModel.BeforeDelete()
 }

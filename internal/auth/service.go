@@ -6,6 +6,7 @@ import (
 	"asa/internal/middleware"
 	"asa/internal/studentprofile"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -139,7 +140,7 @@ func (s *authService) GetUserByUsername(username string) (*User, error) {
 
 // GetUserByID retrieves a user by ID
 func (s *authService) GetUserByID(userID string) (*User, error) {
-	return s.repo.FindByID(userID)
+	return s.repo.GetByID(context.Background(), userID, &User{})
 }
 
 // ListAllUsers retrieves all users (for debugging)
@@ -201,7 +202,7 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		Password: hashedPassword, // Store hashed password locally
 		Role:     req.Role,       // Store role locally
 	}
-	err = s.repo.Create(user)
+	err = s.repo.Create(context.Background(), user)
 	if err != nil {
 		middleware.DebugLog("❌ Failed to create user in DB: %v\n", err)
 		return nil, "", err
@@ -284,7 +285,7 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			Github:          "",
 		}
 		middleware.DebugLog("🔍 Student profile data: %+v\n", profile)
-		if err := s.studentProfileRepo.Create(profile); err != nil {
+		if err := s.studentProfileRepo.Create(context.Background(), profile); err != nil {
 			middleware.DebugLog("❌ Failed to create student profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create user profile: %w", err)
 		}
@@ -316,7 +317,7 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 
 	// 2. Check if user exists with the specific ID
 	middleware.DebugLog("🔍 Checking if user exists with ID: %s\n", userID)
-	existingUser, err := s.repo.FindByID(userID)
+	existingUser, err := s.repo.GetByID(context.Background(), userID, &User{})
 	if err != nil {
 		middleware.DebugLog("🔍 User not found with ID (expected): %v\n", err)
 	} else if existingUser != nil {
@@ -425,7 +426,7 @@ func (s *authService) SignupWithID(req *SignupRequest, userID string, phoneNumbe
 			Github:          "",
 		}
 		middleware.DebugLog("🔍 Student profile data: %+v\n", profile)
-		if err := s.studentProfileRepo.Create(profile); err != nil {
+		if err := s.studentProfileRepo.Create(context.Background(), profile); err != nil {
 			middleware.DebugLog("❌ Failed to create student profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create user profile: %w", err)
 		}
@@ -465,7 +466,7 @@ func (s *authService) ResetPassword(token, newPassword string) error {
 
 // Update profile
 func (s *authService) UpdateProfile(userID string, req *UpdateProfileRequest) (*User, error) {
-	user, err := s.repo.FindByID(userID)
+	user, err := s.repo.GetByID(context.Background(), userID, &User{})
 	if err != nil {
 		return nil, err
 	}
@@ -484,7 +485,7 @@ func (s *authService) UpdateProfile(userID string, req *UpdateProfileRequest) (*
 	}
 
 	// Update user table
-	if err := s.repo.Update(user); err != nil {
+	if err := s.repo.Update(context.Background(), user); err != nil {
 		return nil, err
 	}
 
@@ -615,7 +616,7 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 		profile.Github = req.Github
 	}
 
-	return s.studentProfileRepo.Update(profile)
+	return s.studentProfileRepo.Update(context.Background(), profile)
 }
 
 // assignRoleToUser assigns a role to a user in AAA service via HTTP

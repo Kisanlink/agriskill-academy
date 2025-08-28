@@ -1,18 +1,15 @@
 package employerprofile
 
 import (
-	"time"
-
-	"fmt"
-
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
 type EmployerProfile struct {
-	ID     string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID string `gorm:"type:uuid;not null" json:"user_id" binding:"required"`
+	base.BaseModel
+	UserID string `gorm:"type:varchar(255);not null" json:"user_id" binding:"required"`
 
 	// Required company information
 	CompanyName string `gorm:"not null" json:"company_name" binding:"required"`
@@ -45,10 +42,33 @@ type EmployerProfile struct {
 	City           string `json:"city,omitempty"`
 	State          string `json:"state,omitempty"`
 	Pincode        string `json:"pincode,omitempty"`
+}
 
-	// System managed fields
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+// TableName specifies the database table name for EmployerProfile
+func (EmployerProfile) TableName() string {
+	return "employer_profiles"
+}
+
+// NewEmployerProfile creates a new EmployerProfile with proper initialization
+func NewEmployerProfile() *EmployerProfile {
+	return &EmployerProfile{
+		BaseModel: *base.NewBaseModel("EMPL", hash.Medium),
+	}
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (e *EmployerProfile) BeforeCreateGORM(tx *gorm.DB) error {
+	return e.BaseModel.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (e *EmployerProfile) BeforeUpdateGORM(tx *gorm.DB) error {
+	return e.BaseModel.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (e *EmployerProfile) BeforeDeleteGORM(tx *gorm.DB) error {
+	return e.BaseModel.BeforeDelete()
 }
 
 // UpdateEmployerProfileRequest is used for update operations where UserID comes from URL parameter
@@ -84,21 +104,4 @@ type UpdateEmployerProfileRequest struct {
 	City           string `json:"city,omitempty"`
 	State          string `json:"state,omitempty"`
 	Pincode        string `json:"pincode,omitempty"`
-}
-
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (e *EmployerProfile) BeforeCreate(tx *gorm.DB) error {
-	if e.ID == "" {
-		e.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(e.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for EmployerProfile ID: %w", err)
-		}
-	}
-	return nil
-}
-
-// TableName specifies the database table name for EmployerProfile
-func (EmployerProfile) TableName() string {
-	return "employer_profiles"
 }

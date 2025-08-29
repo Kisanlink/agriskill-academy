@@ -49,6 +49,7 @@ type AuthService interface {
 	GetUserByEmail(email string) (*User, error)
 	GetUserByUsername(username string) (*User, error)
 	GetUserByID(userID string) (*User, error)
+	GetCompleteProfile(userID string) (map[string]interface{}, error)
 	ListAllUsers() ([]User, error)
 }
 
@@ -478,4 +479,147 @@ func (s *authService) updateStudentProfile(userID string, req *UpdateProfileRequ
 	}
 
 	return s.studentProfileRepo.Update(context.Background(), profile)
+}
+
+// GetCompleteProfile retrieves complete profile information including role-specific details
+func (s *authService) GetCompleteProfile(userID string) (map[string]interface{}, error) {
+	// Get basic user information
+	user, err := s.repo.GetByID(context.Background(), userID, &User{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Create base profile response
+	profile := map[string]interface{}{
+		"id":    user.ID,
+		"name":  user.Name,
+		"email": user.Email,
+		"role":  user.Role,
+	}
+
+	// Add phone number if available
+	if user.PhoneNumber != "" {
+		profile["phone_number"] = user.PhoneNumber
+	}
+
+	// Add username if available
+	if user.Username != "" {
+		profile["username"] = user.Username
+	}
+
+	// Get role-specific profile data
+	switch user.Role {
+	case "employer":
+		employerProfile, err := s.employerRepo.GetByUserID(userID)
+		if err == nil && employerProfile != nil {
+			// Add all non-null employer profile fields
+			if employerProfile.CompanyName != "" {
+				profile["company_name"] = employerProfile.CompanyName
+			}
+			if employerProfile.Industry != "" {
+				profile["industry"] = employerProfile.Industry
+			}
+			if employerProfile.CompanySize != "" {
+				profile["company_size"] = employerProfile.CompanySize
+			}
+			if employerProfile.LogoKey != "" {
+				profile["logo_key"] = employerProfile.LogoKey
+			}
+			if employerProfile.LogoName != "" {
+				profile["logo_name"] = employerProfile.LogoName
+			}
+			if employerProfile.LogoType != "" {
+				profile["logo_type"] = employerProfile.LogoType
+			}
+			if employerProfile.LogoSize > 0 {
+				profile["logo_size"] = employerProfile.LogoSize
+			}
+			if employerProfile.WebsiteURL != "" {
+				profile["website_url"] = employerProfile.WebsiteURL
+			}
+			if employerProfile.CompanyDescription != "" {
+				profile["company_description"] = employerProfile.CompanyDescription
+			}
+			if employerProfile.RecruiterName != "" {
+				profile["recruiter_name"] = employerProfile.RecruiterName
+			}
+			if employerProfile.Designation != "" {
+				profile["designation"] = employerProfile.Designation
+			}
+			if employerProfile.OfficialEmail != "" {
+				profile["official_email"] = employerProfile.OfficialEmail
+			}
+			if employerProfile.PhoneNumber != "" {
+				profile["phone_number"] = employerProfile.PhoneNumber
+			}
+			if employerProfile.LinkedinProfile != "" {
+				profile["linkedin_profile"] = employerProfile.LinkedinProfile
+			}
+			if len(employerProfile.JobCategories) > 0 {
+				profile["job_categories"] = employerProfile.JobCategories
+			}
+			if len(employerProfile.HiringLocations) > 0 {
+				profile["hiring_locations"] = employerProfile.HiringLocations
+			}
+			if len(employerProfile.HiringTypes) > 0 {
+				profile["hiring_types"] = employerProfile.HiringTypes
+			}
+			if employerProfile.GSTINNumber != "" {
+				profile["gstin_number"] = employerProfile.GSTINNumber
+			}
+			if employerProfile.CompanyAddress != "" {
+				profile["company_address"] = employerProfile.CompanyAddress
+			}
+			if employerProfile.City != "" {
+				profile["city"] = employerProfile.City
+			}
+			if employerProfile.State != "" {
+				profile["state"] = employerProfile.State
+			}
+			if employerProfile.Pincode != "" {
+				profile["pincode"] = employerProfile.Pincode
+			}
+		}
+
+	case "student":
+		studentProfile, err := s.studentProfileRepo.GetByUserID(userID)
+		if err == nil && studentProfile != nil {
+			// Add all non-null student profile fields
+			if studentProfile.Location != "" {
+				profile["location"] = studentProfile.Location
+			}
+			if studentProfile.PhoneNumber != "" {
+				profile["phone_number"] = studentProfile.PhoneNumber
+			}
+			if studentProfile.ProfilePhotoKey != "" {
+				profile["profile_photo_key"] = studentProfile.ProfilePhotoKey
+			}
+			if studentProfile.ResumeKey != "" {
+				profile["resume_key"] = studentProfile.ResumeKey
+			}
+			if len(studentProfile.Skills) > 0 {
+				profile["skills"] = studentProfile.Skills
+			}
+			if studentProfile.Experience > 0 {
+				profile["experience"] = studentProfile.Experience
+			}
+			if studentProfile.Education != "" {
+				profile["education"] = studentProfile.Education
+			}
+			if studentProfile.Portfolio != "" {
+				profile["portfolio"] = studentProfile.Portfolio
+			}
+			if studentProfile.Linkedin != "" {
+				profile["linkedin"] = studentProfile.Linkedin
+			}
+			if studentProfile.Github != "" {
+				profile["github"] = studentProfile.Github
+			}
+			if len(studentProfile.Certificates) > 0 {
+				profile["certificates"] = studentProfile.Certificates
+			}
+		}
+	}
+
+	return profile, nil
 }

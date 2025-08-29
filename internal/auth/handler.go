@@ -202,7 +202,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	user, err := h.authService.GetUserByID(userID)
+	profile, err := h.authService.GetCompleteProfile(userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "User not found"})
 		return
@@ -211,12 +211,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Profile retrieved successfully",
-		"user": gin.H{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
-			"role":  user.Role,
-		},
+		"user":    profile,
 	})
 }
 

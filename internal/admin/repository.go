@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"asa/internal/auth"
 	"errors"
 	"time"
 
@@ -28,6 +29,7 @@ type AdminRepository interface {
 	GetUserByID(userID string) (*UserDetailResponse, error)
 	UpdateUser(userID string, req *UpdateUserRequest) error
 	DeleteUser(userID string) error
+	CreateAdmin(user *auth.User) error
 
 	// Company Management
 	GetCompanies(req *CompanyListRequest) (*CompanyListResponse, error)
@@ -751,4 +753,8 @@ func (r *adminRepository) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 	analytics.CompaniesBySize = sizeStats
 
 	return &analytics, nil
+}
+
+func (r *adminRepository) CreateAdmin(user *auth.User) error {
+	return r.db.Create(user).Error
 }

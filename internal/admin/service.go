@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"asa/internal/auth"
 	"errors"
 )
 
@@ -15,6 +16,7 @@ type AdminService interface {
 	GetUserByID(userID string) (*UserDetailResponse, error)
 	UpdateUser(userID string, req *UpdateUserRequest) error
 	DeleteUser(userID string) error
+	CreateAdmin(req *CreateAdminRequest) (*CreateAdminResponse, error)
 
 	// Company Management
 	GetCompanies(req *CompanyListRequest) (*CompanyListResponse, error)
@@ -82,6 +84,39 @@ func (s *adminService) UpdateUser(userID string, req *UpdateUserRequest) error {
 
 func (s *adminService) DeleteUser(userID string) error {
 	return s.repo.DeleteUser(userID)
+}
+
+func (s *adminService) CreateAdmin(req *CreateAdminRequest) (*CreateAdminResponse, error) {
+	// Hash the password
+	hashedPassword, err := auth.HashPassword(req.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create admin user
+	adminUser := auth.NewUser()
+	adminUser.Name = req.Name
+	adminUser.Username = req.Username
+	adminUser.Email = req.Email
+	adminUser.Password = hashedPassword
+	adminUser.Role = "asa_admin"
+
+	// Create the admin user in database
+	if err := s.repo.CreateAdmin(adminUser); err != nil {
+		return nil, err
+	}
+
+	response := &CreateAdminResponse{
+		Success: true,
+		Message: "Admin user created successfully",
+	}
+	response.User.ID = adminUser.ID
+	response.User.Name = adminUser.Name
+	response.User.Username = adminUser.Username
+	response.User.Email = adminUser.Email
+	response.User.Role = adminUser.Role
+
+	return response, nil
 }
 
 // Company Management Methods

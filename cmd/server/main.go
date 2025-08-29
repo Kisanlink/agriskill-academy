@@ -20,6 +20,7 @@ import (
 	"asa/internal/jobpost"
 	"asa/internal/middleware"
 	"asa/internal/notification"
+	"asa/internal/seeding"
 	"asa/internal/storage"
 	"asa/internal/studentprofile"
 	"asa/internal/worker"
@@ -101,6 +102,12 @@ func main() {
 	// Run migrations
 	if err := runAutoMigrate(db); err != nil {
 		log.Fatalf("Failed to run auto migration: %v", err)
+	}
+
+	// Run seeding
+	seedingService := seeding.NewSeedingService(db)
+	if err := seedingService.RunSeeding(); err != nil {
+		logger.Fatal("Failed to run seeding", zap.Error(err))
 	}
 
 	// Storage Service setup

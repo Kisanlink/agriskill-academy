@@ -1,0 +1,92 @@
+[33m9f8d787[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/karthikeya-asa6[m[33m)[m HEAD@{0}: reset: moving to HEAD~1
+[33m55b8ccd[m HEAD@{1}: reset: moving to HEAD~1
+[33mee90e60[m HEAD@{2}: commit: [FIX]: fixes the get profile responce body for student and employer
+[33m55b8ccd[m HEAD@{3}: commit (amend): [UPDATE]: implements the security for sql injection, ratelimiter, redis
+[33m33fd1bb[m HEAD@{4}: commit: [FIX]: Removes AAA from the project
+[33m9f8d787[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/karthikeya-asa6[m[33m)[m HEAD@{5}: commit: [UPDATE]: removes AAA completely
+[33m2cdf0c0[m HEAD@{6}: commit: [FEATURE]: implements kisanlink-db
+[33m1f53d9b[m HEAD@{7}: commit: [FIX]: fixes the duplicate debuglogger in logger.go
+[33mbc49c1e[m[33m ([m[1;31morigin/beta[m[33m, [m[1;32mbeta[m[33m)[m HEAD@{8}: checkout: moving from beta to feature/karthikeya-asa6
+[33mbc49c1e[m[33m ([m[1;31morigin/beta[m[33m, [m[1;32mbeta[m[33m)[m HEAD@{9}: reset: moving to HEAD
+[33mbc49c1e[m[33m ([m[1;31morigin/beta[m[33m, [m[1;32mbeta[m[33m)[m HEAD@{10}: reset: moving to HEAD
+[33mbc49c1e[m[33m ([m[1;31morigin/beta[m[33m, [m[1;32mbeta[m[33m)[m HEAD@{11}: pull: Fast-forward
+[33mc459149[m HEAD@{12}: checkout: moving from feature/karthikeya-asa5 to beta
+[33m7bcca3b[m[33m ([m[1;32mfeature/karthikeya-asa5[m[33m)[m HEAD@{13}: checkout: moving from feature/karthikeya-asa5 to feature/karthikeya-asa5
+[33m7bcca3b[m[33m ([m[1;32mfeature/karthikeya-asa5[m[33m)[m HEAD@{14}: commit: [UPDATE]: Enhance issue #10 adds backend for Contact Us page
+[33mf1b75bf[m[33m ([m[1;32mnew-branch-name[m[33m, [m[1;32mfeature/karthikeya-asa4[m[33m)[m HEAD@{15}: checkout: moving from f1b75bfe78a027bec5bf546e249193149e60db74 to feature/karthikeya-asa5
+[33mf1b75bf[m[33m ([m[1;32mnew-branch-name[m[33m, [m[1;32mfeature/karthikeya-asa4[m[33m)[m HEAD@{16}: checkout: moving from feature/karthikeya-asa4 to new-branch-name
+[33mf1b75bf[m[33m ([m[1;32mnew-branch-name[m[33m, [m[1;32mfeature/karthikeya-asa4[m[33m)[m HEAD@{17}: checkout: moving from new-branch-name to feature/karthikeya-asa4
+[33mf1b75bf[m[33m ([m[1;32mnew-branch-name[m[33m, [m[1;32mfeature/karthikeya-asa4[m[33m)[m HEAD@{18}: checkout: moving from feature/karthikeya-asa4 to new-branch-name
+[33mf1b75bf[m[33m ([m[1;32mnew-branch-name[m[33m, [m[1;32mfeature/karthikeya-asa4[m[33m)[m HEAD@{19}: commit: [FIX]: Fixed the minor issues
+[33ma40e931[m HEAD@{20}: reset: moving to HEAD
+[33ma40e931[m HEAD@{21}: commit: [FIX]: Admin panel CORS issue
+[33m50c5156[m HEAD@{22}: commit: [FIX]: Admin login Fix
+[33mb542f31[m HEAD@{23}: commit: [FIX]: Forgot Password fix
+[33m0e099b5[m HEAD@{24}: reset: moving to HEAD
+[33m0e099b5[m HEAD@{25}: commit: [FIX]: Fixes the application_id, company details in job_posts
+[33mb26aff9[m HEAD@{26}: checkout: moving from beta to feature/karthikeya-asa4
+[33mc459149[m HEAD@{27}: checkout: moving from feature/karthikeya-asa4 to beta
+[33mb26aff9[m HEAD@{28}: commit: [FIX]: GIN_MODE fixed for release
+[33mfad4d05[m HEAD@{29}: commit: [UPDATE]: Add S3 file storage integration
+[33mab6b489[m[33m ([m[1;31morigin/s3-refactor[m[33m, [m[1;32ms3-refactor[m[33m)[m HEAD@{30}: checkout: moving from s3-refactor to feature/karthikeya-asa4
+[33mab6b489[m[33m ([m[1;31morigin/s3-refactor[m[33m, [m[1;32ms3-refactor[m[33m)[m HEAD@{31}: checkout: moving from feature/karthikeya-asa3 to s3-refactor
+[33ma4d2bb2[m[33m ([m[1;32mfeature/karthikeya-asa3[m[33m)[m HEAD@{32}: reset: moving to HEAD
+[33ma4d2bb2[m[33m ([m[1;32mfeature/karthikeya-asa3[m[33m)[m HEAD@{33}: checkout: moving from beta to feature/karthikeya-asa3
+[33mc459149[m HEAD@{34}: pull origin beta: Fast-forward
+[33m1467478[m HEAD@{35}: checkout: moving from feature/karthikeya-asa3 to beta
+[33ma4d2bb2[m[33m ([m[1;32mfeature/karthikeya-asa3[m[33m)[m HEAD@{36}: commit: [UPDATE]: Created debugmode and release mode
+[33m8116309[m HEAD@{37}: reset: moving to HEAD
+[33m8116309[m HEAD@{38}: commit: [UPDATE]: Added gRPC calls so that existing AAA users can signup and use the ASA
+[33m1467478[m HEAD@{39}: checkout: moving from beta to feature/karthikeya-asa3
+[33m1467478[m HEAD@{40}: pull: Fast-forward
+[33mdbf1d7b[m HEAD@{41}: checkout: moving from feature/karthikeya-asa1 to beta
+[33me28d548[m[33m ([m[1;32mfeature/karthikeya-asa1[m[33m)[m HEAD@{42}: rebase (finish): returning to refs/heads/feature/karthikeya-asa1
+[33me28d548[m[33m ([m[1;32mfeature/karthikeya-asa1[m[33m)[m HEAD@{43}: rebase (continue): [UPDATE]: Initial gRPC addition
+[33mdbf1d7b[m HEAD@{44}: rebase (start): checkout beta
+[33madabc5b[m HEAD@{45}: checkout: moving from beta to feature/karthikeya-asa1
+[33mdbf1d7b[m HEAD@{46}: pull: Fast-forward
+[33ma20815e[m HEAD@{47}: commit: [FIX]: Debug Script
+[33mc00eec7[m HEAD@{48}: pull: Fast-forward
+[33mf1cc335[m HEAD@{49}: checkout: moving from feature/karthikeya-asa1 to beta
+[33madabc5b[m HEAD@{50}: commit: [UPDATE]: Initial gRPC addition
+[33m17571ce[m[33m ([m[1;31morigin/feature/karthikeya-asa1[m[33m)[m HEAD@{51}: reset: moving to HEAD
+[33m17571ce[m[33m ([m[1;31morigin/feature/karthikeya-asa1[m[33m)[m HEAD@{52}: commit: [FIX]: Migrate scripts issue fix
+[33md44f9af[m HEAD@{53}: commit: [UPDATE]: Swagger docs added & bugs fixed
+[33me3cba54[m HEAD@{54}: commit: [UPDATE]: File storage changed to binary to store in DB cells only
+[33m2074e49[m HEAD@{55}: commit: [UPDATE]: Fully working backend except file storage
+[33mbb9aa23[m HEAD@{56}: commit: [FIX]: camelCase changet to snake_case
+[33mbaae188[m HEAD@{57}: commit (merge): [FIX]: This commit resolves merge conflicts btw beta and this branch
+[33mb3de64c[m HEAD@{58}: checkout: moving from beta to feature/karthikeya-asa1
+[33mf1cc335[m HEAD@{59}: checkout: moving from feature/karthikeya-asa1 to beta
+[33mb3de64c[m HEAD@{60}: checkout: moving from beta to feature/karthikeya-asa1
+[33mf1cc335[m HEAD@{61}: checkout: moving from feature/karthikeya-asa1 to beta
+[33mb3de64c[m HEAD@{62}: commit: [FIX]: AAA service is used only for login
+[33m03491de[m[33m ([m[1;32mfeature/karthikeya-asa2[m[33m)[m HEAD@{63}: reset: moving to feature/karthikeya-asa2
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{64}: checkout: moving from feature/karthikeya-asa2 to feature/karthikeya-asa1
+[33m03491de[m[33m ([m[1;32mfeature/karthikeya-asa2[m[33m)[m HEAD@{65}: commit: AAA service included
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{66}: checkout: moving from beta to feature/karthikeya-asa2
+[33mf1cc335[m HEAD@{67}: checkout: moving from feature/karthikeya-asa2 to beta
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{68}: reset: moving to HEAD
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{69}: checkout: moving from beta to feature/karthikeya-asa2
+[33mf1cc335[m HEAD@{70}: commit (amend): [FIX]: updated the config.go file to create the DB url dynamically from .env
+[33m347e99f[m HEAD@{71}: commit: [FIX]: updated the config.go file to create the DB url dynamically from .env
+[33mf90c133[m HEAD@{72}: checkout: moving from feature/karthikeya-asa2 to beta
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{73}: reset: moving to HEAD
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{74}: reset: moving to HEAD
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{75}: checkout: moving from beta to feature/karthikeya-asa2
+[33mf90c133[m HEAD@{76}: commit: beta creation
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{77}: checkout: moving from feature/karthikeya-asa1 to beta
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{78}: checkout: moving from feature/karthikeya-asa2 to feature/karthikeya-asa1
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{79}: reset: moving to HEAD
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{80}: checkout: moving from feature/karthikeya-asa1 to feature/karthikeya-asa2
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{81}: checkout: moving from feature/karthikeya-asa2 to feature/karthikeya-asa1
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{82}: reset: moving to HEAD
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{83}: checkout: moving from feature/karthikeya-asa1 to feature/karthikeya-asa2
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{84}: checkout: moving from feature/karthikeya-asa2 to feature/karthikeya-asa1
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{85}: checkout: moving from feature/karthikeya-asa1 to feature/karthikeya-asa2
+[33mf83a747[m[33m ([m[1;33mtag: [m[1;33masa1-safe-point[m[33m)[m HEAD@{86}: commit: asa backend without AAA integration
+[33m677d7a8[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/feature/karthikeya-asa[m[33m, [m[1;32mmain[m[33m, [m[1;32mfeature/karthikeya-asa[m[33m)[m HEAD@{87}: checkout: moving from feature/karthikeya-asa to feature/karthikeya-asa1
+[33m677d7a8[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/feature/karthikeya-asa[m[33m, [m[1;32mmain[m[33m, [m[1;32mfeature/karthikeya-asa[m[33m)[m HEAD@{88}: reset: moving to HEAD
+[33m677d7a8[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/feature/karthikeya-asa[m[33m, [m[1;32mmain[m[33m, [m[1;32mfeature/karthikeya-asa[m[33m)[m HEAD@{89}: checkout: moving from main to feature/karthikeya-asa
+[33m677d7a8[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/feature/karthikeya-asa[m[33m, [m[1;32mmain[m[33m, [m[1;32mfeature/karthikeya-asa[m[33m)[m HEAD@{90}: commit: made changes to include more API Endpoints
+[33ma10ab0f[m HEAD@{91}: commit (initial): Initial setup for job portal

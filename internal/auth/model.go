@@ -53,10 +53,10 @@ type SignupRequest struct {
 	Email           string `json:"email" binding:"required"`     // Email for our local DB
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
-	Role            string `json:"role" binding:"required,oneof=student employer asa_admin"` // "student" or "employer"
-	PhoneNumber     string `json:"phone_number" binding:"required"`                          // Changed to string for frontend compatibility
-	CountryCode     string `json:"country_code,omitempty"`                                   // Optional, defaults to "+91"
-	AadhaarNumber   string `json:"aadhaar_number,omitempty"`                                 // Optional
+	Role            string `json:"role" binding:"required,oneof=student employer"` // "student" or "employer" only
+	PhoneNumber     string `json:"phone_number" binding:"required"`                // Changed to string for frontend compatibility
+	CountryCode     string `json:"country_code,omitempty"`                         // Optional, defaults to "+91"
+	AadhaarNumber   string `json:"aadhaar_number,omitempty"`                       // Optional
 
 	// Employer-only fields (optional)
 	CompanyName    string `json:"company_name,omitempty"`

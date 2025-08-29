@@ -10,6 +10,9 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *AdminHandler) {
 	admin := rg.Group("/admin")
 	admin.Use(middleware.RequireRole("asa_admin"))
 	{
+		// Admin Management
+		admin.POST("/create-admin", handler.CreateAdmin)
+
 		// Analytics endpoints
 		analytics := admin.Group("/analytics")
 		{

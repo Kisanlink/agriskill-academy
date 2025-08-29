@@ -69,9 +69,9 @@ func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerPr
 
 // JWT Secret
 func getSecret() string {
-	secret := os.Getenv("SECRET_KEY")
+	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		return "secret"
+		panic("JWT_SECRET environment variable is required")
 	}
 	return secret
 }

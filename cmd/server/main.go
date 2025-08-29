@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 
 	"asa/config"
 	"asa/internal/admin"
@@ -115,25 +114,25 @@ func main() {
 	var s3Manager *kdb.S3Manager
 
 	// Check if AWS S3 is configured
-	s3Bucket := os.Getenv("AWS_S3_BUCKET")
-	s3AccessKeyID := os.Getenv("AWS_ACCESS_KEY_ID")
-	s3SecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	s3Bucket := cfg.AWSS3Bucket
+	s3AccessKeyID := cfg.AWSAccessKeyID
+	s3SecretAccessKey := cfg.AWSSecretKey
 
-	baseURL := os.Getenv("ASA_BASE_URL")
+	baseURL := cfg.ASABaseURL
 	if baseURL == "" {
-		baseURL = "http://localhost:3000/api"
+		logger.Fatal("ASA_BASE_URL environment variable is required")
 	}
 
 	if s3Bucket != "" && s3AccessKeyID != "" && s3SecretAccessKey != "" {
 		// Use S3 storage
 		log.Printf("Using S3 storage with bucket: %s", s3Bucket)
-		s3Region := os.Getenv("AWS_REGION")
+		s3Region := cfg.AWSRegion
 		if s3Region == "" {
-			s3Region = "us-east-1"
+			logger.Fatal("AWS_REGION environment variable is required")
 		}
-		s3Endpoint := os.Getenv("AWS_S3_ENDPOINT")
-		s3ForcePathStyle := os.Getenv("AWS_S3_FORCE_PATH_STYLE") == "true"
-		s3DisableSSL := os.Getenv("AWS_S3_DISABLE_SSL") == "true"
+		s3Endpoint := cfg.AWSS3Endpoint
+		s3ForcePathStyle := cfg.AWSS3ForcePathStyle
+		s3DisableSSL := cfg.AWSS3DisableSSL
 
 		s3Config := &kdb.Config{
 			S3Region:          s3Region,
@@ -272,7 +271,7 @@ func main() {
 	// Start server
 	port := cfg.ServerPort
 	if port == "" {
-		port = "3000"
+		logger.Fatal("SERVER_PORT environment variable is required")
 	}
 
 	logger.Info("Starting ASA backend server",

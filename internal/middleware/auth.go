@@ -36,7 +36,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		DebugLog("🔐 Token string length: %d", len(tokenString))
 		DebugLog("🔐 Token preview: %s...", tokenString[:min(50, len(tokenString))])
 
-		// Validate the token locally using the shared secret from SECRET_KEY
+		// Validate the token locally using the shared secret from JWT_SECRET
 		DebugLog("🔐 Parsing JWT token...")
 		claims, err := jwtutil.ParseToken(tokenString)
 		if err != nil {

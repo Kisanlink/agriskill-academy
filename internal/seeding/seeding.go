@@ -59,18 +59,18 @@ func (s *SeedingService) seedAdmin() error {
 	defaultName := os.Getenv("DEFAULT_ADMIN_NAME")
 	defaultUsername := os.Getenv("DEFAULT_ADMIN_USERNAME")
 
-	// Set defaults if not provided
+	// Validate required environment variables
 	if defaultEmail == "" {
-		defaultEmail = "admin@agrijobs.com"
+		return fmt.Errorf("DEFAULT_ADMIN_EMAIL environment variable is required for admin seeding")
 	}
 	if defaultPassword == "" {
-		defaultPassword = "admin123"
+		return fmt.Errorf("DEFAULT_ADMIN_PASSWORD environment variable is required for admin seeding")
 	}
 	if defaultName == "" {
-		defaultName = "System Administrator"
+		return fmt.Errorf("DEFAULT_ADMIN_NAME environment variable is required for admin seeding")
 	}
 	if defaultUsername == "" {
-		defaultUsername = "admin"
+		return fmt.Errorf("DEFAULT_ADMIN_USERNAME environment variable is required for admin seeding")
 	}
 
 	// Hash the password

@@ -33,6 +33,7 @@ type Config struct {
 
 	// Server configuration
 	ServerPort string
+	GinMode    string
 
 	// Email configuration
 	MailFrom string
@@ -98,79 +99,124 @@ func LoadConfig() *Config {
 	LoadEnv()
 
 	// Parse rate limit window
-	rateLimitWindowStr := getEnvWithDefault("RATE_LIMIT_WINDOW", "1m")
-	rateLimitWindow, err := time.ParseDuration(rateLimitWindowStr)
-	if err != nil {
-		log.Printf("Warning: Invalid RATE_LIMIT_WINDOW, using default: %v", err)
+	rateLimitWindowStr := os.Getenv("RATE_LIMIT_WINDOW")
+	var rateLimitWindow time.Duration
+	if rateLimitWindowStr != "" {
+		if parsed, err := time.ParseDuration(rateLimitWindowStr); err == nil {
+			rateLimitWindow = parsed
+		} else {
+			log.Printf("Warning: Invalid RATE_LIMIT_WINDOW, using default: %v", err)
+			rateLimitWindow = time.Minute
+		}
+	} else {
 		rateLimitWindow = time.Minute
 	}
 
 	// Parse health check timeout
-	healthCheckTimeoutStr := getEnvWithDefault("HEALTH_CHECK_TIMEOUT", "30s")
-	healthCheckTimeout, err := time.ParseDuration(healthCheckTimeoutStr)
-	if err != nil {
-		log.Printf("Warning: Invalid HEALTH_CHECK_TIMEOUT, using default: %v", err)
+	healthCheckTimeoutStr := os.Getenv("HEALTH_CHECK_TIMEOUT")
+	var healthCheckTimeout time.Duration
+	if healthCheckTimeoutStr != "" {
+		if parsed, err := time.ParseDuration(healthCheckTimeoutStr); err == nil {
+			healthCheckTimeout = parsed
+		} else {
+			log.Printf("Warning: Invalid HEALTH_CHECK_TIMEOUT, using default: %v", err)
+			healthCheckTimeout = 30 * time.Second
+		}
+	} else {
 		healthCheckTimeout = 30 * time.Second
 	}
 
 	// Parse allowed origins
-	allowedOriginsStr := getEnvWithDefault("CORS_ALLOWED_ORIGINS", "*")
-	allowedOrigins := strings.Split(allowedOriginsStr, ",")
-	for i, origin := range allowedOrigins {
-		allowedOrigins[i] = strings.TrimSpace(origin)
+	allowedOriginsStr := os.Getenv("CORS_ALLOWED_ORIGINS")
+	var allowedOrigins []string
+	if allowedOriginsStr != "" {
+		allowedOrigins = strings.Split(allowedOriginsStr, ",")
+		for i, origin := range allowedOrigins {
+			allowedOrigins[i] = strings.TrimSpace(origin)
+		}
+	} else {
+		allowedOrigins = []string{"*"}
 	}
 
 	// Parse numeric values
-	rateLimitRequests, _ := strconv.Atoi(getEnvWithDefault("RATE_LIMIT_REQUESTS", "100"))
-	maxRequestSize, _ := strconv.ParseInt(getEnvWithDefault("MAX_REQUEST_SIZE", "10485760"), 10, 64) // 10MB default
-	maxFileSize, _ := strconv.ParseInt(getEnvWithDefault("MAX_FILE_SIZE", "5242880"), 10, 64)        // 5MB default
-	redisDB, _ := strconv.Atoi(getEnvWithDefault("REDIS_DB", "0"))
+	rateLimitRequestsStr := os.Getenv("RATE_LIMIT_REQUESTS")
+	rateLimitRequests := 100
+	if rateLimitRequestsStr != "" {
+		if val, err := strconv.Atoi(rateLimitRequestsStr); err == nil {
+			rateLimitRequests = val
+		}
+	}
+
+	maxRequestSizeStr := os.Getenv("MAX_REQUEST_SIZE")
+	maxRequestSize := int64(10485760) // 10MB
+	if maxRequestSizeStr != "" {
+		if val, err := strconv.ParseInt(maxRequestSizeStr, 10, 64); err == nil {
+			maxRequestSize = val
+		}
+	}
+
+	maxFileSizeStr := os.Getenv("MAX_FILE_SIZE")
+	maxFileSize := int64(5242880) // 5MB
+	if maxFileSizeStr != "" {
+		if val, err := strconv.ParseInt(maxFileSizeStr, 10, 64); err == nil {
+			maxFileSize = val
+		}
+	}
+
+	redisDBStr := os.Getenv("REDIS_DB")
+	redisDB := 0
+	if redisDBStr != "" {
+		if val, err := strconv.Atoi(redisDBStr); err == nil {
+			redisDB = val
+		}
+	}
 
 	// Parse boolean values
-	enableCORS := getEnvWithDefault("ENABLE_CORS", "true") == "true"
-	awsS3ForcePathStyle := getEnvWithDefault("AWS_S3_FORCE_PATH_STYLE", "false") == "true"
-	awsS3DisableSSL := getEnvWithDefault("AWS_S3_DISABLE_SSL", "false") == "true"
-	logDevelopment := getEnvWithDefault("LOG_DEVELOPMENT", "false") == "true"
+	enableCORS := os.Getenv("ENABLE_CORS") == "true"
+	awsS3ForcePathStyle := os.Getenv("AWS_S3_FORCE_PATH_STYLE") == "true"
+	awsS3DisableSSL := os.Getenv("AWS_S3_DISABLE_SSL") == "true"
+	logDevelopment := os.Getenv("LOG_DEVELOPMENT") == "true"
 
 	return &Config{
 		// Database configuration
-		DBHost:     getEnvWithDefault("DB_HOST", "localhost"),
-		DBPort:     getEnvWithDefault("DB_PORT", "5432"),
-		DBUser:     getEnvWithDefault("POSTGRESS_USER", "postgres"),
-		DBPassword: getEnvWithDefault("POSTGRESS_PASS", ""),
-		DBName:     getEnvWithDefault("DB_NAME", "agrijobs"),
-		DBSSLMode:  getEnvWithDefault("DB_SSLMODE", "disable"),
+		DBHost:     os.Getenv("DB_HOST"),
+		DBPort:     os.Getenv("DB_PORT"),
+		DBUser:     os.Getenv("POSTGRESS_USER"),
+		DBPassword: os.Getenv("POSTGRESS_PASS"),
+		DBName:     os.Getenv("DB_NAME"),
+		DBSSLMode:  os.Getenv("DB_SSLMODE"),
 
 		// Authentication
-		JWTSecret: getEnvWithDefault("JWT_SECRET", "your-secret-key"),
+		JWTSecret: os.Getenv("JWT_SECRET"),
 
 		// Server configuration
-		ServerPort: getEnvWithDefault("SERVER_PORT", "8080"),
+		ServerPort: os.Getenv("SERVER_PORT"),
+		GinMode:    os.Getenv("GIN_MODE"),
 
 		// Email configuration
-		MailFrom: getEnvWithDefault("MAIL_FROM", ""),
-		MailHost: getEnvWithDefault("MAIL_HOST", ""),
-		MailPort: getEnvWithDefault("MAIL_PORT", "587"),
-		MailPass: getEnvWithDefault("MAIL_PASS", ""),
+		MailFrom: os.Getenv("MAIL_FROM"),
+		MailHost: os.Getenv("MAIL_HOST"),
+		MailPort: os.Getenv("MAIL_PORT"),
+		MailPass: os.Getenv("MAIL_PASS"),
 
 		// AWS S3 configuration
-		AWSRegion:           getEnvWithDefault("AWS_REGION", ""),
-		AWSS3Bucket:         getEnvWithDefault("AWS_S3_BUCKET", ""),
-		AWSAccessKeyID:      getEnvWithDefault("AWS_ACCESS_KEY_ID", ""),
-		AWSSecretKey:        getEnvWithDefault("AWS_SECRET_ACCESS_KEY", ""),
-		AWSS3Endpoint:       getEnvWithDefault("AWS_S3_ENDPOINT", ""),
+		AWSRegion:           os.Getenv("AWS_REGION"),
+		AWSS3Bucket:         os.Getenv("AWS_S3_BUCKET"),
+		AWSAccessKeyID:      os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretKey:        os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		AWSS3Endpoint:       os.Getenv("AWS_S3_ENDPOINT"),
 		AWSS3ForcePathStyle: awsS3ForcePathStyle,
 		AWSS3DisableSSL:     awsS3DisableSSL,
 
 		// File upload configuration
 		MaxFileSize: maxFileSize,
-		UploadDir:   getEnvWithDefault("UPLOAD_DIR", "./uploads"),
+		UploadDir:   os.Getenv("UPLOAD_DIR"),
 
 		// Application configuration
-		AppName:    getEnvWithDefault("APP_NAME", "AgriJobs"),
-		AppVersion: getEnvWithDefault("APP_VERSION", "1.0.0"),
-		AppEnv:     getEnvWithDefault("APP_ENV", "development"),
-		ASABaseURL: getEnvWithDefault("ASA_BASE_URL", ""),
+		AppName:    os.Getenv("APP_NAME"),
+		AppVersion: os.Getenv("APP_VERSION"),
+		AppEnv:     os.Getenv("APP_ENV"),
+		ASABaseURL: os.Getenv("ASA_BASE_URL"),
 
 		// Security configuration
 		RateLimitRequests: rateLimitRequests,
@@ -180,45 +226,32 @@ func LoadConfig() *Config {
 		EnableCORS:        enableCORS,
 
 		// Logging configuration
-		LogLevel:       getEnvWithDefault("LOG_LEVEL", "info"),
-		LogOutputPath:  getEnvWithDefault("LOG_FILE", ""),
-		LogFormat:      getEnvWithDefault("LOG_FORMAT", "json"),
+		LogLevel:       os.Getenv("LOG_LEVEL"),
+		LogOutputPath:  os.Getenv("LOG_FILE"),
+		LogFormat:      os.Getenv("LOG_FORMAT"),
 		LogDevelopment: logDevelopment,
 
 		// Redis configuration
-		RedisAddr:     getEnvWithDefault("REDIS_ADDR", "localhost:6379"),
-		RedisPassword: getEnvWithDefault("REDIS_PASSWORD", ""),
+		RedisAddr:     os.Getenv("REDIS_ADDR"),
+		RedisPassword: os.Getenv("REDIS_PASSWORD"),
 		RedisDB:       redisDB,
 
 		// Health check configuration
 		HealthCheckTimeout: healthCheckTimeout,
 
 		// Job queue configuration
-		JobMaxRetries: getEnvAsIntWithDefault("JOB_MAX_RETRIES", 3),
+		JobMaxRetries: GetDefaultMaxRetries(),
 	}
-}
-
-// getEnvWithDefault gets an environment variable with a default value
-func getEnvWithDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
-}
-
-// getEnvAsIntWithDefault gets an environment variable as int with a default value
-func getEnvAsIntWithDefault(key string, defaultValue int) int {
-	if value := os.Getenv(key); value != "" {
-		if intValue, err := strconv.Atoi(value); err == nil {
-			return intValue
-		}
-	}
-	return defaultValue
 }
 
 // GetDefaultMaxRetries returns the default max retries from environment or config
 func GetDefaultMaxRetries() int {
-	return getEnvAsIntWithDefault("JOB_MAX_RETRIES", 3)
+	if value := os.Getenv("JOB_MAX_RETRIES"); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return 3
 }
 
 func InitDB() (*gorm.DB, error) {

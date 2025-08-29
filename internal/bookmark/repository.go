@@ -1,6 +1,7 @@
 package bookmark
 
 import (
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"gorm.io/gorm"
 )
 
@@ -11,11 +12,15 @@ type BookmarkRepository interface {
 }
 
 type bookmarkRepository struct {
+	*base.BaseRepository[*Bookmark]
 	db *gorm.DB
 }
 
 func NewBookmarkRepository(db *gorm.DB) BookmarkRepository {
-	return &bookmarkRepository{db}
+	return &bookmarkRepository{
+		BaseRepository: base.NewBaseRepository[*Bookmark](),
+		db:             db,
+	}
 }
 
 func (r *bookmarkRepository) Save(bookmark *Bookmark) error {

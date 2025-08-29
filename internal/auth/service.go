@@ -77,15 +77,11 @@ func getSecret() string {
 
 // Sign JWT Token
 func generateToken(user *User) (string, error) {
-	// Convert single role to roles array for consistency with middleware
-	roles := []string{user.Role}
-
 	claims := jwt.MapClaims{
 		"user_id":  user.ID,
-		"username": user.Email, // Use email as username since we don't store username separately
+		"username": user.Username,
 		"email":    user.Email,
-		"role":     user.Role, // Keep single role for backward compatibility
-		"roles":    roles,     // Add roles array for middleware
+		"role":     user.Role,
 		"exp":      time.Now().Add(time.Hour * 72).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -140,9 +136,18 @@ func (s *authService) ListAllUsers() ([]User, error) {
 
 // Login - now validates password locally
 func (s *authService) Login(username, password string) (*User, string, error) {
-	user, err := s.repo.FindByEmail(username) // Use email as username
+	// Try to find user by username first, then by email
+	var user *User
+	var err error
+
+	// First try to find by username
+	user, err = s.repo.FindByUsername(username)
 	if err != nil {
-		return nil, "", errors.New("invalid credentials")
+		// If not found by username, try by email
+		user, err = s.repo.FindByEmail(username)
+		if err != nil {
+			return nil, "", errors.New("invalid credentials")
+		}
 	}
 
 	// Validate password locally
@@ -188,18 +193,31 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 	}
 	middleware.DebugLog("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
 
-	user := &User{
-		Name:     req.Name,
-		Email:    req.Email,
-		Password: hashedPassword, // Store hashed password locally
-		Role:     req.Role,       // Store role locally
-	}
+	user := NewUser()
+	user.Name = req.Name
+	user.Username = req.Username
+	user.Email = req.Email
+	user.Password = hashedPassword     // Store hashed password locally
+	user.Role = req.Role               // Store role locally
+	user.PhoneNumber = req.PhoneNumber // Store phone number
 	err = s.repo.Create(context.Background(), user)
 	if err != nil {
 		middleware.DebugLog("❌ Failed to create user in DB: %v\n", err)
 		return nil, "", err
 	}
 	middleware.DebugLog("✅ User created successfully with hashed password: %+v\n", user)
+
+	// Refresh user to get the generated ID
+	if user.ID == "" {
+		middleware.DebugLog("⚠️ User ID is empty after creation, trying to fetch user by email\n")
+		fetchedUser, err := s.repo.FindByEmail(user.Email)
+		if err != nil {
+			middleware.DebugLog("❌ Failed to fetch user after creation: %v\n", err)
+			return nil, "", fmt.Errorf("failed to fetch user after creation: %w", err)
+		}
+		user = fetchedUser
+		middleware.DebugLog("✅ User refreshed with ID: %s\n", user.ID)
+	}
 
 	// 4. Generate token
 	token, err := generateToken(user)
@@ -209,8 +227,7 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 
 	// 5. Create corresponding profile based on role from request
 	middleware.DebugLog("🔍 Creating profile for role: %s\n", req.Role)
-	roles := []string{req.Role} // Use role from request since it's not stored in DB
-	if contains(roles, "employer") {
+	if req.Role == "employer" {
 		middleware.DebugLog("🔍 Creating employer profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
@@ -222,35 +239,36 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			location = req.State
 		}
 
-		profile := &employerprofile.EmployerProfile{
-			UserID:             user.ID,
-			CompanyName:        req.CompanyName,
-			WebsiteURL:         req.Website,
-			Industry:           req.IndustryType,
-			CompanySize:        req.CompanySize,
-			CompanyDescription: "", // optional
-			RecruiterName:      req.Name,
-			Designation:        "Recruiter",
-			OfficialEmail:      req.Email,
-			PhoneNumber:        "", // optional
-			LinkedinProfile:    "",
-			GSTINNumber:        req.GstinNumber,
-			CompanyAddress:     req.CompanyAddress,
-			City:               req.City,
-			State:              req.State,
-			Pincode:            req.Pincode,
-			JobCategories:      []string{},
-			HiringLocations:    []string{location},
-			HiringTypes:        []string{"full-time"},
-		}
+		profile := employerprofile.NewEmployerProfile()
+		profile.UserID = user.ID
+		profile.CompanyName = req.CompanyName
+		profile.WebsiteURL = req.Website
+		profile.Industry = req.IndustryType
+		profile.CompanySize = req.CompanySize
+		profile.CompanyDescription = "" // optional
+		profile.RecruiterName = req.Name
+		profile.Designation = "Recruiter"
+		profile.OfficialEmail = req.Email
+		profile.PhoneNumber = req.PhoneNumber // Store phone number from request
+		profile.LinkedinProfile = ""
+		profile.GSTINNumber = req.GstinNumber
+		profile.CompanyAddress = req.CompanyAddress
+		profile.City = req.City
+		profile.State = req.State
+		profile.Pincode = req.Pincode
+		profile.JobCategories = []string{}
+		profile.HiringLocations = []string{location}
+		profile.HiringTypes = []string{"full-time"}
 		middleware.DebugLog("🔍 Employer profile data: %+v\n", profile)
+		middleware.DebugLog("🔍 User ID for profile: %s\n", user.ID)
+		middleware.DebugLog("🔍 Profile ID before creation: %s\n", profile.ID)
 		if err := s.employerRepo.Create(profile); err != nil {
 			middleware.DebugLog("❌ Failed to create employer profile: %v\n", err)
 			return nil, "", fmt.Errorf("failed to create employer profile: %w", err)
 		}
 		middleware.DebugLog("✅ Employer profile created successfully\n")
 
-	} else if contains(roles, "student") {
+	} else if req.Role == "student" {
 		middleware.DebugLog("🔍 Creating student profile for user: %s\n", user.ID)
 		// Build location string safely
 		location := ""
@@ -262,20 +280,20 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 			location = req.State
 		}
 
-		profile := &studentprofile.StudentProfile{
-			UserID:          user.ID,
-			Name:            user.Name,
-			Email:           user.Email,
-			Location:        location,
-			Skills:          []string{},
-			ResumeKey:       "", // S3 key for resume file
-			ProfilePhotoKey: "", // S3 key for profile photo
-			Experience:      0.0,
-			Education:       "",
-			Portfolio:       "",
-			Linkedin:        "",
-			Github:          "",
-		}
+		profile := studentprofile.NewStudentProfile()
+		profile.UserID = user.ID
+		profile.Name = user.Name
+		profile.Email = user.Email
+		profile.Location = location
+		profile.PhoneNumber = req.PhoneNumber // Store phone number from request
+		profile.Skills = []string{}
+		profile.ResumeKey = ""       // S3 key for resume file
+		profile.ProfilePhotoKey = "" // S3 key for profile photo
+		profile.Experience = 0.0
+		profile.Education = ""
+		profile.Portfolio = ""
+		profile.Linkedin = ""
+		profile.Github = ""
 		middleware.DebugLog("🔍 Student profile data: %+v\n", profile)
 		if err := s.studentProfileRepo.Create(context.Background(), profile); err != nil {
 			middleware.DebugLog("❌ Failed to create student profile: %v\n", err)

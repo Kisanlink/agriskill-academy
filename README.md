@@ -153,6 +153,9 @@ GIN_MODE=debug                         # Set to 'release' for production
 
 # CORS Configuration
 CORS_ALLOW_ORIGINS=your_cors_urls                   # Comma-separated list of allowed origins
+
+# Job Queue Configuration
+JOB_MAX_RETRIES=3                                   # Maximum retry attempts for failed jobs
 ```
 
 ### Configuration Management
@@ -289,12 +292,159 @@ make setup            # Setup development environment
 - Input validation and sanitization
 - Password hashing with bcrypt
 
+## 🏭 Production Features
+
+### Background Job Queue
+The application includes a production-ready job queue system with:
+
+#### ✅ **Features Implemented**
+- **Persistent Job Storage**: Jobs are stored in Redis with full metadata
+- **Job Retry Mechanism**: Exponential backoff with configurable max retries
+- **Job Status Tracking**: Real-time status updates (pending, running, completed, failed, retrying)
+- **Dead Letter Queue**: Failed jobs after max retries are moved to DLQ
+- **Priority Queue**: Jobs can be prioritized for processing
+- **Job Monitoring**: Queue statistics and health monitoring
+
+#### 🔧 **Configuration**
+```bash
+# Redis Configuration
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=your-redis-password
+REDIS_DB=0
+```
+
+#### 📊 **Job Queue API**
+```bash
+# Get queue statistics
+GET /api/worker/stats
+
+# Get failed jobs
+GET /api/worker/failed
+
+# Retry failed job
+POST /api/worker/retry/{job_id}
+```
+
+### Security Enhancements
+
+#### ✅ **Security Features Implemented**
+- **Rate Limiting**: IP-based rate limiting with configurable limits
+- **Input Sanitization**: XSS and injection attack prevention
+- **SQL Injection Protection**: Pattern-based detection and blocking
+- **File Upload Security**: Type and size validation
+- **CORS Configuration**: Strict origin validation
+- **Security Headers**: Comprehensive HTTP security headers
+- **Request Size Limits**: Configurable request size limits
+- **Context Timeouts**: Request timeout protection
+
+#### 🔧 **Security Configuration**
+```bash
+# Rate Limiting
+RATE_LIMIT_REQUESTS=100
+RATE_LIMIT_WINDOW=1m
+
+# Request Limits
+MAX_REQUEST_SIZE=10485760  # 10MB
+MAX_FILE_SIZE=5242880      # 5MB
+
+# CORS
+ENABLE_CORS=true
+CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
+```
+
+#### 🛡️ **Security Headers**
+- `X-Frame-Options: DENY` - Prevent clickjacking
+- `X-Content-Type-Options: nosniff` - Prevent MIME type sniffing
+- `X-XSS-Protection: 1; mode=block` - Enable XSS protection
+- `Strict-Transport-Security` - HTTPS enforcement
+- `Content-Security-Policy` - Resource loading restrictions
+- `Referrer-Policy` - Referrer information control
+- `Permissions-Policy` - Feature permissions
+
+### Logging & Monitoring
+
+#### ✅ **Monitoring Features Implemented**
+- **Structured Logging**: JSON-formatted logs with context
+- **Performance Monitoring**: Request latency tracking and alerts
+- **Error Tracking**: Comprehensive error logging with context
+- **Health Checks**: Application and database health monitoring
+- **Request Tracing**: Unique request IDs for tracing
+- **Metrics Collection**: Basic application metrics
+
+#### 🔧 **Logging Configuration**
+```bash
+# Logging
+LOG_LEVEL=info
+LOG_FORMAT=json
+LOG_FILE=/var/log/agrijobs/app.log
+LOG_DEVELOPMENT=false
+```
+
+#### 📊 **Monitoring Endpoints**
+```bash
+# Application health
+GET /health
+
+# Database health
+GET /health/db
+
+# Queue statistics
+GET /api/worker/stats
+```
+
+#### 📈 **Performance Alerts**
+- **Slow Request Detection**: Alerts for requests > 5 seconds
+- **Error Rate Monitoring**: Tracks error rates and patterns
+- **Queue Monitoring**: Job queue health and performance
+
+### Production Deployment Checklist
+
+#### ✅ **Infrastructure Requirements**
+- [ ] PostgreSQL with SSL enabled
+- [ ] Redis for job queue and caching
+- [ ] AWS S3 for file storage
+- [ ] SMTP server for email notifications
+- [ ] Load balancer (optional)
+- [ ] CDN for static assets (optional)
+
+#### ✅ **Security Checklist**
+- [ ] Strong JWT secret configured
+- [ ] Rate limiting enabled
+- [ ] CORS origins properly configured
+- [ ] Security headers enabled
+- [ ] File upload validation active
+- [ ] Input sanitization enabled
+- [ ] SQL injection protection active
+
+#### ✅ **Monitoring Checklist**
+- [ ] Structured logging configured
+- [ ] Health check endpoints accessible
+- [ ] Performance monitoring active
+- [ ] Error tracking enabled
+- [ ] Request tracing implemented
+- [ ] Metrics collection active
+
+#### ✅ **Operational Checklist**
+- [ ] Database migrations run
+- [ ] Environment variables configured
+- [ ] File storage configured
+- [ ] Email service configured
+- [ ] Job queue initialized
+- [ ] Application logs monitored
+
 ## Monitoring and Debugging
 
-### Debug Logging
-The system includes comprehensive debug logging throughout:
+### Structured Logging
+The system includes comprehensive structured logging:
 ```go
-middleware.DebugLog("DEBUG: Operation details - %+v\n", data)
+// Info logging
+middleware.InfoLog("User registered successfully", userID)
+
+// Error logging with context
+middleware.ErrorLog("Database connection failed: %v", err)
+
+// Debug logging (development only)
+middleware.DebugLog("Processing request: %+v", request)
 ```
 
 ### Log Levels

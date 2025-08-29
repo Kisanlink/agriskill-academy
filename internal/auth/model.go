@@ -8,14 +8,16 @@ import (
 
 type User struct {
 	base.BaseModel
-	Name       string `json:"name"`
-	Email      string `json:"email" binding:"required,email"`
-	Password   string `json:"password" binding:"required"`
-	Role       string `json:"role" binding:"required"`
-	AvatarKey  string `json:"avatar_key,omitempty"`
-	AvatarName string `json:"avatar_name,omitempty"`
-	AvatarType string `json:"avatar_type,omitempty"`
-	AvatarSize int64  `json:"avatar_size,omitempty"`
+	Name        string `json:"name"`
+	Username    string `json:"username" binding:"required" gorm:"uniqueIndex"` // Separate username field with unique constraint
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required"`
+	Role        string `json:"role" binding:"required"`
+	PhoneNumber string `json:"phone_number,omitempty"`
+	AvatarKey   string `json:"avatar_key,omitempty"`
+	AvatarName  string `json:"avatar_name,omitempty"`
+	AvatarType  string `json:"avatar_type,omitempty"`
+	AvatarSize  int64  `json:"avatar_size,omitempty"`
 }
 
 // TableName specifies the database table name for User

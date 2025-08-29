@@ -12,6 +12,7 @@ import (
 type UserRepository interface {
 	base.Repository[*User]
 	FindByEmail(email string) (*User, error)
+	FindByUsername(username string) (*User, error)
 	CreateWithID(user *User, id string) error
 	ListAllUsers() ([]User, error)
 }
@@ -168,6 +169,22 @@ func (r *userRepository) CreateWithID(user *User, id string) error {
 		middleware.DebugLog("✅ Repository.CreateWithID successful, user ID: %s\n", user.ID)
 	}
 	return err
+}
+
+func (r *userRepository) FindByUsername(username string) (*User, error) {
+	middleware.DebugLog("🔍 Repository.FindByUsername called with username: %s\n", username)
+	var user User
+	err := r.db.Where("username = ?", username).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		middleware.DebugLog("❌ Repository.FindByUsername: User not found for username: %s\n", username)
+		return nil, errors.New("user not found")
+	}
+	if err != nil {
+		middleware.DebugLog("❌ Repository.FindByUsername error: %v\n", err)
+		return nil, err
+	}
+	middleware.DebugLog("✅ Repository.FindByUsername: Found user - ID: %s, Name: %s, Email: %s\n", user.ID, user.Name, user.Email)
+	return &user, err
 }
 
 // Debug method to list all users (for debugging only)

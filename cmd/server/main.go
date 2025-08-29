@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"asa/config"
 	"asa/internal/admin"
@@ -71,10 +70,31 @@ func runAutoMigrate(db *gorm.DB) error {
 }
 
 func main() {
+	// Load complete configuration
+	cfg := config.LoadConfig()
+
+	// Initialize structured logging
+	loggerConfig := middleware.LoggerConfig{
+		Level:       cfg.LogLevel,
+		OutputPath:  cfg.LogOutputPath,
+		Format:      cfg.LogFormat,
+		Development: cfg.LogDevelopment,
+	}
+
+	if err := middleware.InitLogger(loggerConfig); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+
+	logger := middleware.GetLogger()
+	logger.Info("Starting AgriJobs application",
+		zap.String("version", cfg.AppVersion),
+		zap.String("environment", cfg.AppEnv),
+	)
+
 	// Initialize config and DB
 	db, err := config.InitDB()
 	if err != nil {
-		log.Fatalf("Failed to initialize DB: %v", err)
+		logger.Fatal("Failed to initialize DB", zap.Error(err))
 	}
 	defer config.CloseDB(db)
 
@@ -128,9 +148,28 @@ func main() {
 		log.Fatalf("AWS S3 configuration is required. Please set AWS_S3_BUCKET, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY environment variables.")
 	}
 
-	// Create Gin router with middleware
+	// Create Gin router with production middleware
 	router := gin.Default()
-	router.Use(middleware.CORSMiddleware())
+
+	// Production security and monitoring middleware
+	router.Use(middleware.RequestIDMiddleware())
+	router.Use(middleware.StructuredLoggingMiddleware())
+	router.Use(middleware.PerformanceMonitoringMiddleware())
+	router.Use(middleware.ErrorLoggingMiddleware())
+	router.Use(middleware.SecurityHeadersMiddleware())
+	router.Use(middleware.RateLimitMiddleware(cfg.RateLimitRequests, cfg.RateLimitWindow))
+	router.Use(middleware.InputSanitizationMiddleware())
+	router.Use(middleware.SQLInjectionProtectionMiddleware())
+	router.Use(middleware.RequestSizeLimitMiddleware(cfg.MaxRequestSize))
+	router.Use(middleware.ContextTimeoutMiddleware(cfg.HealthCheckTimeout))
+
+	// CORS middleware
+	if cfg.EnableCORS {
+		router.Use(middleware.CORSMiddleware())
+		router.Use(middleware.CORSValidationMiddleware(cfg.AllowedOrigins))
+	}
+
+	// Legacy middleware (keeping for compatibility)
 	router.Use(middleware.Logger())
 
 	// Repositories
@@ -175,7 +214,13 @@ func main() {
 	notificationService := notification.NewNotificationService(notificationPrefsRepo)
 	notificationHandler := notification.NewNotificationHandler(notificationService)
 
-	jobService := worker.NewInMemoryJobService(100)
+	// Initialize Redis job service
+	jobService, err := worker.NewRedisJobService(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	if err != nil {
+		logger.Fatal("Failed to initialize Redis job service", zap.Error(err))
+	}
+	defer jobService.Close()
+
 	workerHandler := worker.NewWorkerHandler(jobService)
 
 	adminRepo := admin.NewAdminRepository(db)
@@ -186,21 +231,16 @@ func main() {
 	contactService := contact.NewContactService(contactRepo)
 	contactHandler := contact.NewContactHandler(contactService)
 
-	// Health check
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status":    "healthy",
-			"service":   "asa-backend",
-			"timestamp": time.Now().Unix(),
-		})
-	})
+	// Health check with production monitoring
+	router.GET("/health", middleware.HealthCheckMiddleware())
+	router.GET("/health/db", middleware.DatabaseHealthCheck(db))
 
 	// Swagger docs
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Public API group
 	api := router.Group("/api")
-	auth.RegisterRoutes(api, authHandler)
+	auth.RegisterPublicRoutes(api, authHandler)
 	jobpost.RegisterPublicRoutes(api, jobPostHandler)
 	storage.RegisterPublicRoutes(api, storageHandler, fileServeHandler)
 	contact.RegisterPublicRoutes(api, contactHandler)
@@ -209,6 +249,7 @@ func main() {
 	authGroup := api.Group("/")
 	authGroup.Use(middleware.AuthMiddleware())
 
+	auth.RegisterProtectedRoutes(authGroup, authHandler)
 	admin.RegisterRoutes(authGroup, adminHandler)
 	employerprofile.RegisterRoutes(authGroup, employerProfileHandler)
 	jobpost.RegisterAuthenticatedRoutes(authGroup, jobPostHandler)
@@ -222,11 +263,17 @@ func main() {
 	contact.RegisterAdminRoutes(authGroup, contactHandler)
 
 	// Start server
-	port := os.Getenv("PORT")
+	port := cfg.ServerPort
 	if port == "" {
 		port = "3000"
 	}
 
-	log.Printf("Starting ASA backend server on port %s", port)
-	router.Run(":" + port)
+	logger.Info("Starting ASA backend server",
+		zap.String("port", port),
+		zap.String("environment", cfg.AppEnv),
+	)
+
+	if err := router.Run(":" + port); err != nil {
+		logger.Fatal("Failed to start server", zap.Error(err))
+	}
 }

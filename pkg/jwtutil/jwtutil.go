@@ -26,23 +26,21 @@ func DebugLog(format string, args ...interface{}) {
 }
 
 // GenerateToken creates a JWT token using user info and expiration duration
-func GenerateToken(userID, email, role string, duration time.Duration) (string, error) {
+func GenerateToken(userID, username, email, role string, duration time.Duration) (string, error) {
 	DebugLog("🔑 === GENERATE TOKEN START ===")
 	DebugLog("🔑 UserID: %s", userID)
+	DebugLog("🔑 Username: %s", username)
 	DebugLog("🔑 Email: %s", email)
 	DebugLog("🔑 Role: %s", role)
 	DebugLog("🔑 Duration: %v", duration)
 	DebugLog("🔑 JWT Secret length: %d", len(jwtSecret))
 
-	// Convert single role to roles array for consistency with middleware
-	roles := []string{role}
-
 	claims := jwt.MapClaims{
-		"user_id": userID,
-		"email":   email,
-		"role":    role,  // Keep single role for backward compatibility
-		"roles":   roles, // Add roles array for middleware
-		"exp":     time.Now().Add(duration).Unix(),
+		"user_id":  userID,
+		"username": username,
+		"email":    email,
+		"role":     role,
+		"exp":      time.Now().Add(duration).Unix(),
 	}
 
 	DebugLog("🔑 Claims: %+v", claims)

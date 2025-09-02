@@ -28,12 +28,52 @@ import (
 
 	kdb "asa/pkg/db"
 
+	hash "github.com/Kisanlink/kisanlink-db/pkg/core/hash"
+
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+// initializeIDCounters initializes kisanlink-db ID counters from existing database records
+func initializeIDCounters(db *gorm.DB) error {
+	middleware.DebugLog("Initializing kisanlink-db ID counters from database...")
+
+	// Get existing IDs from users table
+	var userIDs []string
+	if err := db.Model(&auth.User{}).Pluck("id", &userIDs).Error; err != nil {
+		middleware.DebugLog("Warning: Could not get user IDs: %v", err)
+	} else {
+		// Initialize USER counter
+		hash.InitializeGlobalCountersFromDatabase("USER", userIDs, hash.Medium)
+		log.Printf("Initialized USER counter with %d existing IDs", len(userIDs))
+	}
+
+	// Get existing IDs from student_profiles table
+	var studentProfileIDs []string
+	if err := db.Model(&studentprofile.StudentProfile{}).Pluck("id", &studentProfileIDs).Error; err != nil {
+		log.Printf("Warning: Could not get student profile IDs: %v", err)
+	} else {
+		// Initialize STUD counter
+		hash.InitializeGlobalCountersFromDatabase("STUD", studentProfileIDs, hash.Medium)
+		log.Printf("Initialized STUD counter with %d existing IDs", len(studentProfileIDs))
+	}
+
+	// Get existing IDs from employer_profiles table
+	var employerProfileIDs []string
+	if err := db.Model(&employerprofile.EmployerProfile{}).Pluck("id", &employerProfileIDs).Error; err != nil {
+		log.Printf("Warning: Could not get employer profile IDs: %v", err)
+	} else {
+		// Initialize EMPL counter
+		hash.InitializeGlobalCountersFromDatabase("EMPL", employerProfileIDs, hash.Medium)
+		log.Printf("Initialized EMPL counter with %d existing IDs", len(employerProfileIDs))
+	}
+
+	middleware.DebugLog("ID counter initialization completed!")
+	return nil
+}
 
 // runAutoMigrate runs GORM AutoMigrate for all models
 func runAutoMigrate(db *gorm.DB) error {
@@ -97,6 +137,11 @@ func main() {
 		logger.Fatal("Failed to initialize DB", zap.Error(err))
 	}
 	defer config.CloseDB(db)
+
+	// Initialize kisanlink-db ID counters from existing database records
+	if err := initializeIDCounters(db); err != nil {
+		log.Printf("Warning: Failed to initialize ID counters: %v", err)
+	}
 
 	// Run migrations
 	if err := runAutoMigrate(db); err != nil {

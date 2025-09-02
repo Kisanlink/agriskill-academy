@@ -31,11 +31,12 @@ The system implements a complete local authentication and authorization system:
 - **Implementation:** Custom permission checking based on JWT claims and resource/action mapping
 
 **Authentication Features:**
-- User registration and login
+- User registration and login (student and employer roles only)
 - Password hashing with bcrypt
 - JWT token generation and validation
-- Role-based access control (student, employer, admin)
+- Role-based access control (student, employer, asa_admin)
 - Password reset functionality (mock implementation)
+- **Admin Account Management:** Secure admin creation through protected endpoints only
 
 **Authorization System:**
 ```go
@@ -43,6 +44,7 @@ type AuthService interface {
     Signup(req *SignupRequest) (*SignupResponse, error)
     Login(username, password string) (*LoginResponse, error)
     GetUserByID(userID string) (*User, error)
+    GetCompleteProfile(userID string) (map[string]interface{}, error)
     UpdateProfile(userID string, req *UpdateProfileRequest) error
     SendResetLink(email string) error
     ResetPassword(token, newPassword string) error
@@ -65,19 +67,27 @@ type AuthService interface {
   - `007_fix_messages_timestamp.sql` - Message table fixes
   - `008_rename_user_profiles_to_student_profiles.sql` - Profile table rename
   - `009_add_phone_to_student_profiles.sql` - Phone number addition
+  - `010_convert_file_storage_to_binary.sql` - File storage conversion
+  - `011_convert_ids_to_uuid.sql` - UUID conversion
+  - `012_convert_binary_to_s3_keys.sql` - S3 key conversion
+  - `013_remove_all_binary_storage.sql` - Binary storage cleanup
+  - `014_add_contact_requests_table.sql` - Contact requests
+  - `015_add_username_to_users.sql` - Username field addition
 
 **Key Database Tables:**
 ```sql
 -- Core user management
-users (id, email, password_hash, role, created_at, updated_at)
+users (id, email, username, password_hash, role, phone_number, country_code, created_at, updated_at)
 
 -- Profile management
-student_profiles (id, user_id, name, email, location, phone_number, 
-                 profile_photo, resume, education, portfolio, linkedin, 
-                 github, experience, skills, created_at, updated_at)
+student_profiles (id, user_id, location, phone_number, profile_photo_key, resume_key, 
+                 education, portfolio, linkedin, github, experience, skills, certificates, created_at, updated_at)
 
-employer_profiles (id, user_id, company_name, industry, company_size, 
-                  website, description, logo, location, created_at, updated_at)
+employer_profiles (id, user_id, company_name, industry, company_size, logo_key, logo_name, 
+                  logo_type, logo_size, website_url, company_description, recruiter_name, 
+                  designation, official_email, phone_number, linkedin_profile, job_categories, 
+                  hiring_locations, hiring_types, gstin_number, company_address, city, 
+                  state, pincode, created_at, updated_at)
 
 -- Job management
 job_posts (id, employer_id, title, description, requirements, location, 
@@ -89,19 +99,21 @@ applications (id, job_id, student_id, applied_at, status, cover_letter,
              resume_file, job_title, company, location, job_type, experience, updated_at)
 
 -- File management
-certificates (id, student_profile_id, name, file, issue_date, created_at, updated_at)
+certificates (id, student_profile_id, name, file_key, issue_date, created_at, updated_at)
 
 -- Communication
 messages (id, application_id, sender_id, receiver_id, content, sent_at, read_at)
+
+-- Contact requests
+contact_requests (id, name, email, subject, message, created_at)
 ```
 
 #### 3. File Storage System
 **Storage Architecture:**
-- **Base Directory:** `uploads/`
-- **Subdirectories:** `resumes/`, `certificates/`, `documents/`, `images/`
-- **File Naming:** `{timestamp}_{userID}_{originalName}.{ext}`
-- **Path Storage:** Relative paths stored in database
-- **Validation:** File type and size validation (10MB max)
+- **AWS S3 Integration:** Primary file storage with local fallback
+- **File Keys:** S3 object keys stored in database
+- **File Validation:** File type and size validation (configurable max size)
+- **Metadata Storage:** File information stored in database with S3 keys
 
 **File Upload Endpoints:**
 ```go
@@ -122,14 +134,17 @@ POST /api/jobs/:id/apply (includes resume upload)
 - **Location:** `internal/middleware/`
 - **Components:**
   - `auth.go` - JWT token validation and user context injection
+  - `admin.go` - Admin role authorization middleware
   - `cors.go` - Cross-origin resource sharing configuration
   - `logger.go` - Request logging and debugging
+  - `security.go` - Security headers and rate limiting
 
 **Middleware Chain:**
 ```go
 router.Use(middleware.CORS())
 router.Use(middleware.Logger())
 router.Use(middleware.Auth()) // For protected routes
+router.Use(middleware.AdminAuthMiddleware()) // For admin-only routes
 ```
 
 ## Environment Configuration
@@ -145,33 +160,86 @@ DB_NAME=asa_db
 DB_SSLMODE=disable
 
 # JWT Configuration
-SECRET_KEY=your_jwt_secret_key             # JWT signing secret
+JWT_SECRET=your_jwt_secret_key             # JWT signing secret (required)
 
 # Server Configuration
-PORT=3333
-GIN_MODE=debug                         # Set to 'release' for production
+SERVER_PORT=8080                            # Server port (required)
+GIN_MODE=debug                             # Set to 'release' for production
+
+# AWS S3 Configuration
+AWS_ACCESS_KEY_ID=your_access_key          # AWS access key (required)
+AWS_SECRET_ACCESS_KEY=your_secret_key      # AWS secret key (required)
+AWS_REGION=your_region                     # AWS region (required)
+AWS_S3_BUCKET=your_bucket_name            # S3 bucket name (required)
+AWS_S3_ENDPOINT=your_s3_endpoint          # S3 endpoint (optional, for custom endpoints)
+AWS_S3_FORCE_PATH_STYLE=false             # Force path style (optional)
+AWS_S3_DISABLE_SSL=false                  # Disable SSL (optional)
+
+# Application Configuration
+ASA_BASE_URL=https://yourdomain.com        # Base URL for the application (required)
+
+# Email Configuration
+SMTP_HOST=your_smtp_host                   # SMTP server host (required)
+SMTP_PORT=587                              # SMTP server port (required)
+SMTP_USERNAME=your_smtp_username           # SMTP username (required)
+SMTP_PASSWORD=your_smtp_password           # SMTP password (required)
+SMTP_FROM_EMAIL=noreply@yourdomain.com     # From email address (required)
+
+# Admin Seeding Configuration (Optional - for initial setup)
+ASA_RUN_SEED=false                         # Enable admin seeding (true/false)
+DEFAULT_ADMIN_EMAIL=admin@agrijobs.com     # Default admin email (required if seeding)
+DEFAULT_ADMIN_PASSWORD=admin123            # Default admin password (required if seeding)
+DEFAULT_ADMIN_NAME=System Administrator    # Default admin name (required if seeding)
+DEFAULT_ADMIN_USERNAME=admin               # Default admin username (required if seeding)
 
 # CORS Configuration
-CORS_ALLOW_ORIGINS=your_cors_urls                   # Comma-separated list of allowed origins
+CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://app.yourdomain.com
 
-# Job Queue Configuration
-JOB_MAX_RETRIES=3                                   # Maximum retry attempts for failed jobs
+# Rate Limiting
+RATE_LIMIT_REQUESTS=100                    # Max requests per window
+RATE_LIMIT_WINDOW=1m                       # Time window for rate limiting
+
+# Request Limits
+MAX_REQUEST_SIZE=10485760                   # 10MB max request size
+MAX_FILE_SIZE=5242880                       # 5MB max file size
+
+# Redis Configuration
+REDIS_ADDR=localhost:6379                  # Redis server address
+REDIS_PASSWORD=your-redis-password         # Redis password
+REDIS_DB=0                                 # Redis database number
+
+# Health Check
+HEALTH_CHECK_TIMEOUT=30s                   # Health check timeout
 ```
 
 ### Configuration Management
 **Location:** `config/config.go`
-**Implementation:** Environment variable loading with default values and validation
+**Implementation:** Environment variable loading with validation and required variable enforcement
+
+**Important Notes:**
+- **Critical variables** (database, JWT, server, AWS, email) are required and will cause application failure if not set
+- **Optional variables** have internal defaults for non-critical configurations
+- **Admin seeding** is controlled by `ASA_RUN_SEED` environment variable
+- **No hardcoded defaults** for security-sensitive configurations
 
 ## API Endpoints Architecture
 
 ### Authentication Endpoints
 ```go
-POST   /api/auth/signup          // User registration
+POST   /api/auth/signup          // User registration (student/employer only)
 POST   /api/auth/login           // User authentication
 POST   /api/auth/forgot-password // Request password reset
 POST   /api/auth/reset-password  // Reset password with token
-GET    /api/auth/profile         // Get current user profile
+GET    /api/auth/profile         // Get complete user profile with role-specific data
 PUT    /api/auth/profile         // Update current user profile
+```
+
+### Admin Management Endpoints
+```go
+POST   /api/admin/create-admin   // Create new admin user (admin-only)
+GET    /api/admin/dashboard      // Get admin dashboard analytics
+GET    /api/admin/users          // Get user list (admin-only)
+DELETE /api/admin/users/:id      // Delete user (admin-only)
 ```
 
 ### Student Profile Management
@@ -205,6 +273,7 @@ PUT    /api/applications/:id/status            // Update application status
 ### Prerequisites
 - **Go 1.21+** with modules enabled
 - **PostgreSQL 12+** with proper user permissions
+- **Redis** for job queue and caching
 - **Git** for version control
 - **Make** for build automation
 
@@ -220,6 +289,7 @@ go mod download
 ```bash
 cp .env.example .env
 # Edit .env with your database and service configurations
+# Ensure all required variables are set
 ```
 
 #### 3. Database Initialization
@@ -234,7 +304,20 @@ make migrate
 make migrate-reset
 ```
 
-#### 4. Development Server
+#### 4. Admin Account Setup (Optional)
+```bash
+# Enable admin seeding in .env
+ASA_RUN_SEED=true
+DEFAULT_ADMIN_EMAIL=admin@agrijobs.com
+DEFAULT_ADMIN_PASSWORD=admin123
+DEFAULT_ADMIN_NAME=System Administrator
+DEFAULT_ADMIN_USERNAME=admin
+
+# Start the application - admin account will be created automatically
+make run
+```
+
+#### 5. Development Server
 ```bash
 # With hot reloading (recommended)
 make air
@@ -273,6 +356,32 @@ make clean-uploads    # Clean uploaded files
 make setup            # Setup development environment
 ```
 
+## Security Features
+
+### Admin Account Security
+- **Public Signup Restriction:** Only "student" and "employer" roles allowed in public signup
+- **Protected Admin Creation:** New admin accounts can only be created by existing admins
+- **Initial Admin Seeding:** Optional seeding mechanism for initial setup with environment variable control
+- **Role-Based Middleware:** Admin endpoints protected by role verification middleware
+
+### Authentication & Authorization
+- **JWT-Based Authentication:** Secure token-based authentication
+- **Role-Based Access Control:** Granular permissions based on user roles
+- **Password Security:** Bcrypt hashing with configurable complexity
+- **Token Validation:** Comprehensive JWT token validation and expiration
+
+### Input Validation & Sanitization
+- **Request Validation:** Comprehensive input validation using binding tags
+- **SQL Injection Protection:** GORM ORM provides parameterized query protection
+- **File Upload Security:** File type and size validation
+- **XSS Prevention:** Input sanitization and output encoding
+
+### Security Headers & Rate Limiting
+- **Security Headers:** Comprehensive HTTP security headers
+- **Rate Limiting:** IP-based rate limiting with configurable limits
+- **CORS Protection:** Strict origin validation
+- **Request Size Limits:** Configurable request and file size limits
+
 ## Deployment Considerations
 
 ### Production Configuration
@@ -280,8 +389,10 @@ make setup            # Setup development environment
 2. Configure proper CORS origins
 3. Use production database with SSL
 4. Implement proper logging and monitoring
-5. Set up file storage with CDN integration
+5. Set up AWS S3 for file storage
 6. Configure strong JWT secret
+7. **Disable admin seeding** (`ASA_RUN_SEED=false`)
+8. Use strong, unique passwords for all admin accounts
 
 ### Security Considerations
 - JWT token expiration and refresh mechanisms
@@ -291,6 +402,15 @@ make setup            # Setup development environment
 - Rate limiting implementation
 - Input validation and sanitization
 - Password hashing with bcrypt
+- **Admin account management through protected endpoints only**
+
+### Infrastructure Requirements
+- PostgreSQL with SSL enabled
+- Redis for job queue and caching
+- AWS S3 for file storage
+- SMTP server for email notifications
+- Load balancer (optional)
+- CDN for static assets (optional)
 
 ## 🏭 Production Features
 
@@ -336,6 +456,7 @@ POST /api/worker/retry/{job_id}
 - **Security Headers**: Comprehensive HTTP security headers
 - **Request Size Limits**: Configurable request size limits
 - **Context Timeouts**: Request timeout protection
+- **Admin Role Protection**: Admin-only endpoints with middleware protection
 
 #### 🔧 **Security Configuration**
 ```bash
@@ -415,6 +536,8 @@ GET /api/worker/stats
 - [ ] File upload validation active
 - [ ] Input sanitization enabled
 - [ ] SQL injection protection active
+- [ ] Admin seeding disabled in production
+- [ ] Admin endpoints protected by middleware
 
 #### ✅ **Monitoring Checklist**
 - [ ] Structured logging configured
@@ -431,6 +554,7 @@ GET /api/worker/stats
 - [ ] Email service configured
 - [ ] Job queue initialized
 - [ ] Application logs monitored
+- [ ] Admin accounts properly configured
 
 ## Monitoring and Debugging
 
@@ -460,8 +584,8 @@ middleware.DebugLog("Processing request: %+v", request)
 - Query optimization for complex joins
 
 ### File Storage Optimization
-- Efficient file naming and organization
-- Proper directory structure
+- Efficient S3 key management
+- Proper file metadata storage
 - File size validation and limits
 
 ### API Performance
@@ -473,10 +597,17 @@ middleware.DebugLog("Processing request: %+v", request)
 
 ### Common Issues
 1. **Database Connection:** Verify PostgreSQL service and credentials
-2. **File Uploads:** Check directory permissions and storage space
-3. **JWT Issues:** Verify SECRET_KEY configuration
-4. **CORS Issues:** Check CORS_ALLOW_ORIGINS configuration
+2. **File Uploads:** Check S3 configuration and permissions
+3. **JWT Issues:** Verify JWT_SECRET configuration
+4. **CORS Issues:** Check CORS_ALLOWED_ORIGINS configuration
 5. **Authentication:** Verify user credentials and role assignments
+6. **Admin Access:** Ensure admin accounts are properly created and roles assigned
+7. **Environment Variables:** Verify all required variables are set
+
+### Admin Account Issues
+1. **Cannot Create Admin:** Ensure you're logged in as an existing admin
+2. **Seeding Not Working:** Check `ASA_RUN_SEED` and related environment variables
+3. **Role Assignment:** Verify user has `asa_admin` role in database
 
 ## API Documentation
 
@@ -487,15 +618,20 @@ The API includes comprehensive Swagger documentation:
 - **Auto-generated:** `docs/docs.go` and `docs/swagger.json`
 
 ### Authentication Flow
-1. **Registration:** `POST /api/auth/signup`
+1. **Registration:** `POST /api/auth/signup` (student/employer only)
 2. **Login:** `POST /api/auth/login`
 3. **Token Usage:** Include `Authorization: Bearer <token>` header
-4. **Profile Access:** `GET /api/auth/profile`
+4. **Profile Access:** `GET /api/auth/profile` (returns complete profile data)
+
+### Admin Account Management
+1. **Initial Setup:** Use seeding with `ASA_RUN_SEED=true` (development only)
+2. **Create New Admin:** `POST /api/admin/create-admin` (admin-only endpoint)
+3. **Admin Login:** Use admin credentials to access admin endpoints
 
 ### Role-Based Access
 - **Student:** Can create profiles, apply for jobs, manage applications
 - **Employer:** Can create job posts, manage applications, view profiles
-- **Admin:** Full system access for analytics and user management
+- **Admin:** Full system access for analytics, user management, and admin creation
 
 ## Contributing
 
@@ -515,3 +651,4 @@ The API includes comprehensive Swagger documentation:
 - Validate all user inputs
 - Use parameterized queries
 - Implement proper error handling
+- **Test admin endpoint security thoroughly**

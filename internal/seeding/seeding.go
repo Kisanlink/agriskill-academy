@@ -73,31 +73,67 @@ func (s *SeedingService) seedAdmin() error {
 		return fmt.Errorf("DEFAULT_ADMIN_USERNAME environment variable is required for admin seeding")
 	}
 
+	// Check for existing users with the same email or username before proceeding
+	// This prevents unique constraint violations and provides clear error messages
+	var emailCount int64
+	if err := s.db.Model(&auth.User{}).Where("email = ?", defaultEmail).Count(&emailCount).Error; err != nil {
+		return fmt.Errorf("failed to check existing user by email: %w", err)
+	}
+	if emailCount > 0 {
+		return fmt.Errorf("user with email '%s' already exists; please set a different DEFAULT_ADMIN_EMAIL", defaultEmail)
+	}
+
+	var usernameCount int64
+	if err := s.db.Model(&auth.User{}).Where("username = ?", defaultUsername).Count(&usernameCount).Error; err != nil {
+		return fmt.Errorf("failed to check existing user by username: %w", err)
+	}
+	if usernameCount > 0 {
+		return fmt.Errorf("user with username '%s' already exists; please set a different DEFAULT_ADMIN_USERNAME", defaultUsername)
+	}
+
 	// Hash the password
 	hashedPassword, err := auth.HashPassword(defaultPassword)
 	if err != nil {
 		return fmt.Errorf("failed to hash admin password: %w", err)
 	}
 
-	// Create admin user
-	adminUser := auth.NewUser()
-	adminUser.Name = defaultName
-	adminUser.Username = defaultUsername
-	adminUser.Email = defaultEmail
-	adminUser.Password = hashedPassword
-	adminUser.Role = "asa_admin"
+	// Create admin user within a transaction to handle potential concurrent seeding
+	err = s.db.Transaction(func(tx *gorm.DB) error {
+		// Double-check within transaction to handle concurrent access
+		var adminCount int64
+		if err := tx.Model(&auth.User{}).Where("role = ?", "asa_admin").Count(&adminCount).Error; err != nil {
+			return fmt.Errorf("failed to recheck admin count in transaction: %w", err)
+		}
+		if adminCount > 0 {
+			log.Printf("Admin account was created by another process, skipping")
+			return nil // Not an error, just skip
+		}
 
-	// Create the admin user
-	if err := s.db.Create(adminUser).Error; err != nil {
-		return fmt.Errorf("failed to create admin user: %w", err)
+		// Create admin user
+		adminUser := auth.NewUser()
+		adminUser.Name = defaultName
+		adminUser.Username = defaultUsername
+		adminUser.Email = defaultEmail
+		adminUser.Password = hashedPassword
+		adminUser.Role = "asa_admin"
+
+		if err := tx.Create(adminUser).Error; err != nil {
+			return fmt.Errorf("failed to create admin user: %w", err)
+		}
+
+		log.Printf("✅ Default admin account created successfully!")
+		log.Printf("   Username: %s", defaultUsername)
+		log.Printf("   Email: %s", defaultEmail)
+		log.Printf("   Password: %s", defaultPassword)
+		log.Printf("   ID: %s", adminUser.ID)
+		log.Printf("   ⚠️  IMPORTANT: Change the default password after first login!")
+
+		return nil
+	})
+
+	if err != nil {
+		return err
 	}
-
-	log.Printf("✅ Default admin account created successfully!")
-	log.Printf("   Username: %s", defaultUsername)
-	log.Printf("   Email: %s", defaultEmail)
-	log.Printf("   Password: %s", defaultPassword)
-	log.Printf("   ID: %s", adminUser.ID)
-	log.Printf("   ⚠️  IMPORTANT: Change the default password after first login!")
 
 	return nil
 }

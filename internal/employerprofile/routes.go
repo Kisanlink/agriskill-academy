@@ -1,17 +1,28 @@
 package employerprofile
 
-import "github.com/gin-gonic/gin"
+import (
+	"asa/internal/middleware"
+
+	"github.com/gin-gonic/gin"
+)
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *EmployerProfileHandler) {
 	employers := rg.Group("/employers")
 	{
+		// Public routes (anyone can view employer profiles)
 		employers.GET("/:employerId/profile", handler.GetProfile)
-		employers.GET("/me/profile", handler.GetMyProfile)
-		employers.PUT("/:employerId/profile", handler.UpdateProfile)
-		employers.PUT("/me/profile", handler.UpdateMyProfile)
-		employers.POST("/me/logo", handler.UploadMyLogo)
-		employers.PUT("/me/logo", handler.UpdateMyLogo)
-		employers.POST("/profile", handler.CreateProfile)
-		employers.DELETE("/:employerId/profile", handler.DeleteProfile)
+
+		// Employer-only routes (require employer role)
+		employerOnly := employers.Group("")
+		employerOnly.Use(middleware.RequireRole("employer"))
+		{
+			employerOnly.GET("/me/profile", handler.GetMyProfile)
+			employerOnly.PUT("/:employerId/profile", handler.UpdateProfile)
+			employerOnly.PUT("/me/profile", handler.UpdateMyProfile)
+			employerOnly.POST("/me/logo", handler.UploadMyLogo)
+			employerOnly.PUT("/me/logo", handler.UpdateMyLogo)
+			employerOnly.POST("/profile", handler.CreateProfile)
+			employerOnly.DELETE("/:employerId/profile", handler.DeleteProfile)
+		}
 	}
 }

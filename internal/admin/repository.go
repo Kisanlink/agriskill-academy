@@ -278,7 +278,7 @@ func (r *adminRepository) GetDashboardAnalytics() (*DashboardAnalytics, error) {
 
 // Local struct definitions for database queries
 type JobPost struct {
-	ID                string    `gorm:"primaryKey;type:uuid"`
+	ID                string    `gorm:"primaryKey;type:varchar(255)"`
 	Title             string    `json:"title"`
 	Status            string    `json:"status"`
 	Location          string    `json:"location"`
@@ -288,14 +288,14 @@ type JobPost struct {
 }
 
 type Application struct {
-	ID        string    `gorm:"primaryKey;type:uuid"`
+	ID        string    `gorm:"primaryKey;type:varchar(255)"`
 	Status    string    `json:"status"`
 	AppliedAt time.Time `json:"applied_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type User struct {
-	ID        string    `gorm:"primaryKey;type:uuid"`
+	ID        string    `gorm:"primaryKey;type:varchar(255)"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
 	Role      string    `json:"role"`
@@ -305,7 +305,7 @@ type User struct {
 }
 
 type EmployerProfile struct {
-	ID          string `gorm:"primaryKey;type:uuid"`
+	ID          string `gorm:"primaryKey;type:varchar(255)"`
 	UserID      string `gorm:"column:user_id"`
 	CompanyName string `json:"company_name"`
 	Industry    string `json:"industry"`
@@ -313,12 +313,12 @@ type EmployerProfile struct {
 }
 
 type Bookmark struct {
-	ID     string `gorm:"primaryKey;type:uuid"`
+	ID     string `gorm:"primaryKey;type:varchar(255)"`
 	UserID string `json:"user_id"`
 }
 
 type StudentProfile struct {
-	ID       string `gorm:"primaryKey;type:uuid"`
+	ID       string `gorm:"primaryKey;type:varchar(255)"`
 	Location string `json:"location"`
 	Skills   string `json:"skills"`
 }

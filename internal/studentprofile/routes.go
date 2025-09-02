@@ -3,23 +3,32 @@
 package studentprofile
 
 import (
+	"asa/internal/middleware"
+
 	"github.com/gin-gonic/gin"
 )
 
 func RegisterRoutes(rg *gin.RouterGroup, handler *StudentProfileHandler) {
 	students := rg.Group("/students")
 	{
+		// Public routes (employers can view student profiles)
 		students.GET("/:studentId/profile", handler.GetProfile)
-		students.PUT("/:studentId/profile", handler.UpdateProfile)
-		students.GET("/me/profile", handler.GetMyProfile)
-		students.PUT("/me/profile", handler.UpdateMyProfile)
-		students.PUT("/me/resume", handler.UpdateMyResume)
-		students.POST("/:studentId/certificates", handler.AddCertificate)
-		students.POST("/me/certificates", handler.AddMyCertificate)
-		students.POST("/me/resume", handler.UploadMyResume)
-		students.POST("/me/certificate", handler.UploadMyCertificate)
-		students.POST("/me/certificates/upload", handler.UploadCertificate)
-		students.POST("/me/certificates/add", handler.AddCertificateToProfile)
-		students.DELETE("/me/certificates/:certificateId", handler.DeleteMyCertificate)
+
+		// Student-only routes (require student role)
+		studentOnly := students.Group("")
+		studentOnly.Use(middleware.RequireRole("student"))
+		{
+			studentOnly.PUT("/:studentId/profile", handler.UpdateProfile)
+			studentOnly.GET("/me/profile", handler.GetMyProfile)
+			studentOnly.PUT("/me/profile", handler.UpdateMyProfile)
+			studentOnly.PUT("/me/resume", handler.UpdateMyResume)
+			studentOnly.POST("/:studentId/certificates", handler.AddCertificate)
+			studentOnly.POST("/me/certificates", handler.AddMyCertificate)
+			studentOnly.POST("/me/resume", handler.UploadMyResume)
+			studentOnly.POST("/me/certificate", handler.UploadMyCertificate)
+			studentOnly.POST("/me/certificates/upload", handler.UploadCertificate)
+			studentOnly.POST("/me/certificates/add", handler.AddCertificateToProfile)
+			studentOnly.DELETE("/me/certificates/:certificateId", handler.DeleteMyCertificate)
+		}
 	}
 }

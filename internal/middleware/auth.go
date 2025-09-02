@@ -122,34 +122,39 @@ func RequireRole(requiredRoles ...string) gin.HandlerFunc {
 		DebugLog("🔒 Request: %s %s", c.Request.Method, c.Request.URL.Path)
 		DebugLog("🔒 Required roles: %v", requiredRoles)
 
-		roleInterface, exists := c.Get("role")
+		rolesInterface, exists := c.Get("roles")
 		if !exists {
-			DebugLog("❌ No role found in context")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "No role found in token"})
+			DebugLog("❌ No roles found in context")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "No roles found in token"})
 			return
 		}
 
-		role, ok := roleInterface.(string)
+		userRoles, ok := rolesInterface.([]string)
 		if !ok {
-			DebugLog("❌ Invalid role format in context: %T", roleInterface)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid role format in token"})
+			DebugLog("❌ Invalid roles format in context: %T", rolesInterface)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid roles format in token"})
 			return
 		}
 
-		DebugLog("🔒 User role: %s", role)
+		DebugLog("🔒 User roles: %v", userRoles)
 
 		// Check if user has any of the required roles
 		hasRequiredRole := false
 		for _, requiredRole := range requiredRoles {
-			if role == requiredRole {
-				hasRequiredRole = true
-				DebugLog("✅ User has required role: %s", requiredRole)
+			for _, userRole := range userRoles {
+				if userRole == requiredRole {
+					hasRequiredRole = true
+					DebugLog("✅ User has required role: %s", requiredRole)
+					break
+				}
+			}
+			if hasRequiredRole {
 				break
 			}
 		}
 
 		if !hasRequiredRole {
-			DebugLog("❌ User lacks required roles. User role: %s, Required: %v", role, requiredRoles)
+			DebugLog("❌ User lacks required roles. User roles: %v, Required: %v", userRoles, requiredRoles)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"success": false,
 				"message": "Insufficient permissions. Required roles: " + strings.Join(requiredRoles, ", "),
@@ -176,34 +181,41 @@ func RequireAllRoles(requiredRoles ...string) gin.HandlerFunc {
 		DebugLog("🔒 Required roles (ALL): %v", requiredRoles)
 		DebugLog("⚠️ Note: Single role system - checking if user has any of the required roles")
 
-		roleInterface, exists := c.Get("role")
+		rolesInterface, exists := c.Get("roles")
 		if !exists {
-			DebugLog("❌ No role found in context")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "No role found in token"})
+			DebugLog("❌ No roles found in context")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "No roles found in token"})
 			return
 		}
 
-		role, ok := roleInterface.(string)
+		userRoles, ok := rolesInterface.([]string)
 		if !ok {
-			DebugLog("❌ Invalid role format in context: %T", roleInterface)
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid role format in token"})
+			DebugLog("❌ Invalid roles format in context: %T", rolesInterface)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Invalid roles format in token"})
 			return
 		}
 
-		DebugLog("🔒 User role: %s", role)
+		DebugLog("🔒 User roles: %v", userRoles)
 
-		// Check if user has any of the required roles (since single role system)
-		hasRequiredRole := false
+		// Check if user has ALL of the required roles
+		hasAllRequiredRoles := true
 		for _, requiredRole := range requiredRoles {
-			if role == requiredRole {
-				hasRequiredRole = true
-				DebugLog("✅ User has required role: %s", requiredRole)
+			hasThisRole := false
+			for _, userRole := range userRoles {
+				if userRole == requiredRole {
+					hasThisRole = true
+					break
+				}
+			}
+			if !hasThisRole {
+				hasAllRequiredRoles = false
+				DebugLog("❌ User missing required role: %s", requiredRole)
 				break
 			}
 		}
 
-		if !hasRequiredRole {
-			DebugLog("❌ User lacks required roles. User role: %s, Required: %v", role, requiredRoles)
+		if !hasAllRequiredRoles {
+			DebugLog("❌ User lacks required roles. User roles: %v, Required: %v", userRoles, requiredRoles)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"success": false,
 				"message": "Insufficient permissions. Required roles: " + strings.Join(requiredRoles, ", "),

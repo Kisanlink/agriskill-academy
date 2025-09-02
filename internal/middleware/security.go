@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -28,14 +29,21 @@ type RateLimiter struct {
 	mu       sync.RWMutex
 	r        rate.Limit
 	b        int
+	ctx      context.Context
+	cancel   context.CancelFunc
+	stop     chan struct{}
 }
 
 // NewRateLimiter creates a new rate limiter
 func NewRateLimiter(r rate.Limit, b int) *RateLimiter {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &RateLimiter{
 		limiters: make(map[string]*rate.Limiter),
 		r:        r,
 		b:        b,
+		ctx:      ctx,
+		cancel:   cancel,
+		stop:     make(chan struct{}),
 	}
 }
 
@@ -65,18 +73,37 @@ func (rl *RateLimiter) Cleanup() {
 	}
 }
 
+// StartCleanup starts the cleanup goroutine
+func (rl *RateLimiter) StartCleanup() {
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				rl.Cleanup()
+			case <-rl.ctx.Done():
+				return
+			case <-rl.stop:
+				return
+			}
+		}
+	}()
+}
+
+// Stop stops the cleanup goroutine and releases resources
+func (rl *RateLimiter) Stop() {
+	rl.cancel()
+	close(rl.stop)
+}
+
 // RateLimitMiddleware implements IP-based rate limiting
 func RateLimitMiddleware(requests int, window time.Duration) gin.HandlerFunc {
 	limiter := NewRateLimiter(rate.Limit(float64(requests)/window.Seconds()), requests)
 
 	// Start cleanup goroutine
-	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
-			limiter.Cleanup()
-		}
-	}()
+	limiter.StartCleanup()
 
 	return func(c *gin.Context) {
 		key := getClientIP(c)
@@ -90,6 +117,34 @@ func RateLimitMiddleware(requests int, window time.Duration) gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+// RateLimitMiddlewareWithCleanup returns both the middleware and a cleanup function
+// Callers should call the cleanup function when the middleware is no longer needed
+func RateLimitMiddlewareWithCleanup(requests int, window time.Duration) (gin.HandlerFunc, func()) {
+	limiter := NewRateLimiter(rate.Limit(float64(requests)/window.Seconds()), requests)
+
+	// Start cleanup goroutine
+	limiter.StartCleanup()
+
+	middleware := func(c *gin.Context) {
+		key := getClientIP(c)
+		if !limiter.GetLimiter(key).Allow() {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":   "Rate limit exceeded",
+				"message": "Too many requests, please try again later",
+			})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+
+	cleanup := func() {
+		limiter.Stop()
+	}
+
+	return middleware, cleanup
 }
 
 // getClientIP extracts the real client IP from various headers
@@ -119,11 +174,21 @@ func getClientIP(c *gin.Context) string {
 func InputSanitizationMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Sanitize query parameters
-		for key, values := range c.Request.URL.Query() {
-			for i, value := range values {
-				values[i] = sanitizeInput(value)
+		if c.Request != nil && c.Request.URL != nil {
+			originalQuery := c.Request.URL.Query()
+			sanitizedQuery := make(url.Values)
+
+			// Iterate through original query parameters, sanitize each value, and add to new map
+			for key, values := range originalQuery {
+				sanitizedValues := make([]string, len(values))
+				for i, value := range values {
+					sanitizedValues[i] = sanitizeInput(value)
+				}
+				sanitizedQuery[key] = sanitizedValues
 			}
-			c.Request.URL.Query()[key] = values
+
+			// Set the sanitized query string back to the request
+			c.Request.URL.RawQuery = sanitizedQuery.Encode()
 		}
 
 		// Sanitize form data
@@ -168,18 +233,33 @@ func sanitizeInput(input string) string {
 // RequestSizeLimitMiddleware limits the size of incoming requests
 func RequestSizeLimitMiddleware(maxSize int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSize)
-
-		c.Next()
-
-		// Check if the request was too large
-		if c.Request.ContentLength > maxSize {
+		// Pre-check ContentLength if available (ContentLength >= 0)
+		if c.Request.ContentLength >= 0 && c.Request.ContentLength > maxSize {
 			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
 				"error":   "Request too large",
 				"message": fmt.Sprintf("Request size exceeds maximum allowed size of %d bytes", maxSize),
 			})
 			c.Abort()
 			return
+		}
+
+		// If ContentLength is -1 (missing), use MaxBytesReader to enforce limit during body reads
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxSize)
+
+		c.Next()
+
+		// Check for MaxBytesReader errors after c.Next()
+		if len(c.Errors) > 0 {
+			for _, err := range c.Errors {
+				if strings.Contains(err.Error(), "http: request body too large") {
+					c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+						"error":   "Request too large",
+						"message": fmt.Sprintf("Request size exceeds maximum allowed size of %d bytes", maxSize),
+					})
+					c.Abort()
+					return
+				}
+			}
 		}
 	}
 }
@@ -243,13 +323,15 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 }
 
 // SQLInjectionProtectionMiddleware provides basic SQL injection protection
+// Note: This is not a reliable approach. Use parameterized queries instead.
 func SQLInjectionProtectionMiddleware() gin.HandlerFunc {
-	// Common SQL injection patterns
+	// More specific patterns that reduce false positives
 	sqlPatterns := []*regexp.Regexp{
-		regexp.MustCompile(`(?i)(union|select|insert|update|delete|drop|create|alter|exec|execute)`),
-		regexp.MustCompile(`(?i)(--|/\*|\*/|xp_|sp_)`),
-		regexp.MustCompile(`(?i)(or\s+\d+\s*=\s*\d+|and\s+\d+\s*=\s*\d+)`),
-		regexp.MustCompile(`(?i)(union\s+select|select\s+union)`),
+		regexp.MustCompile(`(?i)(union\s+all\s+select|union\s+select)`),
+		regexp.MustCompile(`(?i)(;.*?(drop|create|alter|exec)\s+)`),
+		regexp.MustCompile(`(?i)(\s+or\s+['"]?\d+['"]?\s*=\s*['"]?\d+)`),
+		regexp.MustCompile(`(?i)(--\s*$|/\*.*\*/)`),
+		regexp.MustCompile(`(?i)(xp_cmdshell|sp_executesql)`),
 	}
 
 	return func(c *gin.Context) {
@@ -338,18 +420,12 @@ func ContextTimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 
 		c.Request = c.Request.WithContext(ctx)
 
-		// Create a channel to signal completion
-		done := make(chan struct{})
+		// Continue with the middleware chain
+		// The timeout will be enforced by the context in downstream handlers
+		c.Next()
 
-		go func() {
-			c.Next()
-			close(done)
-		}()
-
-		select {
-		case <-done:
-			// Request completed successfully
-		case <-ctx.Done():
+		// Check if the context was cancelled due to timeout
+		if ctx.Err() == context.DeadlineExceeded {
 			c.JSON(http.StatusRequestTimeout, gin.H{
 				"error":   "Request timeout",
 				"message": "Request took too long to process",

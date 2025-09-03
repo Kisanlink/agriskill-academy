@@ -1,6 +1,7 @@
 package jobpost
 
 import (
+	"asa/internal/middleware"
 	"encoding/json"
 	"time"
 
@@ -105,12 +106,12 @@ func NewJobPost() *JobPost {
 
 // BeforeCreateGORM is called by GORM before creating a new record
 func (j *JobPost) BeforeCreateGORM(tx *gorm.DB) error {
-	return j.BaseModel.BeforeCreate()
+	return j.BeforeCreate()
 }
 
 // BeforeUpdateGORM is called by GORM before updating an existing record
 func (j *JobPost) BeforeUpdateGORM(tx *gorm.DB) error {
-	return j.BaseModel.BeforeUpdate()
+	return j.BeforeUpdate()
 }
 
 // BeforeDeleteGORM is called by GORM before hard deleting a record
@@ -324,6 +325,20 @@ func (JobAlert) TableName() string {
 func NewJobAlert() *JobAlert {
 	return &JobAlert{
 		BaseModel: *base.NewBaseModel("JALT", hash.Medium),
+	}
+}
+
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var jobPostIDs []string
+	if err := db.Model(&JobPost{}).Pluck("id", &jobPostIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("JOBP", jobPostIDs, hash.Large)
+		middleware.DebugLog("Initialized JOBP counter with %d existing IDs", len(jobPostIDs))
+	}
+
+	var jobAlertIDs []string
+	if err := db.Model(&JobAlert{}).Pluck("id", &jobAlertIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("JALT", jobAlertIDs, hash.Medium)
+		middleware.DebugLog("Initialized JALT counter with %d existing IDs", len(jobAlertIDs))
 	}
 }
 

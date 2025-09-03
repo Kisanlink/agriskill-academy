@@ -1,6 +1,8 @@
 package contact
 
 import (
+	"asa/internal/middleware"
+
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
@@ -30,19 +32,27 @@ func NewContactRequest() *ContactRequest {
 	}
 }
 
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var contactIDs []string
+	if err := db.Model(&ContactRequest{}).Pluck("id", &contactIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("CONT", contactIDs, hash.Small)
+		middleware.DebugLog("Initialized CONT counter with %d existing IDs", len(contactIDs))
+	}
+}
+
 // BeforeCreateGORM is called by GORM before creating a new record
 func (c *ContactRequest) BeforeCreateGORM(tx *gorm.DB) error {
-	return c.BaseModel.BeforeCreate()
+	return c.BeforeCreate()
 }
 
 // BeforeUpdateGORM is called by GORM before updating an existing record
 func (c *ContactRequest) BeforeUpdateGORM(tx *gorm.DB) error {
-	return c.BaseModel.BeforeUpdate()
+	return c.BeforeUpdate()
 }
 
 // BeforeDeleteGORM is called by GORM before hard deleting a record
 func (c *ContactRequest) BeforeDeleteGORM(tx *gorm.DB) error {
-	return c.BaseModel.BeforeDelete()
+	return c.BeforeDelete()
 }
 
 // @Description Contact form submission request

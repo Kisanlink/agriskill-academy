@@ -1,6 +1,7 @@
 package employerapplication
 
 import (
+	"asa/internal/middleware"
 	"time"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
@@ -114,19 +115,27 @@ func NewMessage() *Message {
 	}
 }
 
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var messageIDs []string
+	if err := db.Model(&Message{}).Pluck("id", &messageIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("MESS", messageIDs, hash.Medium)
+		middleware.DebugLog("Initialized MESS counter with %d existing IDs", len(messageIDs))
+	}
+}
+
 // BeforeCreateGORM is called by GORM before creating a new record
 func (m *Message) BeforeCreateGORM(tx *gorm.DB) error {
-	return m.BaseModel.BeforeCreate()
+	return m.BeforeCreate()
 }
 
 // BeforeUpdateGORM is called by GORM before updating an existing record
 func (m *Message) BeforeUpdateGORM(tx *gorm.DB) error {
-	return m.BaseModel.BeforeUpdate()
+	return m.BeforeUpdate()
 }
 
 // BeforeDeleteGORM is called by GORM before hard deleting a record
 func (m *Message) BeforeDeleteGORM(tx *gorm.DB) error {
-	return m.BaseModel.BeforeDelete()
+	return m.BeforeDelete()
 }
 
 type MessageWithSender struct {

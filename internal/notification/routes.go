@@ -13,7 +13,6 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *NotificationHandler) {
 	{
 		// Admin-only route for sending emails
 		notifications.POST("/email", middleware.RequireRole("asa_admin"), handler.SendEmail)
-		
 		// User preferences - any authenticated user can manage their preferences
 		notifications.GET("/preferences", handler.GetPreferences)
 		notifications.PUT("/preferences", handler.UpdatePreferences)

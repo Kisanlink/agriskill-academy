@@ -3,6 +3,7 @@
 package application
 
 import (
+	"asa/internal/middleware"
 	"time"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
@@ -63,19 +64,27 @@ func NewApplication() *Application {
 	}
 }
 
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var applicationIDs []string
+	if err := db.Model(&Application{}).Pluck("id", &applicationIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("APPL", applicationIDs, hash.Large)
+		middleware.DebugLog("✅ Initialized APPL counter with %d existing IDs", len(applicationIDs))
+	}
+}
+
 // BeforeCreateGORM is called by GORM before creating a new record
 func (a *Application) BeforeCreateGORM(tx *gorm.DB) error {
-	return a.BaseModel.BeforeCreate()
+	return a.BeforeCreate()
 }
 
 // BeforeUpdateGORM is called by GORM before updating an existing record
 func (a *Application) BeforeUpdateGORM(tx *gorm.DB) error {
-	return a.BaseModel.BeforeUpdate()
+	return a.BeforeUpdate()
 }
 
 // BeforeDeleteGORM is called by GORM before hard deleting a record
 func (a *Application) BeforeDeleteGORM(tx *gorm.DB) error {
-	return a.BaseModel.BeforeDelete()
+	return a.BeforeDelete()
 }
 
 // Request/Response Models

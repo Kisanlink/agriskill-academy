@@ -3,6 +3,7 @@
 package studentprofile
 
 import (
+	"asa/internal/middleware"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
@@ -172,6 +173,22 @@ func NewStudentProfile() *StudentProfile {
 	return &StudentProfile{
 		BaseModel: *base.NewBaseModel("STUD", hash.Medium),
 	}
+}
+
+// InitializeCounterFromDatabase initializes the STUD counter from existing database records
+func InitializeCounterFromDatabase(db *gorm.DB) error {
+	var profileIDs []string
+	if err := db.Model(&StudentProfile{}).Pluck("id", &profileIDs).Error; err != nil {
+		middleware.DebugLog("failed to get student profile IDs: %w", err)
+	}
+	hash.InitializeGlobalCountersFromDatabase("STUD", profileIDs, hash.Medium)
+
+	var certificateIDs []string
+	if err := db.Model(&Certificate{}).Pluck("id", &certificateIDs).Error; err != nil {
+		middleware.DebugLog("failed to get certificate IDs: %w", err)
+	}
+	hash.InitializeGlobalCountersFromDatabase("CERT", certificateIDs, hash.Small)
+	return nil
 }
 
 // BeforeCreateGORM is called by GORM before creating a new record

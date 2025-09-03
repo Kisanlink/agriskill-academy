@@ -1,6 +1,8 @@
 package employerprofile
 
 import (
+	"asa/internal/middleware"
+
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"github.com/lib/pq"
@@ -56,19 +58,27 @@ func NewEmployerProfile() *EmployerProfile {
 	}
 }
 
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var employerProfileIDs []string
+	if err := db.Model(&EmployerProfile{}).Pluck("id", &employerProfileIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("EMPL", employerProfileIDs, hash.Medium)
+		middleware.DebugLog("Initialized EMPL counter with %d existing IDs", len(employerProfileIDs))
+	}
+}
+
 // BeforeCreateGORM is called by GORM before creating a new record
 func (e *EmployerProfile) BeforeCreateGORM(tx *gorm.DB) error {
-	return e.BaseModel.BeforeCreate()
+	return e.BeforeCreate()
 }
 
 // BeforeUpdateGORM is called by GORM before updating an existing record
 func (e *EmployerProfile) BeforeUpdateGORM(tx *gorm.DB) error {
-	return e.BaseModel.BeforeUpdate()
+	return e.BeforeUpdate()
 }
 
 // BeforeDeleteGORM is called by GORM before hard deleting a record
 func (e *EmployerProfile) BeforeDeleteGORM(tx *gorm.DB) error {
-	return e.BaseModel.BeforeDelete()
+	return e.BeforeDelete()
 }
 
 // UpdateEmployerProfileRequest is used for update operations where UserID comes from URL parameter

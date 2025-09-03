@@ -1,6 +1,8 @@
 package notification
 
 import (
+	"asa/internal/middleware"
+
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
@@ -32,19 +34,27 @@ func NewNotificationPreferences() *NotificationPreferences {
 	}
 }
 
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var notificationIDs []string
+	if err := db.Model(&NotificationPreferences{}).Pluck("id", &notificationIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("NOTP", notificationIDs, hash.Small)
+		middleware.DebugLog("Initialized NOTP counter with %d existing IDs", len(notificationIDs))
+	}
+}
+
 // BeforeCreateGORM is called by GORM before creating a new record
 func (n *NotificationPreferences) BeforeCreateGORM(tx *gorm.DB) error {
-	return n.BaseModel.BeforeCreate()
+	return n.BeforeCreate()
 }
 
 // BeforeUpdateGORM is called by GORM before updating an existing record
 func (n *NotificationPreferences) BeforeUpdateGORM(tx *gorm.DB) error {
-	return n.BaseModel.BeforeUpdate()
+	return n.BeforeUpdate()
 }
 
 // BeforeDeleteGORM is called by GORM before hard deleting a record
 func (n *NotificationPreferences) BeforeDeleteGORM(tx *gorm.DB) error {
-	return n.BaseModel.BeforeDelete()
+	return n.BeforeDelete()
 }
 
 // Request/Response Models

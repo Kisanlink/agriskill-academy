@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"asa/internal/middleware"
+
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
@@ -29,6 +31,14 @@ func (User) TableName() string {
 func NewUser() *User {
 	return &User{
 		BaseModel: *base.NewBaseModel("USER", hash.Medium),
+	}
+}
+
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var userIDs []string
+	if err := db.Model(&User{}).Pluck("id", &userIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("USER", userIDs, hash.Medium)
+		middleware.DebugLog("Initialized USER counter with %d existing IDs", len(userIDs))
 	}
 }
 

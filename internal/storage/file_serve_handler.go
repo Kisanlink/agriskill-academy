@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"asa/internal/middleware"
-	db "asa/pkg/db"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	db "github.com/Kisanlink/agriskill-academy/pkg/db"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

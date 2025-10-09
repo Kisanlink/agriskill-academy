@@ -181,8 +181,8 @@ func LoadConfig() *Config {
 		// Database configuration
 		DBHost:     os.Getenv("DB_HOST"),
 		DBPort:     os.Getenv("DB_PORT"),
-		DBUser:     os.Getenv("POSTGRESS_USER"),
-		DBPassword: os.Getenv("POSTGRESS_PASS"),
+		DBUser:     os.Getenv("POSTGRES_USER"),
+		DBPassword: os.Getenv("POSTGRES_PASS"),
 		DBName:     os.Getenv("DB_NAME"),
 		DBSSLMode:  os.Getenv("DB_SSLMODE"),
 
@@ -259,15 +259,15 @@ func InitDB() (*gorm.DB, error) {
 	fmt.Println("Env variables:")
 	fmt.Println("DB_HOST:", os.Getenv("DB_HOST"))
 	fmt.Println("DB_PORT:", os.Getenv("DB_PORT"))
-	fmt.Println("POSTGRESS_USER:", os.Getenv("POSTGRESS_USER"))
-	fmt.Println("POSTGRESS_PASS:", os.Getenv("POSTGRESS_PASS"))
+	fmt.Println("POSTGRES_USER:", os.Getenv("POSTGRES_USER"))
+	fmt.Println("POSTGRES_PASS:", os.Getenv("POSTGRES_PASS"))
 	fmt.Println("DB_NAME:", os.Getenv("DB_NAME"))
 	fmt.Println("DB_SSLMODE:", os.Getenv("DB_SSLMODE"))
 
 	host := os.Getenv("DB_HOST")
 	port := os.Getenv("DB_PORT")
-	user := os.Getenv("POSTGRESS_USER")
-	password := os.Getenv("POSTGRESS_PASS")
+	user := os.Getenv("POSTGRES_USER")
+	password := os.Getenv("POSTGRES_PASS")
 	dbname := os.Getenv("DB_NAME")
 	sslmode := os.Getenv("DB_SSLMODE")
 

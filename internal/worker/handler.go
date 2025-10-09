@@ -3,8 +3,8 @@
 package worker
 
 import (
-	"asa/config"
-	"asa/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/config"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"net/http"
 	"strings"
 	"time"

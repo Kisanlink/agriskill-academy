@@ -1,8 +1,8 @@
 package authz
 
 import (
-	"asa/internal/middleware"
-	"asa/pkg/jwtutil"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/pkg/jwtutil"
 )
 
 // contains checks if a slice of strings contains a specific string

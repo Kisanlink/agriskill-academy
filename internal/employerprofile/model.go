@@ -1,7 +1,7 @@
 package employerprofile
 
 import (
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"

@@ -1,7 +1,7 @@
 package jobpost
 
 import (
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"encoding/json"
 	"time"
 

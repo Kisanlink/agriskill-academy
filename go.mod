@@ -1,4 +1,4 @@
-module asa
+module github.com/Kisanlink/agriskill-academy
 
 go 1.24.4
 

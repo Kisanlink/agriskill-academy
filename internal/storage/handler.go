@@ -3,8 +3,8 @@
 package storage
 
 import (
-	"asa/internal/middleware"
-	"asa/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"fmt"
 	"net/http"
 	"path/filepath"

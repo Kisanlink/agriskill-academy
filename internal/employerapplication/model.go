@@ -1,7 +1,7 @@
 package employerapplication
 
 import (
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"time"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"

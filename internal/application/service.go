@@ -3,8 +3,8 @@
 package application
 
 import (
-	"asa/internal/jobpost"
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/jobpost"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"context"
 	"errors"
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	db "asa/pkg/db"
+	db "github.com/Kisanlink/agriskill-academy/pkg/db"
 )
 
 type ApplicationService interface {

@@ -1,7 +1,7 @@
 package admin
 
 import (
-	"asa/internal/auth"
+	"github.com/Kisanlink/agriskill-academy/internal/auth"
 	"errors"
 )
 

@@ -1,7 +1,7 @@
 package bookmark
 
 import (
-	"asa/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"net/http"
 	"strings"
 

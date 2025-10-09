@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

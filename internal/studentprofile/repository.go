@@ -3,7 +3,7 @@
 package studentprofile
 
 import (
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"context"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"

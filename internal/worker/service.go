@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"asa/config"
+	"github.com/Kisanlink/agriskill-academy/config"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 )

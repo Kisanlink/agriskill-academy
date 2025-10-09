@@ -7,26 +7,26 @@ import (
 	"fmt"
 	"log"
 
-	"asa/config"
-	"asa/internal/admin"
-	"asa/internal/application"
-	"asa/internal/auth"
-	"asa/internal/bookmark"
-	"asa/internal/contact"
-	"asa/internal/employerapplication"
-	"asa/internal/employerprofile"
+	"github.com/Kisanlink/agriskill-academy/config"
+	"github.com/Kisanlink/agriskill-academy/internal/admin"
+	"github.com/Kisanlink/agriskill-academy/internal/application"
+	"github.com/Kisanlink/agriskill-academy/internal/auth"
+	"github.com/Kisanlink/agriskill-academy/internal/bookmark"
+	"github.com/Kisanlink/agriskill-academy/internal/contact"
+	"github.com/Kisanlink/agriskill-academy/internal/employerapplication"
+	"github.com/Kisanlink/agriskill-academy/internal/employerprofile"
 
-	"asa/internal/jobpost"
-	"asa/internal/middleware"
-	"asa/internal/notification"
-	"asa/internal/seeding"
-	"asa/internal/storage"
-	"asa/internal/studentprofile"
-	"asa/internal/worker"
+	"github.com/Kisanlink/agriskill-academy/internal/jobpost"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/notification"
+	"github.com/Kisanlink/agriskill-academy/internal/seeding"
+	"github.com/Kisanlink/agriskill-academy/internal/storage"
+	"github.com/Kisanlink/agriskill-academy/internal/studentprofile"
+	"github.com/Kisanlink/agriskill-academy/internal/worker"
 
-	_ "asa/docs" // Import swagger docs
+	_ "github.com/Kisanlink/agriskill-academy/docs" // Import swagger docs
 
-	kdb "asa/pkg/db"
+	kdb "github.com/Kisanlink/agriskill-academy/pkg/db"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"

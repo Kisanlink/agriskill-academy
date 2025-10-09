@@ -1,0 +1,170 @@
+version: '3.8'
+
+# Production Docker Compose - For local testing only
+# In production, use AWS ECS with the CloudFormation template
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: agrijobs-postgres-prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASS}
+      POSTGRES_DB: ${DB_NAME}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # ports:
+      #  - "${DB_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - agrijobs-network
+
+  # Redis Cache & Job Queue
+  redis:
+    image: redis:7.2-alpine
+    container_name: agrijobs-redis-prod
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - agrijobs-network
+
+  # MinIO S3-compatible Object Storage
+  minio:
+    image: minio/minio
+    container_name: minio
+    ports:
+      - "9000:9000"   # S3 API port
+      - "9001:9001"   # Web UI / console
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - agrijobs-network
+
+  # AgriJobs Backend Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agrijobs-backend-prod
+    ports:
+      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+    environment:
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: ${DB_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASS: ${POSTGRES_PASS}
+      DB_NAME: ${DB_NAME}
+      DB_SSLMODE: disable
+
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET}
+
+      # Server Configuration
+      SERVER_PORT: ${SERVER_PORT:-8080}
+      GIN_MODE: release
+      ASA_BASE_URL: ${ASA_BASE_URL}
+
+      # AWS S3 Configuration (Production) / MinIO for local testing
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-agrijobs-files}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minio}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minio123}
+      # MinIO Configuration (for local testing)
+      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://minio:9000}
+      AWS_S3_FORCE_PATH_STYLE: ${AWS_S3_FORCE_PATH_STYLE:-true}
+      AWS_S3_DISABLE_SSL: ${AWS_S3_DISABLE_SSL:-true}
+
+      # Redis Configuration
+      REDIS_ADDR: redis:${REDIS_PORT:-6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_DB: ${REDIS_DB:-0}
+
+      # Email Configuration
+      MAIL_FROM: ${MAIL_FROM}
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_PASS: ${MAIL_PASS}
+
+      # Logging
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      LOG_DEVELOPMENT: false
+
+      # Security
+      RATE_LIMIT_REQUESTS: 100
+      RATE_LIMIT_WINDOW: 1m
+      MAX_REQUEST_SIZE: 10485760
+      MAX_FILE_SIZE: 5242880
+      ENABLE_CORS: true
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+
+      # Admin Seeding - DISABLED IN PRODUCTION
+      ASA_RUN_SEED: true
+      DEFAULT_ADMIN_EMAIL: ${DEFAULT_ADMIN_EMAIL}
+      DEFAULT_ADMIN_PASSWORD: ${DEFAULT_ADMIN_PASSWORD}
+      DEFAULT_ADMIN_NAME: ${DEFAULT_ADMIN_NAME}
+      DEFAULT_ADMIN_USERNAME: ${DEFAULT_ADMIN_USERNAME}
+
+      # Application
+      APP_NAME: AgriJobs
+      APP_VERSION: 1.0.0
+      APP_ENV: production
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f $${ASA_BASE_URL}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - agrijobs-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio-data:
+    driver: local
+
+networks:
+  agrijobs-network:
+    driver: bridge

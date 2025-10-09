@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"asa/pkg/jwtutil"
+	"github.com/Kisanlink/agriskill-academy/pkg/jwtutil"
 	"net/http"
 	"strings"
 

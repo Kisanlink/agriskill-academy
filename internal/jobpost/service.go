@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"asa/internal/employerprofile"
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/employerprofile"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 )
 
 type JobPostService interface {

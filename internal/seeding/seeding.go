@@ -1,7 +1,7 @@
 package seeding
 
 import (
-	"asa/internal/auth"
+	"github.com/Kisanlink/agriskill-academy/internal/auth"
 	"fmt"
 	"log"
 	"os"

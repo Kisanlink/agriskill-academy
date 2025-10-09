@@ -3,8 +3,8 @@
 package application
 
 import (
-	"asa/internal/jobpost"
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/jobpost"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"context"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"

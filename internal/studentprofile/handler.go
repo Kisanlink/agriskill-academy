@@ -3,8 +3,8 @@
 package studentprofile
 
 import (
-	"asa/internal/middleware"
-	"asa/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"asa/internal/storage"
+	"github.com/Kisanlink/agriskill-academy/internal/storage"
 
 	"github.com/gin-gonic/gin"
 )

@@ -1,7 +1,7 @@
 package bookmark
 
 import (
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )

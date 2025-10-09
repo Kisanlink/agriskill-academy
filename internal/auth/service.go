@@ -1,9 +1,9 @@
 package auth
 
 import (
-	"asa/internal/employerprofile"
-	"asa/internal/middleware"
-	"asa/internal/studentprofile"
+	"github.com/Kisanlink/agriskill-academy/internal/employerprofile"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/studentprofile"
 	"context"
 	"errors"
 	"fmt"

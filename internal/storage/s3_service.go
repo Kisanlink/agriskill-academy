@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	db "asa/pkg/db"
+	db "github.com/Kisanlink/agriskill-academy/pkg/db"
 )
 
 // StorageService defines the interface for file storage operations

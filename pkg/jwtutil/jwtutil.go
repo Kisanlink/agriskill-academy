@@ -3,20 +3,30 @@ package jwtutil
 import (
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var jwtSecret = []byte(getSecret()) // Use the same secret as AAA service
+var jwtSecret []byte
+var jwtSecretOnce sync.Once
 
 // getSecret returns the JWT secret with fallback
 func getSecret() string {
-	secret := os.Getenv("SECRET_KEY")
+	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		return "secret" // Fallback secret
+		panic("JWT_SECRET environment variable is required")
 	}
 	return secret
+}
+
+// getJWTSecret returns the JWT secret, initializing it once
+func getJWTSecret() []byte {
+	jwtSecretOnce.Do(func() {
+		jwtSecret = []byte(getSecret())
+	})
+	return jwtSecret
 }
 
 func DebugLog(format string, args ...interface{}) {
@@ -26,23 +36,23 @@ func DebugLog(format string, args ...interface{}) {
 }
 
 // GenerateToken creates a JWT token using user info and expiration duration
-func GenerateToken(userID, email, role string, duration time.Duration) (string, error) {
+func GenerateToken(userID, username, email, role string, duration time.Duration) (string, error) {
 	DebugLog("🔑 === GENERATE TOKEN START ===")
 	DebugLog("🔑 UserID: %s", userID)
+	DebugLog("🔑 Username: %s", username)
 	DebugLog("🔑 Email: %s", email)
 	DebugLog("🔑 Role: %s", role)
 	DebugLog("🔑 Duration: %v", duration)
-	DebugLog("🔑 JWT Secret length: %d", len(jwtSecret))
 
-	// Convert single role to roles array for consistency with middleware
-	roles := []string{role}
+	secret := getJWTSecret()
+	DebugLog("🔑 JWT Secret length: %d", len(secret))
 
 	claims := jwt.MapClaims{
-		"user_id": userID,
-		"email":   email,
-		"role":    role,  // Keep single role for backward compatibility
-		"roles":   roles, // Add roles array for middleware
-		"exp":     time.Now().Add(duration).Unix(),
+		"user_id":  userID,
+		"username": username,
+		"email":    email,
+		"role":     role,
+		"exp":      time.Now().Add(duration).Unix(),
 	}
 
 	DebugLog("🔑 Claims: %+v", claims)
@@ -50,7 +60,7 @@ func GenerateToken(userID, email, role string, duration time.Duration) (string, 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	DebugLog("🔑 Token created with signing method: %s", jwt.SigningMethodHS256)
 
-	signedToken, err := token.SignedString(jwtSecret)
+	signedToken, err := token.SignedString(secret)
 	if err != nil {
 		DebugLog("❌ Failed to sign token: %v", err)
 		return "", err
@@ -66,11 +76,13 @@ func ParseToken(tokenStr string) (jwt.MapClaims, error) {
 	DebugLog("🔑 === PARSE TOKEN START ===")
 	DebugLog("🔑 Token string length: %d", len(tokenStr))
 	DebugLog("🔑 Token preview: %s...", tokenStr[:min(50, len(tokenStr))])
-	DebugLog("🔑 JWT Secret length: %d", len(jwtSecret))
+
+	secret := getJWTSecret()
+	DebugLog("🔑 JWT Secret length: %d", len(secret))
 
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
 		DebugLog("🔑 Parsing token with method: %s", token.Method.Alg())
-		return jwtSecret, nil // Use shared secret
+		return secret, nil // Use shared secret
 	})
 
 	if err != nil {

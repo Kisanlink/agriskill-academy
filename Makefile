@@ -87,6 +87,10 @@ migrate:
 		chmod +x scripts/014_add_contact_requests.sh; \
 		./scripts/014_add_contact_requests.sh; \
 	fi
+	@if [ -f "scripts/015_add_username_to_users.sh" ]; then \
+		chmod +x scripts/015_add_username_to_users.sh; \
+		./scripts/015_add_username_to_users.sh; \
+	fi
 	@echo "Migrations applied successfully!"
 
 # Debug migration issues

@@ -3,19 +3,18 @@
 package application
 
 import (
-	"asa/internal/jobpost"
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/jobpost"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"context"
 
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"gorm.io/gorm"
 )
 
 type ApplicationRepository interface {
-	Create(app *Application) error
+	base.Repository[*Application]
 	GetByStudent(studentID string) ([]Application, error)
 	GetByJob(jobID string) ([]Application, error)
-	GetByID(appID string) (*Application, error)
-	Delete(appID, studentID string) error
-	Exists(jobID, studentID string) (bool, error)
 	GetJobMetadata(jobID string) (*JobPostMetadata, error)
 	UpdateStatus(appID, studentID, status string) error
 	UpdateStatusByEmployer(appID, jobID, employerID, status string) error
@@ -25,15 +24,113 @@ type ApplicationRepository interface {
 }
 
 type applicationRepository struct {
+	*base.BaseRepository[*Application]
 	db *gorm.DB
 }
 
 func NewApplicationRepository(db *gorm.DB) ApplicationRepository {
-	return &applicationRepository{db}
+	return &applicationRepository{
+		BaseRepository: base.NewBaseRepository[*Application](),
+		db:             db,
+	}
 }
 
-func (r *applicationRepository) Create(app *Application) error {
+func (r *applicationRepository) Create(ctx context.Context, app *Application) error {
 	return r.db.Create(app).Error
+}
+
+func (r *applicationRepository) GetByID(ctx context.Context, id string, app *Application) (*Application, error) {
+	err := r.db.First(app, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return app, nil
+}
+
+func (r *applicationRepository) Update(ctx context.Context, app *Application) error {
+	return r.db.Save(app).Error
+}
+
+func (r *applicationRepository) Delete(ctx context.Context, id string, app *Application) error {
+	return r.db.Delete(app, "id = ?", id).Error
+}
+
+func (r *applicationRepository) SoftDelete(ctx context.Context, id string, deletedBy string) error {
+	return r.db.Model(&Application{}).Where("id = ?", id).Update("deleted_at", gorm.Expr("NOW()")).Error
+}
+
+func (r *applicationRepository) Restore(ctx context.Context, id string) error {
+	return r.db.Model(&Application{}).Where("id = ?", id).Update("deleted_at", nil).Error
+}
+
+func (r *applicationRepository) List(ctx context.Context, limit, offset int) ([]*Application, error) {
+	var apps []*Application
+	err := r.db.Limit(limit).Offset(offset).Find(&apps).Error
+	return apps, err
+}
+
+func (r *applicationRepository) ListWithDeleted(ctx context.Context, limit, offset int) ([]*Application, error) {
+	var apps []*Application
+	err := r.db.Unscoped().Limit(limit).Offset(offset).Find(&apps).Error
+	return apps, err
+}
+
+func (r *applicationRepository) Count(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.Model(&Application{}).Count(&count).Error
+	return count, err
+}
+
+func (r *applicationRepository) CountWithDeleted(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.Model(&Application{}).Unscoped().Count(&count).Error
+	return count, err
+}
+
+func (r *applicationRepository) Exists(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.db.Model(&Application{}).Where("id = ?", id).Count(&count).Error
+	return count > 0, err
+}
+
+func (r *applicationRepository) ExistsWithDeleted(ctx context.Context, id string) (bool, error) {
+	var count int64
+	err := r.db.Model(&Application{}).Unscoped().Where("id = ?", id).Count(&count).Error
+	return count > 0, err
+}
+
+func (r *applicationRepository) GetByCreatedBy(ctx context.Context, createdBy string, limit, offset int) ([]*Application, error) {
+	var apps []*Application
+	err := r.db.Where("created_by = ?", createdBy).Limit(limit).Offset(offset).Find(&apps).Error
+	return apps, err
+}
+
+func (r *applicationRepository) GetByUpdatedBy(ctx context.Context, updatedBy string, limit, offset int) ([]*Application, error) {
+	var apps []*Application
+	err := r.db.Where("updated_by = ?", updatedBy).Limit(limit).Offset(offset).Find(&apps).Error
+	return apps, err
+}
+
+func (r *applicationRepository) GetByDeletedBy(ctx context.Context, deletedBy string, limit, offset int) ([]*Application, error) {
+	var apps []*Application
+	err := r.db.Where("deleted_by = ?", deletedBy).Limit(limit).Offset(offset).Find(&apps).Error
+	return apps, err
+}
+
+func (r *applicationRepository) CreateMany(ctx context.Context, apps []*Application) error {
+	return r.db.Create(apps).Error
+}
+
+func (r *applicationRepository) UpdateMany(ctx context.Context, apps []*Application) error {
+	return r.db.Save(apps).Error
+}
+
+func (r *applicationRepository) DeleteMany(ctx context.Context, ids []string) error {
+	return r.db.Delete(&Application{}, ids).Error
+}
+
+func (r *applicationRepository) SoftDeleteMany(ctx context.Context, ids []string, deletedBy string) error {
+	return r.db.Model(&Application{}).Where("id IN ?", ids).Update("deleted_at", gorm.Expr("NOW()")).Error
 }
 
 func (r *applicationRepository) GetByStudent(studentID string) ([]Application, error) {
@@ -78,24 +175,6 @@ func (r *applicationRepository) GetByJob(jobID string) ([]Application, error) {
 		middleware.DebugLog("DEBUG: Application %d - ID: %s, JobID: %s, StudentID: %s\n", i, app.ID, app.JobID, app.StudentID)
 	}
 	return apps, err
-}
-
-func (r *applicationRepository) GetByID(appID string) (*Application, error) {
-	var app Application
-	err := r.db.Where("id = ?", appID).First(&app).Error
-	return &app, err
-}
-
-func (r *applicationRepository) Delete(appID, studentID string) error {
-	return r.db.Where("id = ? AND student_id = ?", appID, studentID).Delete(&Application{}).Error
-}
-
-func (r *applicationRepository) Exists(jobID, studentID string) (bool, error) {
-	var count int64
-	err := r.db.Model(&Application{}).
-		Where("job_id = ? AND student_id = ?", jobID, studentID).
-		Count(&count).Error
-	return count > 0, err
 }
 
 type JobPostMetadata struct {

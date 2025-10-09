@@ -1,26 +1,25 @@
 package auth
 
 import (
-	"time"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
-	"fmt"
-
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
 )
 
 type User struct {
-	ID         string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	Name       string    `json:"name"`
-	Email      string    `json:"email" binding:"required,email"`
-	Password   string    `json:"password" binding:"required"`
-	Role       string    `json:"role" binding:"required"`
-	AvatarKey  string    `json:"avatar_key,omitempty"`
-	AvatarName string    `json:"avatar_name,omitempty"`
-	AvatarType string    `json:"avatar_type,omitempty"`
-	AvatarSize int64     `json:"avatar_size,omitempty"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	base.BaseModel
+	Name        string `json:"name"`
+	Username    string `json:"username" binding:"required" gorm:"uniqueIndex"` // Separate username field with unique constraint
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required"`
+	Role        string `json:"role" binding:"required"`
+	PhoneNumber string `json:"phone_number,omitempty"`
+	AvatarKey   string `json:"avatar_key,omitempty"`
+	AvatarName  string `json:"avatar_name,omitempty"`
+	AvatarType  string `json:"avatar_type,omitempty"`
+	AvatarSize  int64  `json:"avatar_size,omitempty"`
 }
 
 // TableName specifies the database table name for User
@@ -28,28 +27,46 @@ func (User) TableName() string {
 	return "users"
 }
 
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (u *User) BeforeCreate(tx *gorm.DB) error {
-	if u.ID == "" {
-		u.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(u.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for User ID: %w", err)
-		}
+// NewUser creates a new User with proper initialization
+func NewUser() *User {
+	return &User{
+		BaseModel: *base.NewBaseModel("USER", hash.Medium),
 	}
-	return nil
+}
+
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var userIDs []string
+	if err := db.Model(&User{}).Pluck("id", &userIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("USER", userIDs, hash.Medium)
+		middleware.DebugLog("Initialized USER counter with %d existing IDs", len(userIDs))
+	}
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (u *User) BeforeCreateGORM(tx *gorm.DB) error {
+	return u.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (u *User) BeforeUpdateGORM(tx *gorm.DB) error {
+	return u.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (u *User) BeforeDeleteGORM(tx *gorm.DB) error {
+	return u.BeforeDelete()
 }
 
 type SignupRequest struct {
 	Name            string `json:"name" binding:"required"`
-	Username        string `json:"user_name" binding:"required"` // Username for AAA service
+	Username        string `json:"user_name" binding:"required"` // Username for local authentication
 	Email           string `json:"email" binding:"required"`     // Email for our local DB
 	Password        string `json:"password" binding:"required"`
 	ConfirmPassword string `json:"confirm_password" binding:"required"`
-	Role            string `json:"role" binding:"required,oneof=student employer asa_admin"` // "student" or "employer"
-	PhoneNumber     string `json:"phone_number" binding:"required"`                          // Changed to string for frontend compatibility
-	CountryCode     string `json:"country_code,omitempty"`                                   // Optional, defaults to "+91"
-	AadhaarNumber   string `json:"aadhaar_number,omitempty"`                                 // Optional
+	Role            string `json:"role" binding:"required,oneof=student employer"` // "student" or "employer" only
+	PhoneNumber     string `json:"phone_number" binding:"required"`                // Changed to string for frontend compatibility
+	CountryCode     string `json:"country_code,omitempty"`                         // Optional, defaults to "+91"
+	AadhaarNumber   string `json:"aadhaar_number,omitempty"`                       // Optional
 
 	// Employer-only fields (optional)
 	CompanyName    string `json:"company_name,omitempty"`
@@ -64,8 +81,17 @@ type SignupRequest struct {
 }
 
 type LoginRequest struct {
-	Username string `json:"user_name" binding:"required"` // Username for AAA service
+	Username string `json:"user_name" binding:"required"` // Username for local authentication
 	Password string `json:"password" binding:"required"`
+}
+
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+type ResetPasswordRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
 }
 
 type UpdateProfileRequest struct {

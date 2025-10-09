@@ -1,5 +1,5 @@
 definitions:
-  admin.AnalyticsResponse:
+  internal_admin.AnalyticsResponse:
     properties:
       data: {}
       message:
@@ -7,7 +7,7 @@ definitions:
       success:
         type: boolean
     type: object
-  admin.CompanyResponse:
+  internal_admin.CompanyResponse:
     properties:
       data: {}
       message:
@@ -15,7 +15,7 @@ definitions:
       success:
         type: boolean
     type: object
-  admin.UpdateCompanyRequest:
+  internal_admin.UpdateCompanyRequest:
     properties:
       company_description:
         type: string
@@ -36,7 +36,7 @@ definitions:
       website_url:
         type: string
     type: object
-  admin.UpdateUserRequest:
+  internal_admin.UpdateUserRequest:
     properties:
       email:
         type: string
@@ -45,7 +45,7 @@ definitions:
       status:
         type: string
     type: object
-  admin.UserResponse:
+  internal_admin.UserResponse:
     properties:
       data: {}
       message:
@@ -53,7 +53,7 @@ definitions:
       success:
         type: boolean
     type: object
-  application.UpdateStatusRequest:
+  internal_application.UpdateStatusRequest:
     properties:
       notes:
         type: string
@@ -62,18 +62,35 @@ definitions:
     required:
     - status
     type: object
-  auth.LoginRequest:
+  internal_auth.ForgotPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  internal_auth.LoginRequest:
     properties:
       password:
         type: string
       user_name:
-        description: Username for AAA service
+        description: Username for local authentication
         type: string
     required:
     - password
     - user_name
     type: object
-  auth.SignupRequest:
+  internal_auth.ResetPasswordRequest:
+    properties:
+      new_password:
+        type: string
+      token:
+        type: string
+    required:
+    - new_password
+    - token
+    type: object
+  internal_auth.SignupRequest:
     properties:
       aadhaar_number:
         description: Optional
@@ -113,11 +130,12 @@ definitions:
         enum:
         - student
         - employer
+        - asa_admin
         type: string
       state:
         type: string
       user_name:
-        description: Username for AAA service
+        description: Username for local authentication
         type: string
       website:
         type: string
@@ -130,7 +148,7 @@ definitions:
     - role
     - user_name
     type: object
-  auth.UpdateProfileRequest:
+  internal_auth.UpdateProfileRequest:
     properties:
       bio:
         type: string
@@ -207,11 +225,283 @@ definitions:
       website:
         type: string
     type: object
-  employerprofile.EmployerProfile:
+  internal_contact.ContactListResponse:
+    description: Admin list response for contact requests
+    properties:
+      contacts:
+        items:
+          $ref: '#/definitions/internal_contact.ContactRequest'
+        type: array
+      pagination:
+        $ref: '#/definitions/internal_contact.PaginationInfo'
     type: object
-  employerprofile.UpdateEmployerProfileRequest:
+  internal_contact.ContactRequest:
+    description: Contact request model for admin management
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: string
+      email:
+        example: john@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      id:
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      message:
+        example: I have a question about your services
+        type: string
+      phone:
+        example: "9876543210"
+        type: string
+      status:
+        description: new, read, responded
+        example: new
+        type: string
+      subject:
+        example: General Inquiry
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - message
+    - phone
+    - subject
     type: object
-  jobpost.AdvancedJobSearchRequest:
+  internal_contact.ContactResponse:
+    description: Contact response wrapper
+    properties:
+      data: {}
+      message:
+        example: Operation completed successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  internal_contact.ContactSubmissionRequest:
+    description: Contact form submission request
+    properties:
+      email:
+        example: john@example.com
+        type: string
+      first_name:
+        example: John
+        type: string
+      last_name:
+        example: Doe
+        type: string
+      message:
+        example: I have a question about your services
+        type: string
+      phone:
+        example: "9876543210"
+        type: string
+      subject:
+        example: General Inquiry
+        type: string
+    required:
+    - email
+    - first_name
+    - last_name
+    - message
+    - phone
+    - subject
+    type: object
+  internal_contact.ContactSubmissionResponse:
+    description: Contact form submission response
+    properties:
+      id:
+        example: contact_123
+        type: string
+      message:
+        example: Contact form submitted successfully
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+  internal_contact.PaginationInfo:
+    description: Pagination information
+    properties:
+      limit:
+        example: 10
+        type: integer
+      page:
+        example: 1
+        type: integer
+      total:
+        example: 25
+        type: integer
+      total_pages:
+        example: 3
+        type: integer
+    type: object
+  internal_contact.UpdateContactStatusRequest:
+    description: Update status request
+    properties:
+      status:
+        enum:
+        - new
+        - read
+        - responded
+        example: read
+        type: string
+    required:
+    - status
+    type: object
+  internal_employerprofile.EmployerProfile:
+    properties:
+      city:
+        type: string
+      company_address:
+        type: string
+      company_description:
+        type: string
+      company_name:
+        description: Required company information
+        type: string
+      company_size:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: string
+      designation:
+        type: string
+      gstin_number:
+        description: Optional business information
+        type: string
+      hiring_locations:
+        items:
+          type: string
+        type: array
+      hiring_types:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      industry:
+        type: string
+      job_categories:
+        description: Optional hiring preferences (can be set later)
+        items:
+          type: string
+        type: array
+      linkedin_profile:
+        type: string
+      logo_key:
+        description: Optional company branding and details
+        type: string
+      logo_name:
+        type: string
+      logo_size:
+        type: integer
+      logo_type:
+        type: string
+      official_email:
+        type: string
+      phone_number:
+        type: string
+      pincode:
+        type: string
+      recruiter_name:
+        description: Optional recruiter information
+        type: string
+      state:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      user_id:
+        type: string
+      website_url:
+        type: string
+    required:
+    - company_name
+    - company_size
+    - industry
+    - user_id
+    type: object
+  internal_employerprofile.UpdateEmployerProfileRequest:
+    properties:
+      city:
+        type: string
+      company_address:
+        type: string
+      company_description:
+        type: string
+      company_name:
+        description: Company information (all optional for updates)
+        type: string
+      company_size:
+        type: string
+      designation:
+        type: string
+      gstin_number:
+        description: Optional business information
+        type: string
+      hiring_locations:
+        items:
+          type: string
+        type: array
+      hiring_types:
+        items:
+          type: string
+        type: array
+      industry:
+        type: string
+      job_categories:
+        description: Optional hiring preferences (can be set later)
+        items:
+          type: string
+        type: array
+      linkedin_profile:
+        type: string
+      logo_key:
+        description: Optional company branding and details
+        type: string
+      logo_name:
+        type: string
+      logo_size:
+        type: integer
+      logo_type:
+        type: string
+      official_email:
+        type: string
+      phone_number:
+        type: string
+      pincode:
+        type: string
+      recruiter_name:
+        description: Optional recruiter information
+        type: string
+      state:
+        type: string
+      website_url:
+        type: string
+    type: object
+  internal_jobpost.AdvancedJobSearchRequest:
     properties:
       benefits:
         description: Health insurance, 401k, etc.
@@ -287,7 +577,7 @@ definitions:
         description: Urgent hiring positions
         type: boolean
     type: object
-  jobpost.CreateDraftRequest:
+  internal_jobpost.CreateDraftRequest:
     properties:
       application_deadline:
         type: string
@@ -312,11 +602,11 @@ definitions:
       role_overview:
         type: string
       salary:
-        $ref: '#/definitions/jobpost.FlexibleSalary'
+        $ref: '#/definitions/internal_jobpost.FlexibleSalary'
       title:
         type: string
     type: object
-  jobpost.CreateJobPostRequest:
+  internal_jobpost.CreateJobPostRequest:
     properties:
       application_deadline:
         type: string
@@ -343,7 +633,7 @@ definitions:
       role_overview:
         type: string
       salary:
-        $ref: '#/definitions/jobpost.FlexibleSalary'
+        $ref: '#/definitions/internal_jobpost.FlexibleSalary'
       title:
         type: string
     required:
@@ -354,7 +644,7 @@ definitions:
     - role_overview
     - title
     type: object
-  jobpost.FlexibleSalary:
+  internal_jobpost.FlexibleSalary:
     properties:
       currency:
         type: string
@@ -363,7 +653,7 @@ definitions:
       min:
         type: number
     type: object
-  jobpost.JobAlertRequest:
+  internal_jobpost.JobAlertRequest:
     properties:
       experience:
         items:
@@ -402,7 +692,7 @@ definitions:
       user_id:
         type: string
     type: object
-  jobpost.JobPostFilter:
+  internal_jobpost.JobPostFilter:
     properties:
       experience:
         items:
@@ -435,7 +725,7 @@ definitions:
           type: string
         type: array
     type: object
-  jobpost.JobRecommendationRequest:
+  internal_jobpost.JobRecommendationRequest:
     properties:
       max_results:
         description: 'Default: 10'
@@ -455,7 +745,7 @@ definitions:
           type: string
         type: array
     type: object
-  jobpost.UpdateJobPostRequest:
+  internal_jobpost.UpdateJobPostRequest:
     properties:
       application_deadline:
         type: string
@@ -480,11 +770,11 @@ definitions:
       role_overview:
         type: string
       salary:
-        $ref: '#/definitions/jobpost.FlexibleSalary'
+        $ref: '#/definitions/internal_jobpost.FlexibleSalary'
       title:
         type: string
     type: object
-  notification.NotificationPreferences:
+  internal_notification.NotificationPreferences:
     properties:
       application_updates:
         type: boolean
@@ -492,8 +782,14 @@ definitions:
         type: boolean
       created_at:
         type: string
+      created_by:
+        type: string
       daily_job_matches:
         type: boolean
+      deleted_at:
+        type: string
+      deleted_by:
+        type: string
       email_notifications:
         type: boolean
       id:
@@ -506,21 +802,23 @@ definitions:
         type: boolean
       updated_at:
         type: string
+      updated_by:
+        type: string
       user_id:
         type: string
       weekly_digest:
         type: boolean
     type: object
-  notification.NotificationPreferencesResponse:
+  internal_notification.NotificationPreferencesResponse:
     properties:
       data:
-        $ref: '#/definitions/notification.NotificationPreferences'
+        $ref: '#/definitions/internal_notification.NotificationPreferences'
       message:
         type: string
       success:
         type: boolean
     type: object
-  notification.UpdateNotificationPreferencesRequest:
+  internal_notification.UpdateNotificationPreferencesRequest:
     properties:
       application_updates:
         type: boolean
@@ -539,7 +837,7 @@ definitions:
       weekly_digest:
         type: boolean
     type: object
-  storage.FileInfo:
+  internal_storage.FileInfo:
     properties:
       name:
         type: string
@@ -554,18 +852,18 @@ definitions:
       url:
         type: string
     type: object
-  storage.ListFilesResponse:
+  internal_storage.ListFilesResponse:
     properties:
       files:
         items:
-          $ref: '#/definitions/storage.FileInfo'
+          $ref: '#/definitions/internal_storage.FileInfo'
         type: array
       message:
         type: string
       success:
         type: boolean
     type: object
-  storage.UploadResponse:
+  internal_storage.UploadResponse:
     properties:
       file_name:
         type: string
@@ -582,8 +880,16 @@ definitions:
       success:
         type: boolean
     type: object
-  studentprofile.Certificate:
+  internal_studentprofile.Certificate:
     properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: string
       file_key:
         type: string
       file_name:
@@ -600,19 +906,28 @@ definitions:
         type: string
       student_profile_id:
         type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
     required:
     - issue_date
     - name
     type: object
-  studentprofile.StudentProfile:
+  internal_studentprofile.StudentProfile:
     properties:
       certificates:
         description: Optional professional information
         items:
-          $ref: '#/definitions/studentprofile.Certificate'
+          $ref: '#/definitions/internal_studentprofile.Certificate'
         type: array
       created_at:
-        description: System managed fields
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
         type: string
       education:
         type: string
@@ -647,6 +962,8 @@ definitions:
         type: array
       updated_at:
         type: string
+      updated_by:
+        type: string
       user_id:
         type: string
     required:
@@ -654,7 +971,7 @@ definitions:
     - name
     - user_id
     type: object
-  studentprofile.UpdateCertificateRequest:
+  internal_studentprofile.UpdateCertificateRequest:
     properties:
       file_key:
         type: string
@@ -680,11 +997,11 @@ paths:
         "200":
           description: Application analytics retrieved successfully
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
       security:
       - BearerAuth: []
       summary: Get Application Analytics
@@ -701,11 +1018,11 @@ paths:
         "200":
           description: Company analytics retrieved successfully
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
         "500":
           description: Failed to fetch company analytics
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
       security:
       - BearerAuth: []
       summary: Get Company Analytics
@@ -722,11 +1039,11 @@ paths:
         "200":
           description: Dashboard analytics retrieved successfully
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
       security:
       - BearerAuth: []
       summary: Get Dashboard Analytics
@@ -743,11 +1060,11 @@ paths:
         "200":
           description: Job analytics retrieved successfully
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
       security:
       - BearerAuth: []
       summary: Get Job Analytics
@@ -764,11 +1081,11 @@ paths:
         "200":
           description: User analytics retrieved successfully
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/admin.AnalyticsResponse'
+            $ref: '#/definitions/internal_admin.AnalyticsResponse'
       security:
       - BearerAuth: []
       summary: Get User Analytics
@@ -798,15 +1115,15 @@ paths:
         "200":
           description: Companies retrieved successfully
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "400":
           description: Invalid query parameters
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "500":
           description: Failed to fetch companies
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
       security:
       - BearerAuth: []
       summary: Get Companies
@@ -829,19 +1146,19 @@ paths:
         "200":
           description: Company deleted successfully
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "400":
           description: Company ID is required
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "404":
           description: Company not found
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "500":
           description: Failed to delete company
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
       security:
       - BearerAuth: []
       summary: Delete Company
@@ -863,15 +1180,15 @@ paths:
         "200":
           description: Company retrieved successfully
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "400":
           description: Company ID is required
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "404":
           description: Company not found
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
       security:
       - BearerAuth: []
       summary: Get Company by ID
@@ -892,27 +1209,214 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/admin.UpdateCompanyRequest'
+          $ref: '#/definitions/internal_admin.UpdateCompanyRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Company updated successfully
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "400":
           description: Invalid request or Company ID is required
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
         "404":
           description: Company not found
           schema:
-            $ref: '#/definitions/admin.CompanyResponse'
+            $ref: '#/definitions/internal_admin.CompanyResponse'
       security:
       - BearerAuth: []
       summary: Update Company
       tags:
       - Admin Company Management
+  /api/admin/contacts:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of contact requests for admin panel
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Filter by status
+        in: query
+        name: status
+        type: string
+      - description: Search in name, email, or subject
+        in: query
+        name: search
+        type: string
+      - default: created_at
+        description: Sort by field
+        in: query
+        name: sort_by
+        type: string
+      - default: DESC
+        description: Sort order
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contact requests retrieved successfully
+          schema:
+            $ref: '#/definitions/internal_contact.ContactListResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Contact Requests (Admin)
+      tags:
+      - Admin - Contact
+  /api/admin/contacts/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a contact request
+      parameters:
+      - description: Contact request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contact request deleted successfully
+          schema:
+            $ref: '#/definitions/internal_contact.ContactResponse'
+        "404":
+          description: Contact request not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Contact Request (Admin)
+      tags:
+      - Admin - Contact
+    get:
+      consumes:
+      - application/json
+      description: Get a specific contact request by ID for admin panel
+      parameters:
+      - description: Contact request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contact request retrieved successfully
+          schema:
+            $ref: '#/definitions/internal_contact.ContactResponse'
+        "404":
+          description: Contact request not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Contact Request by ID (Admin)
+      tags:
+      - Admin - Contact
+  /api/admin/contacts/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: Update the status of a contact request
+      parameters:
+      - description: Contact request ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Status update data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_contact.UpdateContactStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Status updated successfully
+          schema:
+            $ref: '#/definitions/internal_contact.ContactResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Contact request not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Contact Status (Admin)
+      tags:
+      - Admin - Contact
+  /api/admin/contacts/analytics:
+    get:
+      consumes:
+      - application/json
+      description: Get contact request analytics for admin dashboard
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contact analytics retrieved successfully
+          schema:
+            $ref: '#/definitions/internal_contact.ContactResponse'
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Contact Analytics (Admin)
+      tags:
+      - Admin - Contact
   /api/admin/users:
     get:
       consumes:
@@ -941,15 +1445,15 @@ paths:
         "200":
           description: Users retrieved successfully
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
         "400":
           description: Invalid query parameters
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
       security:
       - BearerAuth: []
       summary: Get Users
@@ -972,15 +1476,15 @@ paths:
         "200":
           description: User deleted successfully
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
         "400":
           description: User ID is required
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
         "500":
           description: Failed to delete user
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
       security:
       - BearerAuth: []
       summary: Delete User
@@ -1001,22 +1505,22 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/admin.UpdateUserRequest'
+          $ref: '#/definitions/internal_admin.UpdateUserRequest'
       produces:
       - application/json
       responses:
         "200":
           description: User updated successfully
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
         "400":
           description: Invalid request body or missing user ID
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
         "500":
           description: Failed to update user
           schema:
-            $ref: '#/definitions/admin.UserResponse'
+            $ref: '#/definitions/internal_admin.UserResponse'
       security:
       - BearerAuth: []
       summary: Update User
@@ -1101,7 +1605,7 @@ paths:
         name: status
         required: true
         schema:
-          $ref: '#/definitions/application.UpdateStatusRequest'
+          $ref: '#/definitions/internal_application.UpdateStatusRequest'
       responses:
         "200":
           description: Application status updated successfully
@@ -1156,30 +1660,24 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send password reset email to user
+      description: Send password reset link (mock implementation)
       parameters:
       - description: Email for password reset
         in: body
         name: request
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/internal_auth.ForgotPasswordRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: Password reset email sent
+          description: Reset link sent
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid email
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal server error or AAA service unavailable
+          description: Invalid request
           schema:
             additionalProperties: true
             type: object
@@ -1190,14 +1688,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: Authenticate user with AAA service and return JWT token
+      description: Login with email and password using local authentication
       parameters:
       - description: Login credentials
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.LoginRequest'
+          $ref: '#/definitions/internal_auth.LoginRequest'
       produces:
       - application/json
       responses:
@@ -1211,13 +1709,8 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "401":
-          description: Authentication failed
-          schema:
-            additionalProperties: true
-            type: object
         "500":
-          description: Internal server error or AAA service unavailable
+          description: Internal server error
           schema:
             additionalProperties: true
             type: object
@@ -1225,17 +1718,39 @@ paths:
       tags:
       - Authentication
   /api/auth/profile:
+    get:
+      consumes:
+      - application/json
+      description: Get current user's profile information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile retrieved
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get User Profile
+      tags:
+      - Authentication
     put:
       consumes:
       - application/json
-      description: Update user profile information
+      description: Update current user's profile information
       parameters:
       - description: Profile update data
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.UpdateProfileRequest'
+          $ref: '#/definitions/internal_auth.UpdateProfileRequest'
       produces:
       - application/json
       responses:
@@ -1245,7 +1760,7 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request data
+          description: Invalid request
           schema:
             additionalProperties: true
             type: object
@@ -1263,15 +1778,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: Reset user password using reset token
+      description: Reset password using token (mock implementation)
       parameters:
-      - description: Reset password data
+      - description: Password reset data
         in: body
         name: request
         required: true
         schema:
-          additionalProperties: true
-          type: object
+          $ref: '#/definitions/internal_auth.ResetPasswordRequest'
       produces:
       - application/json
       responses:
@@ -1285,11 +1799,6 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "500":
-          description: Internal server error or AAA service unavailable
-          schema:
-            additionalProperties: true
-            type: object
       summary: Reset Password
       tags:
       - Authentication
@@ -1297,15 +1806,14 @@ paths:
     post:
       consumes:
       - application/json
-      description: Register a new user (student or employer) with the AAA service
-        and create local profile
+      description: Register a new user (student or employer) with local authentication
       parameters:
       - description: User registration data
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/auth.SignupRequest'
+          $ref: '#/definitions/internal_auth.SignupRequest'
       produces:
       - application/json
       responses:
@@ -1320,34 +1828,11 @@ paths:
             additionalProperties: true
             type: object
         "500":
-          description: Internal server error or AAA service unavailable
+          description: Internal server error
           schema:
             additionalProperties: true
             type: object
       summary: User Registration
-      tags:
-      - Authentication
-  /api/auth/verify:
-    get:
-      consumes:
-      - application/json
-      description: Verify the validity of a JWT token
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Token is valid
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Invalid or missing token
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: Verify JWT Token
       tags:
       - Authentication
   /api/bookmarks/{jobId}:
@@ -1461,6 +1946,38 @@ paths:
       tags:
       - Bookmarks
       x-swagger-ui: true
+  /api/contact:
+    post:
+      consumes:
+      - application/json
+      description: Submit a contact form (public endpoint, no authentication required)
+      parameters:
+      - description: Contact form data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_contact.ContactSubmissionRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Contact form submitted successfully
+          schema:
+            $ref: '#/definitions/internal_contact.ContactSubmissionResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Submit Contact Form
+      tags:
+      - Contact
   /api/employer/applicants/{studentId}/profile:
     get:
       consumes:
@@ -1842,7 +2359,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/employerprofile.UpdateEmployerProfileRequest'
+          $ref: '#/definitions/internal_employerprofile.UpdateEmployerProfileRequest'
       produces:
       - application/json
       responses:
@@ -1870,11 +2387,11 @@ paths:
     post:
       consumes:
       - multipart/form-data
-      description: Upload a logo file for the current employer profile
+      description: Upload a logo file to the current user's employer profile
       parameters:
       - description: Logo file (JPG, PNG, GIF, WebP, max 5MB)
         in: formData
-        name: file
+        name: logo
         required: true
         type: file
       produces:
@@ -1902,7 +2419,45 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Upload Employer Logo
+      summary: Upload My Employer Logo
+      tags:
+      - Employer Profile
+    put:
+      consumes:
+      - multipart/form-data
+      description: Update the logo file for the current user's employer profile
+      parameters:
+      - description: Logo file (JPG, PNG, GIF, WebP, max 5MB)
+        in: formData
+        name: logo
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logo updated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid file type or size
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Permission denied
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update My Employer Logo
       tags:
       - Employer Profile
   /api/employers/me/profile:
@@ -1948,7 +2503,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/employerprofile.UpdateEmployerProfileRequest'
+          $ref: '#/definitions/internal_employerprofile.UpdateEmployerProfileRequest'
       produces:
       - application/json
       responses:
@@ -1988,7 +2543,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/employerprofile.EmployerProfile'
+          $ref: '#/definitions/internal_employerprofile.EmployerProfile'
       produces:
       - application/json
       responses:
@@ -2122,7 +2677,7 @@ paths:
         "200":
           description: Files retrieved successfully
           schema:
-            $ref: '#/definitions/storage.ListFilesResponse'
+            $ref: '#/definitions/internal_storage.ListFilesResponse'
         "400":
           description: Invalid folder name
           schema:
@@ -2258,7 +2813,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.CreateJobPostRequest'
+          $ref: '#/definitions/internal_jobpost.CreateJobPostRequest'
       produces:
       - application/json
       responses:
@@ -2391,7 +2946,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.UpdateJobPostRequest'
+          $ref: '#/definitions/internal_jobpost.UpdateJobPostRequest'
       produces:
       - application/json
       responses:
@@ -2479,7 +3034,7 @@ paths:
         name: status
         required: true
         schema:
-          $ref: '#/definitions/application.UpdateStatusRequest'
+          $ref: '#/definitions/internal_application.UpdateStatusRequest'
       responses:
         "200":
           description: Application status updated successfully
@@ -2646,7 +3201,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.AdvancedJobSearchRequest'
+          $ref: '#/definitions/internal_jobpost.AdvancedJobSearchRequest'
       produces:
       - application/json
       responses:
@@ -2719,7 +3274,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.JobAlertRequest'
+          $ref: '#/definitions/internal_jobpost.JobAlertRequest'
       produces:
       - application/json
       responses:
@@ -2850,7 +3405,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.JobAlertRequest'
+          $ref: '#/definitions/internal_jobpost.JobAlertRequest'
       produces:
       - application/json
       responses:
@@ -2901,7 +3456,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.CreateDraftRequest'
+          $ref: '#/definitions/internal_jobpost.CreateDraftRequest'
       produces:
       - application/json
       responses:
@@ -3041,7 +3596,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.CreateJobPostRequest'
+          $ref: '#/definitions/internal_jobpost.CreateJobPostRequest'
       produces:
       - application/json
       responses:
@@ -3115,7 +3670,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.JobRecommendationRequest'
+          $ref: '#/definitions/internal_jobpost.JobRecommendationRequest'
       produces:
       - application/json
       responses:
@@ -3156,7 +3711,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jobpost.JobPostFilter'
+          $ref: '#/definitions/internal_jobpost.JobPostFilter'
       produces:
       - application/json
       responses:
@@ -3307,7 +3862,7 @@ paths:
         "200":
           description: Preferences retrieved successfully
           schema:
-            $ref: '#/definitions/notification.NotificationPreferencesResponse'
+            $ref: '#/definitions/internal_notification.NotificationPreferencesResponse'
         "401":
           description: Unauthorized
           schema:
@@ -3338,14 +3893,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/notification.UpdateNotificationPreferencesRequest'
+          $ref: '#/definitions/internal_notification.UpdateNotificationPreferencesRequest'
       produces:
       - application/json
       responses:
         "200":
           description: Preferences updated successfully
           schema:
-            $ref: '#/definitions/notification.NotificationPreferencesResponse'
+            $ref: '#/definitions/internal_notification.NotificationPreferencesResponse'
         "400":
           description: Invalid request
           schema:
@@ -3387,7 +3942,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/studentprofile.Certificate'
+          $ref: '#/definitions/internal_studentprofile.Certificate'
       produces:
       - application/json
       responses:
@@ -3465,7 +4020,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/studentprofile.StudentProfile'
+          $ref: '#/definitions/internal_studentprofile.StudentProfile'
       produces:
       - application/json
       responses:
@@ -3905,7 +4460,7 @@ paths:
         "200":
           description: File uploaded successfully
           schema:
-            $ref: '#/definitions/storage.UploadResponse'
+            $ref: '#/definitions/internal_storage.UploadResponse'
         "400":
           description: Invalid file or folder
           schema:
@@ -3949,7 +4504,7 @@ paths:
         "200":
           description: Document uploaded successfully
           schema:
-            $ref: '#/definitions/storage.UploadResponse'
+            $ref: '#/definitions/internal_storage.UploadResponse'
         "400":
           description: Invalid request or file
           schema:
@@ -3993,7 +4548,7 @@ paths:
         "200":
           description: Image uploaded successfully
           schema:
-            $ref: '#/definitions/storage.UploadResponse'
+            $ref: '#/definitions/internal_storage.UploadResponse'
         "400":
           description: Invalid image format or size
           schema:
@@ -4123,7 +4678,7 @@ paths:
         "200":
           description: Certificate uploaded successfully
           schema:
-            $ref: '#/definitions/storage.UploadResponse'
+            $ref: '#/definitions/internal_storage.UploadResponse'
         "400":
           description: Invalid request or file
           schema:
@@ -4167,7 +4722,7 @@ paths:
         "200":
           description: Resume uploaded successfully
           schema:
-            $ref: '#/definitions/storage.UploadResponse'
+            $ref: '#/definitions/internal_storage.UploadResponse'
         "400":
           description: Invalid request or file
           schema:

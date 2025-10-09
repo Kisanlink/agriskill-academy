@@ -1,8 +1,8 @@
 package authz
 
 import (
-	"asa/internal/middleware"
-	"asa/pkg/jwtutil"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/pkg/jwtutil"
 )
 
 // contains checks if a slice of strings contains a specific string
@@ -15,7 +15,7 @@ func contains(list []string, val string) bool {
 	return false
 }
 
-// CheckLocalPermission checks permissions locally using JWT claims instead of calling AAA service
+// CheckLocalPermission checks permissions locally using JWT claims
 func CheckLocalPermission(username, resource, action, resourceID, jwtToken string) (bool, error) {
 	middleware.DebugLog("🔍 === LOCAL PERMISSION CHECK START ===")
 	middleware.DebugLog("🔍 Username: %s", username)
@@ -34,55 +34,26 @@ func CheckLocalPermission(username, resource, action, resourceID, jwtToken strin
 	middleware.DebugLog("✅ JWT token parsed successfully")
 	middleware.DebugLog("🔍 All JWT claims: %+v", claims)
 
-	// Extract roles from JWT claims - handle both 'role' (AAA) and 'roles' (local)
-	var roles []string
-
-	middleware.DebugLog("🔍 Extracting roles from JWT claims...")
-
-	// First try to get 'roles' (plural array)
-	if rolesInterface, exists := claims["roles"]; exists {
-		middleware.DebugLog("🔍 Found 'roles' in claims: %+v (type: %T)", rolesInterface, rolesInterface)
-		switch v := rolesInterface.(type) {
-		case []string:
-			roles = v
-			middleware.DebugLog("✅ Roles extracted as []string: %v", roles)
-		case []interface{}:
-			for _, r := range v {
-				if s, ok := r.(string); ok {
-					roles = append(roles, s)
-				}
-			}
-			middleware.DebugLog("✅ Roles extracted from []interface{}: %v", roles)
-		default:
-			middleware.DebugLog("⚠️ Unknown roles type: %T", rolesInterface)
+	// Extract role from claims
+	var role string
+	if roleInterface, exists := claims["role"]; exists {
+		if roleStr, ok := roleInterface.(string); ok {
+			role = roleStr
+			middleware.DebugLog("✅ Role extracted: %s", role)
+		} else {
+			middleware.DebugLog("❌ Role is not a string: %T", roleInterface)
 		}
 	} else {
-		middleware.DebugLog("🔍 No 'roles' found in claims")
-	}
-
-	// If no roles found, try 'role' (singular from AAA service)
-	if len(roles) == 0 {
-		middleware.DebugLog("🔍 No roles found, trying 'role' (singular)...")
-		if roleInterface, exists := claims["role"]; exists {
-			middleware.DebugLog("🔍 Found 'role' in claims: %+v (type: %T)", roleInterface, roleInterface)
-			if role, ok := roleInterface.(string); ok {
-				roles = []string{role}
-				middleware.DebugLog("✅ Role extracted as string: %v", roles)
-			} else {
-				middleware.DebugLog("❌ Role is not a string: %T", roleInterface)
-			}
-		} else {
-			middleware.DebugLog("🔍 No 'role' found in claims either")
-		}
-	}
-
-	if len(roles) == 0 {
-		middleware.DebugLog("❌ No roles found in JWT token for user: %s", username)
+		middleware.DebugLog("❌ No 'role' found in JWT token for user: %s", username)
 		return false, nil
 	}
 
-	middleware.DebugLog("🔍 Final roles array: %v", roles)
-	middleware.DebugLog("🔍 Checking permission for user: %s, resource: %s, action: %s, resourceID: %s", username, resource, action, resourceID)
+	if role == "" {
+		middleware.DebugLog("❌ Empty role found in JWT token for user: %s", username)
+		return false, nil
+	}
+
+	middleware.DebugLog("🔍 Checking permission for user: %s, role: %s, resource: %s, action: %s, resourceID: %s", username, role, resource, action, resourceID)
 
 	// Define permission rules based on resource and action
 	var result bool
@@ -91,37 +62,37 @@ func CheckLocalPermission(username, resource, action, resourceID, jwtToken strin
 	switch resource {
 	case "db_asa_student_profile":
 		middleware.DebugLog("🔍 Checking student profile permissions...")
-		result, err2 = checkStudentProfilePermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkStudentProfilePermissions(role, action, resourceID, username, claims)
 	case "db_asa_employer_profiles":
 		middleware.DebugLog("🔍 Checking employer profile permissions...")
-		result, err2 = checkEmployerProfilePermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkEmployerProfilePermissions(role, action, resourceID, username, claims)
 	case "db_asa_job_posts":
 		middleware.DebugLog("🔍 Checking job post permissions...")
-		result, err2 = checkJobPostPermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkJobPostPermissions(role, action, resourceID, username, claims)
 	case "db_asa_applications":
 		middleware.DebugLog("🔍 Checking application permissions...")
-		result, err2 = checkApplicationPermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkApplicationPermissions(role, action, resourceID, username, claims)
 	case "db_asa_bookmarks":
 		middleware.DebugLog("🔍 Checking bookmark permissions...")
-		result, err2 = checkBookmarkPermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkBookmarkPermissions(role, action, resourceID, username, claims)
 	case "db_asa_files":
 		middleware.DebugLog("🔍 Checking file permissions...")
-		result, err2 = checkFilePermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkFilePermissions(role, action, resourceID, username, claims)
 	case "db_asa_notification_preferences":
 		middleware.DebugLog("🔍 Checking notification permissions...")
-		result, err2 = checkNotificationPermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkNotificationPermissions(role, action, resourceID, username, claims)
 	case "db_asa_certificates":
 		middleware.DebugLog("🔍 Checking certificate permissions...")
-		result, err2 = checkCertificatePermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkCertificatePermissions(role, action, resourceID, username, claims)
 	case "db_asa_messages":
 		middleware.DebugLog("🔍 Checking message permissions...")
-		result, err2 = checkMessagePermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkMessagePermissions(role, action, resourceID, username, claims)
 	case "db_asa_job_alerts":
 		middleware.DebugLog("🔍 Checking job alert permissions...")
-		result, err2 = checkJobAlertPermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkJobAlertPermissions(role, action, resourceID, username, claims)
 	case "db_asa_jobs":
 		middleware.DebugLog("🔍 Checking job permissions...")
-		result, err2 = checkJobPermissions(roles, action, resourceID, username, claims)
+		result, err2 = checkJobPermissions(role, action, resourceID, username, claims)
 	default:
 		middleware.DebugLog("⚠️ Unknown resource: %s", resource)
 		return false, nil
@@ -142,9 +113,9 @@ func CheckLocalPermission(username, resource, action, resourceID, jwtToken strin
 }
 
 // Student Profile Permissions
-func checkStudentProfilePermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkStudentProfilePermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === STUDENT PROFILE PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
@@ -154,20 +125,20 @@ func checkStudentProfilePermissions(roles []string, action, resourceID, username
 	switch action {
 	case "read":
 		// Students can read their own profile, employers can read any profile
-		result := contains(roles, "student") || contains(roles, "employer") || contains(roles, "admin")
+		result := role == "student" || role == "employer" || role == "asa_admin"
 		middleware.DebugLog("🔍 Read permission - Student: %v, Employer: %v, Admin: %v, Result: %v",
-			contains(roles, "student"), contains(roles, "employer"), contains(roles, "admin"), result)
+			role == "student", role == "employer", role == "asa_admin", result)
 		return result, nil
 	case "update":
 		// Only students can update their own profile
-		result := contains(roles, "student") && resourceID == userID
+		result := role == "student" && resourceID == userID
 		middleware.DebugLog("🔍 Update permission - Student: %v, ResourceID match: %v, Result: %v",
-			contains(roles, "student"), resourceID == userID, result)
+			role == "student", resourceID == userID, result)
 		return result, nil
 	case "create":
 		// Only students can create profiles
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -176,9 +147,9 @@ func checkStudentProfilePermissions(roles []string, action, resourceID, username
 }
 
 // Employer Profile Permissions
-func checkEmployerProfilePermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkEmployerProfilePermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === EMPLOYER PROFILE PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
@@ -192,19 +163,19 @@ func checkEmployerProfilePermissions(roles []string, action, resourceID, usernam
 		return true, nil
 	case "update":
 		// Only employers can update their own profile
-		result := contains(roles, "employer") && resourceID == userID
+		result := role == "employer" && resourceID == userID
 		middleware.DebugLog("🔍 Update permission - Employer: %v, ResourceID match: %v, Result: %v",
-			contains(roles, "employer"), resourceID == userID, result)
+			role == "employer", resourceID == userID, result)
 		return result, nil
 	case "create":
 		// Only employers can create profiles
-		result := contains(roles, "employer")
-		middleware.DebugLog("🔍 Create permission - Employer: %v, Result: %v", contains(roles, "employer"), result)
+		result := role == "employer"
+		middleware.DebugLog("🔍 Create permission - Employer: %v, Result: %v", role == "employer", result)
 		return result, nil
 	case "delete":
 		// Only admins can delete profiles
-		result := contains(roles, "admin")
-		middleware.DebugLog("🔍 Delete permission - Admin: %v, Result: %v", contains(roles, "admin"), result)
+		result := role == "asa_admin"
+		middleware.DebugLog("🔍 Delete permission - Admin: %v, Result: %v", role == "asa_admin", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -213,9 +184,9 @@ func checkEmployerProfilePermissions(roles []string, action, resourceID, usernam
 }
 
 // Job Post Permissions
-func checkJobPostPermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkJobPostPermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === JOB POST PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
@@ -226,18 +197,18 @@ func checkJobPostPermissions(roles []string, action, resourceID, username string
 		return true, nil
 	case "create":
 		// Only employers can create job posts
-		result := contains(roles, "employer")
-		middleware.DebugLog("🔍 Create permission - Employer: %v, Result: %v", contains(roles, "employer"), result)
+		result := role == "employer"
+		middleware.DebugLog("🔍 Create permission - Employer: %v, Result: %v", role == "employer", result)
 		return result, nil
 	case "update":
 		// Only employers can update their own job posts
-		result := contains(roles, "employer")
-		middleware.DebugLog("🔍 Update permission - Employer: %v, Result: %v", contains(roles, "employer"), result)
+		result := role == "employer"
+		middleware.DebugLog("🔍 Update permission - Employer: %v, Result: %v", role == "employer", result)
 		return result, nil
 	case "delete":
 		// Only employers can delete their own job posts
-		result := contains(roles, "employer")
-		middleware.DebugLog("🔍 Delete permission - Employer: %v, Result: %v", contains(roles, "employer"), result)
+		result := role == "employer"
+		middleware.DebugLog("🔍 Delete permission - Employer: %v, Result: %v", role == "employer", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -246,34 +217,34 @@ func checkJobPostPermissions(roles []string, action, resourceID, username string
 }
 
 // Application Permissions
-func checkApplicationPermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkApplicationPermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === APPLICATION PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
 	switch action {
 	case "read":
 		// Students can read their own applications, employers can read applications for their jobs
-		result := contains(roles, "student") || contains(roles, "employer")
+		result := role == "student" || role == "employer"
 		middleware.DebugLog("🔍 Read permission - Student: %v, Employer: %v, Result: %v",
-			contains(roles, "student"), contains(roles, "employer"), result)
+			role == "student", role == "employer", result)
 		return result, nil
 	case "create":
 		// Only students can create applications
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "update":
 		// Students can update their own applications, employers can update applications for their jobs
-		result := contains(roles, "student") || contains(roles, "employer")
+		result := role == "student" || role == "employer"
 		middleware.DebugLog("🔍 Update permission - Student: %v, Employer: %v, Result: %v",
-			contains(roles, "student"), contains(roles, "employer"), result)
+			role == "student", role == "employer", result)
 		return result, nil
 	case "delete":
 		// Students can delete their own applications
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -282,27 +253,27 @@ func checkApplicationPermissions(roles []string, action, resourceID, username st
 }
 
 // Bookmark Permissions
-func checkBookmarkPermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkBookmarkPermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === BOOKMARK PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
 	switch action {
 	case "read":
 		// Students can read their own bookmarks
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Read permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Read permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "create":
 		// Only students can create bookmarks
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "delete":
 		// Students can delete their own bookmarks
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -311,9 +282,9 @@ func checkBookmarkPermissions(roles []string, action, resourceID, username strin
 }
 
 // File Permissions
-func checkFilePermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkFilePermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === FILE PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
@@ -328,8 +299,8 @@ func checkFilePermissions(roles []string, action, resourceID, username string, c
 		return true, nil
 	case "delete":
 		// Only admins can delete files
-		result := contains(roles, "admin")
-		middleware.DebugLog("🔍 Delete permission - Admin: %v, Result: %v", contains(roles, "admin"), result)
+		result := role == "asa_admin"
+		middleware.DebugLog("🔍 Delete permission - Admin: %v, Result: %v", role == "asa_admin", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -338,9 +309,9 @@ func checkFilePermissions(roles []string, action, resourceID, username string, c
 }
 
 // Notification Permissions
-func checkNotificationPermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkNotificationPermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === NOTIFICATION PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
@@ -364,32 +335,32 @@ func checkNotificationPermissions(roles []string, action, resourceID, username s
 }
 
 // Certificate Permissions
-func checkCertificatePermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkCertificatePermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === CERTIFICATE PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
 	switch action {
 	case "read":
 		// Students can read their own certificates
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Read permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Read permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "create":
 		// Only students can create certificates
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "update":
 		// Students can update their own certificates
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Update permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Update permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "delete":
 		// Students can delete their own certificates
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -398,24 +369,24 @@ func checkCertificatePermissions(roles []string, action, resourceID, username st
 }
 
 // Message Permissions
-func checkMessagePermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkMessagePermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === MESSAGE PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
 	switch action {
 	case "read":
 		// Students and employers can read messages for applications they're involved in
-		result := contains(roles, "student") || contains(roles, "employer")
+		result := role == "student" || role == "employer"
 		middleware.DebugLog("🔍 Read permission - Student: %v, Employer: %v, Result: %v",
-			contains(roles, "student"), contains(roles, "employer"), result)
+			role == "student", role == "employer", result)
 		return result, nil
 	case "create":
 		// Students and employers can create messages for applications they're involved in
-		result := contains(roles, "student") || contains(roles, "employer")
+		result := role == "student" || role == "employer"
 		middleware.DebugLog("🔍 Create permission - Student: %v, Employer: %v, Result: %v",
-			contains(roles, "student"), contains(roles, "employer"), result)
+			role == "student", role == "employer", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -424,32 +395,32 @@ func checkMessagePermissions(roles []string, action, resourceID, username string
 }
 
 // Job Alert Permissions
-func checkJobAlertPermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkJobAlertPermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === JOB ALERT PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
 	switch action {
 	case "read":
 		// Students can read their own job alerts
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Read permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Read permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "create":
 		// Only students can create job alerts
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Create permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "update":
 		// Students can update their own job alerts
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Update permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Update permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	case "delete":
 		// Students can delete their own job alerts
-		result := contains(roles, "student")
-		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", contains(roles, "student"), result)
+		result := role == "student"
+		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", role == "student", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -458,17 +429,17 @@ func checkJobAlertPermissions(roles []string, action, resourceID, username strin
 }
 
 // Job Permissions (for worker)
-func checkJobPermissions(roles []string, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
+func checkJobPermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
 	middleware.DebugLog("🔍 === JOB PERMISSIONS ===")
-	middleware.DebugLog("🔍 Roles: %v", roles)
+	middleware.DebugLog("🔍 Role: %s", role)
 	middleware.DebugLog("🔍 Action: %s", action)
 	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
 
 	switch action {
 	case "create":
-		// Only employers can create jobs
-		result := contains(roles, "employer")
-		middleware.DebugLog("🔍 Create permission - Employer: %v, Result: %v", contains(roles, "employer"), result)
+		// Only admins can create background jobs
+		result := role == "asa_admin"
+		middleware.DebugLog("🔍 Create permission - Admin: %v, Result: %v", role == "asa_admin", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)
@@ -476,9 +447,9 @@ func checkJobPermissions(roles []string, action, resourceID, username string, cl
 	}
 }
 
-// Legacy function for backward compatibility - now calls local permission check
+// Legacy function for backward compatibility - redirects to local permission check
 func CheckAAAPermission(username, resource, action, resourceID, jwtToken string) (bool, error) {
 	middleware.DebugLog("🔍 === LEGACY AAA PERMISSION CHECK ===")
-	middleware.DebugLog("🔍 Calling CheckLocalPermission instead of AAA service")
+	middleware.DebugLog("🔍 Calling CheckLocalPermission for local authentication")
 	return CheckLocalPermission(username, resource, action, resourceID, jwtToken)
 }

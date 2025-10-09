@@ -3,8 +3,8 @@
 package storage
 
 import (
-	"asa/internal/middleware"
-	"asa/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -51,7 +51,7 @@ func getJWT(c *gin.Context) string {
 func (h *StorageHandler) UploadFile(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -114,7 +114,7 @@ func (h *StorageHandler) UploadFile(c *gin.Context) {
 func (h *StorageHandler) UploadImage(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -178,7 +178,7 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -322,7 +322,7 @@ func (h *StorageHandler) UploadProfilePhoto(c *gin.Context) {
 func (h *StorageHandler) UploadDocument(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -380,7 +380,7 @@ func (h *StorageHandler) UploadResume(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -453,7 +453,7 @@ func (h *StorageHandler) UploadStudentResume(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -548,7 +548,7 @@ func (h *StorageHandler) UploadStudentCertificate(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -654,7 +654,7 @@ func (h *StorageHandler) UploadStudentCertificate(c *gin.Context) {
 func (h *StorageHandler) DeleteFile(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "delete", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "delete", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -698,7 +698,7 @@ func (h *StorageHandler) DeleteFile(c *gin.Context) {
 func (h *StorageHandler) ListFiles(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "read", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "read", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -742,7 +742,7 @@ func (h *StorageHandler) ListFiles(c *gin.Context) {
 func (h *StorageHandler) GetFileInfo(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "read", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "read", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -791,7 +791,7 @@ func (h *StorageHandler) GetFileInfo(c *gin.Context) {
 func (h *StorageHandler) ServeFile(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "read", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "read", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -844,7 +844,7 @@ func (h *StorageHandler) UploadEmployerLogo(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return

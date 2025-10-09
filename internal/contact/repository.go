@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"gorm.io/gorm"
 )
 
@@ -19,11 +20,15 @@ type ContactRepository interface {
 }
 
 type contactRepository struct {
+	*base.BaseRepository[*ContactRequest]
 	db *gorm.DB
 }
 
 func NewContactRepository(db *gorm.DB) ContactRepository {
-	return &contactRepository{db}
+	return &contactRepository{
+		BaseRepository: base.NewBaseRepository[*ContactRequest](),
+		db:             db,
+	}
 }
 
 func (r *contactRepository) Create(contact *ContactRequest) error {

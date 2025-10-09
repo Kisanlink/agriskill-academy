@@ -1,40 +1,60 @@
 package notification
 
 import (
-	"time"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
-	"fmt"
-
-	"github.com/google/uuid"
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
 	"gorm.io/gorm"
 )
 
 // Notification Preferences Models
 type NotificationPreferences struct {
-	ID                 string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID             string    `gorm:"type:uuid;not null;uniqueIndex" json:"user_id"`
-	EmailNotifications bool      `json:"email_notifications" gorm:"default:true"`
-	PushNotifications  bool      `json:"push_notifications" gorm:"default:true"`
-	JobAlerts          bool      `json:"job_alerts" gorm:"default:true"`
-	ApplicationUpdates bool      `json:"application_updates" gorm:"default:true"`
-	CompanyNews        bool      `json:"company_news" gorm:"default:false"`
-	MarketingEmails    bool      `json:"marketing_emails" gorm:"default:false"`
-	WeeklyDigest       bool      `json:"weekly_digest" gorm:"default:true"`
-	DailyJobMatches    bool      `json:"daily_job_matches" gorm:"default:false"`
-	CreatedAt          time.Time `json:"created_at"`
-	UpdatedAt          time.Time `json:"updated_at"`
+	base.BaseModel
+	UserID             string `gorm:"type:varchar(255);not null;uniqueIndex" json:"user_id"`
+	EmailNotifications bool   `json:"email_notifications" gorm:"default:true"`
+	PushNotifications  bool   `json:"push_notifications" gorm:"default:true"`
+	JobAlerts          bool   `json:"job_alerts" gorm:"default:true"`
+	ApplicationUpdates bool   `json:"application_updates" gorm:"default:true"`
+	CompanyNews        bool   `json:"company_news" gorm:"default:false"`
+	MarketingEmails    bool   `json:"marketing_emails" gorm:"default:false"`
+	WeeklyDigest       bool   `json:"weekly_digest" gorm:"default:true"`
+	DailyJobMatches    bool   `json:"daily_job_matches" gorm:"default:false"`
 }
 
-// BeforeCreate is a GORM hook that generates UUID for ID if it's empty and validates if not empty
-func (n *NotificationPreferences) BeforeCreate(tx *gorm.DB) error {
-	if n.ID == "" {
-		n.ID = uuid.New().String()
-	} else {
-		if _, err := uuid.Parse(n.ID); err != nil {
-			return fmt.Errorf("invalid UUID format for NotificationPreferences ID: %w", err)
-		}
+// TableName specifies the database table name for NotificationPreferences
+func (NotificationPreferences) TableName() string {
+	return "notification_preferences"
+}
+
+// NewNotificationPreferences creates a new NotificationPreferences with proper initialization
+func NewNotificationPreferences() *NotificationPreferences {
+	return &NotificationPreferences{
+		BaseModel: *base.NewBaseModel("NOTP", hash.Small),
 	}
-	return nil
+}
+
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var notificationIDs []string
+	if err := db.Model(&NotificationPreferences{}).Pluck("id", &notificationIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("NOTP", notificationIDs, hash.Small)
+		middleware.DebugLog("Initialized NOTP counter with %d existing IDs", len(notificationIDs))
+	}
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (n *NotificationPreferences) BeforeCreateGORM(tx *gorm.DB) error {
+	return n.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (n *NotificationPreferences) BeforeUpdateGORM(tx *gorm.DB) error {
+	return n.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (n *NotificationPreferences) BeforeDeleteGORM(tx *gorm.DB) error {
+	return n.BeforeDelete()
 }
 
 // Request/Response Models

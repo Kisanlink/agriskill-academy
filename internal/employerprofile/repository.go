@@ -1,6 +1,9 @@
 package employerprofile
 
-import "gorm.io/gorm"
+import (
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"gorm.io/gorm"
+)
 
 type EmployerProfileRepository interface {
 	GetByUserID(userID string) (*EmployerProfile, error)
@@ -10,11 +13,15 @@ type EmployerProfileRepository interface {
 }
 
 type employerProfileRepository struct {
+	*base.BaseRepository[*EmployerProfile]
 	db *gorm.DB
 }
 
 func NewEmployerProfileRepository(db *gorm.DB) EmployerProfileRepository {
-	return &employerProfileRepository{db}
+	return &employerProfileRepository{
+		BaseRepository: base.NewBaseRepository[*EmployerProfile](),
+		db:             db,
+	}
 }
 
 func (r *employerProfileRepository) GetByUserID(userID string) (*EmployerProfile, error) {

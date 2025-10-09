@@ -3,6 +3,7 @@ package notification
 import (
 	"errors"
 
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"gorm.io/gorm"
 )
 
@@ -14,11 +15,15 @@ type NotificationPreferencesRepository interface {
 }
 
 type notificationPreferencesRepository struct {
+	*base.BaseRepository[*NotificationPreferences]
 	db *gorm.DB
 }
 
 func NewNotificationPreferencesRepository(db *gorm.DB) NotificationPreferencesRepository {
-	return &notificationPreferencesRepository{db}
+	return &notificationPreferencesRepository{
+		BaseRepository: base.NewBaseRepository[*NotificationPreferences](),
+		db:             db,
+	}
 }
 
 func (r *notificationPreferencesRepository) GetByUserID(userID string) (*NotificationPreferences, error) {

@@ -1,9 +1,9 @@
 package employerprofile
 
 import (
-	"asa/internal/middleware"
-	"asa/internal/storage"
-	"asa/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/storage"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"fmt"
 	"net/http"
 	"path/filepath"

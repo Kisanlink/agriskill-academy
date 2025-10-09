@@ -3,8 +3,8 @@
 package studentprofile
 
 import (
-	"asa/internal/middleware"
-	"asa/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,8 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"asa/internal/middleware"
-	"asa/internal/storage"
+	"github.com/Kisanlink/agriskill-academy/internal/storage"
 
 	"github.com/gin-gonic/gin"
 )
@@ -51,13 +50,13 @@ func (h *StudentProfileHandler) GetProfile(c *gin.Context) {
 	username := c.GetString("username")
 	profileID := c.Param("studentId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "read", profileID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "read", profileID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
 	}
 
-	profile, err := h.service.GetProfile(profileID)
+	profile, err := h.service.GetProfile(c.Request.Context(), profileID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Profile not found"})
 		return
@@ -83,7 +82,7 @@ func (h *StudentProfileHandler) UpdateProfile(c *gin.Context) {
 	username := c.GetString("username")
 	profileID := c.Param("studentId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", profileID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", profileID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -101,7 +100,7 @@ func (h *StudentProfileHandler) UpdateProfile(c *gin.Context) {
 		return
 	}
 	req.UserID = userID
-	err = h.service.UpdateProfile(&req)
+	err = h.service.UpdateProfile(c.Request.Context(), &req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to update profile"})
 		return
@@ -125,7 +124,7 @@ func (h *StudentProfileHandler) GetMyProfile(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "read", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "read", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -135,7 +134,7 @@ func (h *StudentProfileHandler) GetMyProfile(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "message": "Unauthorized"})
 		return
 	}
-	profile, err := h.service.GetProfile(userID)
+	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Profile not found"})
 		return
@@ -162,7 +161,7 @@ func (h *StudentProfileHandler) AddCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	studentID := c.Param("studentId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_certificates", "create", studentID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_certificates", "create", studentID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -181,7 +180,7 @@ func (h *StudentProfileHandler) AddCertificate(c *gin.Context) {
 	}
 
 	// Get the student profile first to get the profile ID
-	studentProfile, err := h.service.GetProfile(studentID)
+	studentProfile, err := h.service.GetProfile(c.Request.Context(), studentID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Student profile not found"})
 		return
@@ -217,7 +216,7 @@ func (h *StudentProfileHandler) DeleteMyCertificate(c *gin.Context) {
 	userID := c.GetString("user_id")
 	certificateID := c.Param("certificateId")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_certificates", "delete", certificateID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_certificates", "delete", certificateID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -269,7 +268,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 
 	middleware.DebugLog("🔍 DEBUG: Username: %s, UserID: %s\n", username, userID)
 
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		middleware.DebugLog("❌ DEBUG: Permission denied - Error: %v, Allowed: %v\n", err, allowed)
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
@@ -446,7 +445,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 
 	// Get existing profile or create new one
 	middleware.DebugLog("🔍 DEBUG: Getting profile for user ID: %s\n", userID)
-	profile, err := h.service.GetProfile(userID)
+	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		middleware.DebugLog("🔍 DEBUG: Profile not found, creating new one for user: %s\n", userID)
 		// Create new profile
@@ -520,7 +519,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	middleware.DebugLog("🔍 DEBUG: Profile ID: %s\n", profile.ID)
 	if profile.ID == "" {
 		middleware.DebugLog("🔍 DEBUG: Creating new profile\n")
-		err = h.service.CreateProfile(profile)
+		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			middleware.DebugLog("❌ DEBUG: CreateProfile error: %v\n", err)
 		} else {
@@ -528,7 +527,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		}
 	} else {
 		middleware.DebugLog("🔍 DEBUG: Updating existing profile\n")
-		err = h.service.UpdateProfile(profile)
+		err = h.service.UpdateProfile(c.Request.Context(), profile)
 		if err != nil {
 			middleware.DebugLog("❌ DEBUG: UpdateProfile error: %v\n", err)
 		} else {
@@ -574,7 +573,7 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -596,7 +595,7 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	}
 
 	// Get or create student profile
-	profile, err := h.service.GetProfile(userID)
+	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		// Create new profile
 		profile = &StudentProfile{
@@ -604,7 +603,7 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 			Name:   c.GetString("name"),
 			Email:  c.GetString("email"),
 		}
-		err = h.service.CreateProfile(profile)
+		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
@@ -619,7 +618,7 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	certificate := &Certificate{
 		StudentProfileID: profile.ID,
 		Name:             req.Name,
-		FileName:         req.FileKey, // Changed from File: req.File to FileKey: req.FileKey
+		FileKey:          req.FileKey,
 		IssueDate:        req.IssueDate,
 	}
 
@@ -658,7 +657,7 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_files", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_files", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -709,7 +708,7 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 	}
 
 	// Get or create student profile
-	profile, err := h.service.GetProfile(userID)
+	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		// Create new profile
 		profile = &StudentProfile{
@@ -724,10 +723,10 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 
 	// Save profile
 	if profile.ID == "" {
-		err = h.service.CreateProfile(profile)
+		err = h.service.CreateProfile(c.Request.Context(), profile)
 	} else {
 		// Update the profile with resume data
-		err = h.service.UpdateProfile(profile)
+		err = h.service.UpdateProfile(c.Request.Context(), profile)
 	}
 
 	if err != nil {
@@ -770,7 +769,7 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -859,7 +858,7 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 	}
 
 	// Get or create student profile
-	profile, err := h.service.GetProfile(userID)
+	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		// Create new profile
 		profile = &StudentProfile{
@@ -867,7 +866,7 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 			Name:   c.GetString("name"),
 			Email:  c.GetString("email"),
 		}
-		err = h.service.CreateProfile(profile)
+		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
@@ -937,7 +936,7 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -988,7 +987,7 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 	}
 
 	// Get existing profile or create new one
-	profile, err := h.service.GetProfile(userID)
+	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		// Create new profile
 		profile = &StudentProfile{
@@ -1003,9 +1002,9 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 
 	// Save profile
 	if profile.ID == "" {
-		err = h.service.CreateProfile(profile)
+		err = h.service.CreateProfile(c.Request.Context(), profile)
 	} else {
-		err = h.service.UpdateProfile(profile)
+		err = h.service.UpdateProfile(c.Request.Context(), profile)
 	}
 
 	if err != nil {
@@ -1045,7 +1044,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -1152,7 +1151,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	middleware.DebugLog("DEBUG: File uploaded to S3 successfully - Key: %s, Size: %d bytes, Type: %s\n", key, fileSize, fileType)
 
 	// Get or create student profile
-	profile, err := h.service.GetProfile(userID)
+	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		middleware.DebugLog("DEBUG: Profile not found, creating new one\n")
 		// Create new profile
@@ -1161,7 +1160,7 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 			Name:   c.GetString("name"),
 			Email:  c.GetString("email"),
 		}
-		err = h.service.CreateProfile(profile)
+		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			middleware.DebugLog("DEBUG: Failed to create profile: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -1232,7 +1231,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	username := c.GetString("username")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckAAAPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_student_profile", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -1338,7 +1337,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	middleware.DebugLog("DEBUG: File uploaded to S3 successfully - Key: %s\n", key)
 
 	// Get or create student profile
-	profile, err := h.service.GetProfile(userID)
+	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		middleware.DebugLog("DEBUG: Profile not found, creating new one\n")
 		// Create new profile
@@ -1347,7 +1346,7 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 			Name:   c.GetString("name"),
 			Email:  c.GetString("email"),
 		}
-		err = h.service.CreateProfile(profile)
+		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			middleware.DebugLog("DEBUG: Failed to create profile: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{

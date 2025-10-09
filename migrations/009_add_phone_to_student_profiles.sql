@@ -6,4 +6,4 @@ ALTER TABLE student_profiles
 ADD COLUMN phone_number VARCHAR(20);
 
 -- Add comment to document the column
-COMMENT ON COLUMN student_profiles.phone_number IS 'Phone number from AAA service registration'; 
+COMMENT ON COLUMN student_profiles.phone_number IS 'Phone number from user registration'; 

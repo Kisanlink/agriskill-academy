@@ -59,6 +59,7 @@ cmd/server/main.exe
 .env
 .env.local
 .env.development
+.env.example
 .env.production
 .env.staging
 .env.test
@@ -349,6 +350,9 @@ NOTES.md
 CHANGELOG.md
 *.todo
 *.note
+API_DOCUMENTATION.md
+test-agriskill-api.ps1
+docker-compose.yml
 
 # =============================================================================
 # Backup and Recovery

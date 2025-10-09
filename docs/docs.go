@@ -37,13 +37,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Application analytics retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     }
                 }
@@ -71,13 +71,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Company analytics retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to fetch company analytics",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     }
                 }
@@ -105,13 +105,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Dashboard analytics retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     }
                 }
@@ -139,13 +139,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Job analytics retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     }
                 }
@@ -173,13 +173,13 @@ const docTemplate = `{
                     "200": {
                         "description": "User analytics retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/admin.AnalyticsResponse"
+                            "$ref": "#/definitions/internal_admin.AnalyticsResponse"
                         }
                     }
                 }
@@ -227,19 +227,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Companies retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid query parameters",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to fetch companies",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     }
                 }
@@ -276,19 +276,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Company retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "400": {
                         "description": "Company ID is required",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "404": {
                         "description": "Company not found",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     }
                 }
@@ -324,7 +324,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/admin.UpdateCompanyRequest"
+                            "$ref": "#/definitions/internal_admin.UpdateCompanyRequest"
                         }
                     }
                 ],
@@ -332,19 +332,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Company updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request or Company ID is required",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "404": {
                         "description": "Company not found",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     }
                 }
@@ -379,25 +379,311 @@ const docTemplate = `{
                     "200": {
                         "description": "Company deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "400": {
                         "description": "Company ID is required",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "404": {
                         "description": "Company not found",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to delete company",
                         "schema": {
-                            "$ref": "#/definitions/admin.CompanyResponse"
+                            "$ref": "#/definitions/internal_admin.CompanyResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/contacts": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get paginated list of contact requests for admin panel",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Contact"
+                ],
+                "summary": "Get Contact Requests (Admin)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "Items per page",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search in name, email, or subject",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "Sort by field",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "DESC",
+                        "description": "Sort order",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contact requests retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/internal_contact.ContactListResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/contacts/analytics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get contact request analytics for admin dashboard",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Contact"
+                ],
+                "summary": "Get Contact Analytics (Admin)",
+                "responses": {
+                    "200": {
+                        "description": "Contact analytics retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/internal_contact.ContactResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/contacts/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a specific contact request by ID for admin panel",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Contact"
+                ],
+                "summary": "Get Contact Request by ID (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contact request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contact request retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/internal_contact.ContactResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contact request not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Delete a contact request",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Contact"
+                ],
+                "summary": "Delete Contact Request (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contact request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contact request deleted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/internal_contact.ContactResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Contact request not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/admin/contacts/{id}/status": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Update the status of a contact request",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin - Contact"
+                ],
+                "summary": "Update Contact Status (Admin)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Contact request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Status update data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_contact.UpdateContactStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Status updated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/internal_contact.ContactResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Contact request not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -451,19 +737,19 @@ const docTemplate = `{
                     "200": {
                         "description": "Users retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid query parameters",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     }
                 }
@@ -501,7 +787,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/admin.UpdateUserRequest"
+                            "$ref": "#/definitions/internal_admin.UpdateUserRequest"
                         }
                     }
                 ],
@@ -509,19 +795,19 @@ const docTemplate = `{
                     "200": {
                         "description": "User updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request body or missing user ID",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to update user",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     }
                 }
@@ -556,19 +842,19 @@ const docTemplate = `{
                     "200": {
                         "description": "User deleted successfully",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     },
                     "400": {
                         "description": "User ID is required",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     },
                     "500": {
                         "description": "Failed to delete user",
                         "schema": {
-                            "$ref": "#/definitions/admin.UserResponse"
+                            "$ref": "#/definitions/internal_admin.UserResponse"
                         }
                     }
                 }
@@ -741,7 +1027,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/application.UpdateStatusRequest"
+                            "$ref": "#/definitions/internal_application.UpdateStatusRequest"
                         }
                     }
                 ],
@@ -773,7 +1059,7 @@ const docTemplate = `{
         },
         "/api/auth/forgot-password": {
             "post": {
-                "description": "Send password reset email to user",
+                "description": "Send password reset link (mock implementation)",
                 "consumes": [
                     "application/json"
                 ],
@@ -791,28 +1077,20 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_auth.ForgotPasswordRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Password reset email sent",
+                        "description": "Reset link sent",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid email",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error or AAA service unavailable",
+                        "description": "Invalid request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -823,7 +1101,7 @@ const docTemplate = `{
         },
         "/api/auth/login": {
             "post": {
-                "description": "Authenticate user with AAA service and return JWT token",
+                "description": "Login with email and password using local authentication",
                 "consumes": [
                     "application/json"
                 ],
@@ -841,7 +1119,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.LoginRequest"
+                            "$ref": "#/definitions/internal_auth.LoginRequest"
                         }
                     }
                 ],
@@ -860,15 +1138,8 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
-                    "401": {
-                        "description": "Authentication failed",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
                     "500": {
-                        "description": "Internal server error or AAA service unavailable",
+                        "description": "Internal server error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -878,13 +1149,47 @@ const docTemplate = `{
             }
         },
         "/api/auth/profile": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get current user's profile information",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Get User Profile",
+                "responses": {
+                    "200": {
+                        "description": "User profile retrieved",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
             "put": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update user profile information",
+                "description": "Update current user's profile information",
                 "consumes": [
                     "application/json"
                 ],
@@ -902,7 +1207,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.UpdateProfileRequest"
+                            "$ref": "#/definitions/internal_auth.UpdateProfileRequest"
                         }
                     }
                 ],
@@ -915,7 +1220,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request data",
+                        "description": "Invalid request",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -933,7 +1238,7 @@ const docTemplate = `{
         },
         "/api/auth/reset-password": {
             "post": {
-                "description": "Reset user password using reset token",
+                "description": "Reset password using token (mock implementation)",
                 "consumes": [
                     "application/json"
                 ],
@@ -946,13 +1251,12 @@ const docTemplate = `{
                 "summary": "Reset Password",
                 "parameters": [
                     {
-                        "description": "Reset password data",
+                        "description": "Password reset data",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/internal_auth.ResetPasswordRequest"
                         }
                     }
                 ],
@@ -970,20 +1274,13 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
-                    },
-                    "500": {
-                        "description": "Internal server error or AAA service unavailable",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
                     }
                 }
             }
         },
         "/api/auth/signup": {
             "post": {
-                "description": "Register a new user (student or employer) with the AAA service and create local profile",
+                "description": "Register a new user (student or employer) with local authentication",
                 "consumes": [
                     "application/json"
                 ],
@@ -1001,7 +1298,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/auth.SignupRequest"
+                            "$ref": "#/definitions/internal_auth.SignupRequest"
                         }
                     }
                 ],
@@ -1021,43 +1318,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error or AAA service unavailable",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/api/auth/verify": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Verify the validity of a JWT token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Authentication"
-                ],
-                "summary": "Verify JWT Token",
-                "responses": {
-                    "200": {
-                        "description": "Token is valid",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Invalid or missing token",
+                        "description": "Internal server error",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1218,6 +1479,54 @@ const docTemplate = `{
                     },
                     "403": {
                         "description": "Permission denied",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/contact": {
+            "post": {
+                "description": "Submit a contact form (public endpoint, no authentication required)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contact"
+                ],
+                "summary": "Submit Contact Form",
+                "parameters": [
+                    {
+                        "description": "Contact form data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_contact.ContactSubmissionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Contact form submitted successfully",
+                        "schema": {
+                            "$ref": "#/definitions/internal_contact.ContactSubmissionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request data",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1680,13 +1989,13 @@ const docTemplate = `{
             }
         },
         "/api/employers/me/logo": {
-            "post": {
+            "put": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Upload a logo file for the current employer profile",
+                "description": "Update the logo file for the current user's employer profile",
                 "consumes": [
                     "multipart/form-data"
                 ],
@@ -1696,12 +2005,69 @@ const docTemplate = `{
                 "tags": [
                     "Employer Profile"
                 ],
-                "summary": "Upload Employer Logo",
+                "summary": "Update My Employer Logo",
                 "parameters": [
                     {
                         "type": "file",
                         "description": "Logo file (JPG, PNG, GIF, WebP, max 5MB)",
-                        "name": "file",
+                        "name": "logo",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Logo updated successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid file type or size",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "403": {
+                        "description": "Permission denied",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Upload a logo file to the current user's employer profile",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Employer Profile"
+                ],
+                "summary": "Upload My Employer Logo",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Logo file (JPG, PNG, GIF, WebP, max 5MB)",
+                        "name": "logo",
                         "in": "formData",
                         "required": true
                     }
@@ -1811,7 +2177,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/employerprofile.UpdateEmployerProfileRequest"
+                            "$ref": "#/definitions/internal_employerprofile.UpdateEmployerProfileRequest"
                         }
                     }
                 ],
@@ -1872,7 +2238,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/employerprofile.EmployerProfile"
+                            "$ref": "#/definitions/internal_employerprofile.EmployerProfile"
                         }
                     }
                 ],
@@ -1990,7 +2356,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/employerprofile.UpdateEmployerProfileRequest"
+                            "$ref": "#/definitions/internal_employerprofile.UpdateEmployerProfileRequest"
                         }
                     }
                 ],
@@ -2298,7 +2664,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Files retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/storage.ListFilesResponse"
+                            "$ref": "#/definitions/internal_storage.ListFilesResponse"
                         }
                     },
                     "400": {
@@ -2438,7 +2804,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.CreateJobPostRequest"
+                            "$ref": "#/definitions/internal_jobpost.CreateJobPostRequest"
                         }
                     }
                 ],
@@ -2499,7 +2865,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.AdvancedJobSearchRequest"
+                            "$ref": "#/definitions/internal_jobpost.AdvancedJobSearchRequest"
                         }
                     }
                 ],
@@ -2608,7 +2974,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.JobAlertRequest"
+                            "$ref": "#/definitions/internal_jobpost.JobAlertRequest"
                         }
                     }
                 ],
@@ -2739,7 +3105,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.JobAlertRequest"
+                            "$ref": "#/definitions/internal_jobpost.JobAlertRequest"
                         }
                     }
                 ],
@@ -2870,7 +3236,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.CreateDraftRequest"
+                            "$ref": "#/definitions/internal_jobpost.CreateDraftRequest"
                         }
                     }
                 ],
@@ -3082,7 +3448,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.CreateJobPostRequest"
+                            "$ref": "#/definitions/internal_jobpost.CreateJobPostRequest"
                         }
                     }
                 ],
@@ -3195,7 +3561,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.JobRecommendationRequest"
+                            "$ref": "#/definitions/internal_jobpost.JobRecommendationRequest"
                         }
                     }
                 ],
@@ -3257,7 +3623,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.JobPostFilter"
+                            "$ref": "#/definitions/internal_jobpost.JobPostFilter"
                         }
                     }
                 ],
@@ -3487,7 +3853,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jobpost.UpdateJobPostRequest"
+                            "$ref": "#/definitions/internal_jobpost.UpdateJobPostRequest"
                         }
                     }
                 ],
@@ -3681,7 +4047,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/application.UpdateStatusRequest"
+                            "$ref": "#/definitions/internal_application.UpdateStatusRequest"
                         }
                     }
                 ],
@@ -4000,7 +4366,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Preferences retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/notification.NotificationPreferencesResponse"
+                            "$ref": "#/definitions/internal_notification.NotificationPreferencesResponse"
                         }
                     },
                     "401": {
@@ -4050,7 +4416,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/notification.UpdateNotificationPreferencesRequest"
+                            "$ref": "#/definitions/internal_notification.UpdateNotificationPreferencesRequest"
                         }
                     }
                 ],
@@ -4058,7 +4424,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Preferences updated successfully",
                         "schema": {
-                            "$ref": "#/definitions/notification.NotificationPreferencesResponse"
+                            "$ref": "#/definitions/internal_notification.NotificationPreferencesResponse"
                         }
                     },
                     "400": {
@@ -4711,7 +5077,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/studentprofile.Certificate"
+                            "$ref": "#/definitions/internal_studentprofile.Certificate"
                         }
                     }
                 ],
@@ -4829,7 +5195,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/studentprofile.StudentProfile"
+                            "$ref": "#/definitions/internal_studentprofile.StudentProfile"
                         }
                     }
                 ],
@@ -4896,7 +5262,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Document uploaded successfully",
                         "schema": {
-                            "$ref": "#/definitions/storage.UploadResponse"
+                            "$ref": "#/definitions/internal_storage.UploadResponse"
                         }
                     },
                     "400": {
@@ -5085,7 +5451,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Image uploaded successfully",
                         "schema": {
-                            "$ref": "#/definitions/storage.UploadResponse"
+                            "$ref": "#/definitions/internal_storage.UploadResponse"
                         }
                     },
                     "400": {
@@ -5157,7 +5523,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Certificate uploaded successfully",
                         "schema": {
-                            "$ref": "#/definitions/storage.UploadResponse"
+                            "$ref": "#/definitions/internal_storage.UploadResponse"
                         }
                     },
                     "400": {
@@ -5223,7 +5589,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Resume uploaded successfully",
                         "schema": {
-                            "$ref": "#/definitions/storage.UploadResponse"
+                            "$ref": "#/definitions/internal_storage.UploadResponse"
                         }
                     },
                     "400": {
@@ -5296,7 +5662,7 @@ const docTemplate = `{
                     "200": {
                         "description": "File uploaded successfully",
                         "schema": {
-                            "$ref": "#/definitions/storage.UploadResponse"
+                            "$ref": "#/definitions/internal_storage.UploadResponse"
                         }
                     },
                     "400": {
@@ -5394,7 +5760,7 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "admin.AnalyticsResponse": {
+        "internal_admin.AnalyticsResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -5406,7 +5772,7 @@ const docTemplate = `{
                 }
             }
         },
-        "admin.CompanyResponse": {
+        "internal_admin.CompanyResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -5418,7 +5784,7 @@ const docTemplate = `{
                 }
             }
         },
-        "admin.UpdateCompanyRequest": {
+        "internal_admin.UpdateCompanyRequest": {
             "type": "object",
             "properties": {
                 "company_description": {
@@ -5450,7 +5816,7 @@ const docTemplate = `{
                 }
             }
         },
-        "admin.UpdateUserRequest": {
+        "internal_admin.UpdateUserRequest": {
             "type": "object",
             "properties": {
                 "email": {
@@ -5464,7 +5830,7 @@ const docTemplate = `{
                 }
             }
         },
-        "admin.UserResponse": {
+        "internal_admin.UserResponse": {
             "type": "object",
             "properties": {
                 "data": {},
@@ -5476,7 +5842,7 @@ const docTemplate = `{
                 }
             }
         },
-        "application.UpdateStatusRequest": {
+        "internal_application.UpdateStatusRequest": {
             "type": "object",
             "required": [
                 "status"
@@ -5490,7 +5856,18 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.LoginRequest": {
+        "internal_auth.ForgotPasswordRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth.LoginRequest": {
             "type": "object",
             "required": [
                 "password",
@@ -5501,12 +5878,27 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_name": {
-                    "description": "Username for AAA service",
+                    "description": "Username for local authentication",
                     "type": "string"
                 }
             }
         },
-        "auth.SignupRequest": {
+        "internal_auth.ResetPasswordRequest": {
+            "type": "object",
+            "required": [
+                "new_password",
+                "token"
+            ],
+            "properties": {
+                "new_password": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_auth.SignupRequest": {
             "type": "object",
             "required": [
                 "confirm_password",
@@ -5570,14 +5962,15 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "student",
-                        "employer"
+                        "employer",
+                        "asa_admin"
                     ]
                 },
                 "state": {
                     "type": "string"
                 },
                 "user_name": {
-                    "description": "Username for AAA service",
+                    "description": "Username for local authentication",
                     "type": "string"
                 },
                 "website": {
@@ -5585,7 +5978,7 @@ const docTemplate = `{
                 }
             }
         },
-        "auth.UpdateProfileRequest": {
+        "internal_auth.UpdateProfileRequest": {
             "type": "object",
             "properties": {
                 "bio": {
@@ -5695,13 +6088,397 @@ const docTemplate = `{
                 }
             }
         },
-        "employerprofile.EmployerProfile": {
-            "type": "object"
+        "internal_contact.ContactListResponse": {
+            "description": "Admin list response for contact requests",
+            "type": "object",
+            "properties": {
+                "contacts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_contact.ContactRequest"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/internal_contact.PaginationInfo"
+                }
+            }
         },
-        "employerprofile.UpdateEmployerProfileRequest": {
-            "type": "object"
+        "internal_contact.ContactRequest": {
+            "description": "Contact request model for admin management",
+            "type": "object",
+            "required": [
+                "email",
+                "first_name",
+                "last_name",
+                "message",
+                "phone",
+                "subject"
+            ],
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "example": "John"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string",
+                    "example": "Doe"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "I have a question about your services"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "9876543210"
+                },
+                "status": {
+                    "description": "new, read, responded",
+                    "type": "string",
+                    "example": "new"
+                },
+                "subject": {
+                    "type": "string",
+                    "example": "General Inquiry"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                }
+            }
         },
-        "jobpost.AdvancedJobSearchRequest": {
+        "internal_contact.ContactResponse": {
+            "description": "Contact response wrapper",
+            "type": "object",
+            "properties": {
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "Operation completed successfully"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "internal_contact.ContactSubmissionRequest": {
+            "description": "Contact form submission request",
+            "type": "object",
+            "required": [
+                "email",
+                "first_name",
+                "last_name",
+                "message",
+                "phone",
+                "subject"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "john@example.com"
+                },
+                "first_name": {
+                    "type": "string",
+                    "example": "John"
+                },
+                "last_name": {
+                    "type": "string",
+                    "example": "Doe"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "I have a question about your services"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "9876543210"
+                },
+                "subject": {
+                    "type": "string",
+                    "example": "General Inquiry"
+                }
+            }
+        },
+        "internal_contact.ContactSubmissionResponse": {
+            "description": "Contact form submission response",
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "contact_123"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Contact form submitted successfully"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "internal_contact.PaginationInfo": {
+            "description": "Pagination information",
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "total_pages": {
+                    "type": "integer",
+                    "example": 3
+                }
+            }
+        },
+        "internal_contact.UpdateContactStatusRequest": {
+            "description": "Update status request",
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "new",
+                        "read",
+                        "responded"
+                    ],
+                    "example": "read"
+                }
+            }
+        },
+        "internal_employerprofile.EmployerProfile": {
+            "type": "object",
+            "required": [
+                "company_name",
+                "company_size",
+                "industry",
+                "user_id"
+            ],
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "company_address": {
+                    "type": "string"
+                },
+                "company_description": {
+                    "type": "string"
+                },
+                "company_name": {
+                    "description": "Required company information",
+                    "type": "string"
+                },
+                "company_size": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
+                "designation": {
+                    "type": "string"
+                },
+                "gstin_number": {
+                    "description": "Optional business information",
+                    "type": "string"
+                },
+                "hiring_locations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "hiring_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "industry": {
+                    "type": "string"
+                },
+                "job_categories": {
+                    "description": "Optional hiring preferences (can be set later)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "linkedin_profile": {
+                    "type": "string"
+                },
+                "logo_key": {
+                    "description": "Optional company branding and details",
+                    "type": "string"
+                },
+                "logo_name": {
+                    "type": "string"
+                },
+                "logo_size": {
+                    "type": "integer"
+                },
+                "logo_type": {
+                    "type": "string"
+                },
+                "official_email": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "pincode": {
+                    "type": "string"
+                },
+                "recruiter_name": {
+                    "description": "Optional recruiter information",
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "website_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_employerprofile.UpdateEmployerProfileRequest": {
+            "type": "object",
+            "properties": {
+                "city": {
+                    "type": "string"
+                },
+                "company_address": {
+                    "type": "string"
+                },
+                "company_description": {
+                    "type": "string"
+                },
+                "company_name": {
+                    "description": "Company information (all optional for updates)",
+                    "type": "string"
+                },
+                "company_size": {
+                    "type": "string"
+                },
+                "designation": {
+                    "type": "string"
+                },
+                "gstin_number": {
+                    "description": "Optional business information",
+                    "type": "string"
+                },
+                "hiring_locations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "hiring_types": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "industry": {
+                    "type": "string"
+                },
+                "job_categories": {
+                    "description": "Optional hiring preferences (can be set later)",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "linkedin_profile": {
+                    "type": "string"
+                },
+                "logo_key": {
+                    "description": "Optional company branding and details",
+                    "type": "string"
+                },
+                "logo_name": {
+                    "type": "string"
+                },
+                "logo_size": {
+                    "type": "integer"
+                },
+                "logo_type": {
+                    "type": "string"
+                },
+                "official_email": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "pincode": {
+                    "type": "string"
+                },
+                "recruiter_name": {
+                    "description": "Optional recruiter information",
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "website_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_jobpost.AdvancedJobSearchRequest": {
             "type": "object",
             "properties": {
                 "benefits": {
@@ -5807,7 +6584,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobpost.CreateDraftRequest": {
+        "internal_jobpost.CreateDraftRequest": {
             "type": "object",
             "properties": {
                 "application_deadline": {
@@ -5844,14 +6621,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "salary": {
-                    "$ref": "#/definitions/jobpost.FlexibleSalary"
+                    "$ref": "#/definitions/internal_jobpost.FlexibleSalary"
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "jobpost.CreateJobPostRequest": {
+        "internal_jobpost.CreateJobPostRequest": {
             "type": "object",
             "required": [
                 "experience",
@@ -5898,14 +6675,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "salary": {
-                    "$ref": "#/definitions/jobpost.FlexibleSalary"
+                    "$ref": "#/definitions/internal_jobpost.FlexibleSalary"
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "jobpost.FlexibleSalary": {
+        "internal_jobpost.FlexibleSalary": {
             "type": "object",
             "properties": {
                 "currency": {
@@ -5919,7 +6696,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobpost.JobAlertRequest": {
+        "internal_jobpost.JobAlertRequest": {
             "type": "object",
             "properties": {
                 "experience": {
@@ -5978,7 +6755,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobpost.JobPostFilter": {
+        "internal_jobpost.JobPostFilter": {
             "type": "object",
             "properties": {
                 "experience": {
@@ -6028,7 +6805,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobpost.JobRecommendationRequest": {
+        "internal_jobpost.JobRecommendationRequest": {
             "type": "object",
             "properties": {
                 "max_results": {
@@ -6058,7 +6835,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jobpost.UpdateJobPostRequest": {
+        "internal_jobpost.UpdateJobPostRequest": {
             "type": "object",
             "properties": {
                 "application_deadline": {
@@ -6095,14 +6872,14 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "salary": {
-                    "$ref": "#/definitions/jobpost.FlexibleSalary"
+                    "$ref": "#/definitions/internal_jobpost.FlexibleSalary"
                 },
                 "title": {
                     "type": "string"
                 }
             }
         },
-        "notification.NotificationPreferences": {
+        "internal_notification.NotificationPreferences": {
             "type": "object",
             "properties": {
                 "application_updates": {
@@ -6114,8 +6891,17 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
+                "created_by": {
+                    "type": "string"
+                },
                 "daily_job_matches": {
                     "type": "boolean"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "deleted_by": {
+                    "type": "string"
                 },
                 "email_notifications": {
                     "type": "boolean"
@@ -6135,6 +6921,9 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string"
                 },
+                "updated_by": {
+                    "type": "string"
+                },
                 "user_id": {
                     "type": "string"
                 },
@@ -6143,11 +6932,11 @@ const docTemplate = `{
                 }
             }
         },
-        "notification.NotificationPreferencesResponse": {
+        "internal_notification.NotificationPreferencesResponse": {
             "type": "object",
             "properties": {
                 "data": {
-                    "$ref": "#/definitions/notification.NotificationPreferences"
+                    "$ref": "#/definitions/internal_notification.NotificationPreferences"
                 },
                 "message": {
                     "type": "string"
@@ -6157,7 +6946,7 @@ const docTemplate = `{
                 }
             }
         },
-        "notification.UpdateNotificationPreferencesRequest": {
+        "internal_notification.UpdateNotificationPreferencesRequest": {
             "type": "object",
             "properties": {
                 "application_updates": {
@@ -6186,7 +6975,7 @@ const docTemplate = `{
                 }
             }
         },
-        "storage.FileInfo": {
+        "internal_storage.FileInfo": {
             "type": "object",
             "properties": {
                 "name": {
@@ -6209,13 +6998,13 @@ const docTemplate = `{
                 }
             }
         },
-        "storage.ListFilesResponse": {
+        "internal_storage.ListFilesResponse": {
             "type": "object",
             "properties": {
                 "files": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/storage.FileInfo"
+                        "$ref": "#/definitions/internal_storage.FileInfo"
                     }
                 },
                 "message": {
@@ -6226,7 +7015,7 @@ const docTemplate = `{
                 }
             }
         },
-        "storage.UploadResponse": {
+        "internal_storage.UploadResponse": {
             "type": "object",
             "properties": {
                 "file_name": {
@@ -6252,13 +7041,25 @@ const docTemplate = `{
                 }
             }
         },
-        "studentprofile.Certificate": {
+        "internal_studentprofile.Certificate": {
             "type": "object",
             "required": [
                 "issue_date",
                 "name"
             ],
             "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "deleted_by": {
+                    "type": "string"
+                },
                 "file_key": {
                     "type": "string"
                 },
@@ -6282,10 +7083,16 @@ const docTemplate = `{
                 },
                 "student_profile_id": {
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
                 }
             }
         },
-        "studentprofile.StudentProfile": {
+        "internal_studentprofile.StudentProfile": {
             "type": "object",
             "required": [
                 "email",
@@ -6297,11 +7104,19 @@ const docTemplate = `{
                     "description": "Optional professional information",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/studentprofile.Certificate"
+                        "$ref": "#/definitions/internal_studentprofile.Certificate"
                     }
                 },
                 "created_at": {
-                    "description": "System managed fields",
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "type": "string"
+                },
+                "deleted_by": {
                     "type": "string"
                 },
                 "education": {
@@ -6352,12 +7167,15 @@ const docTemplate = `{
                 "updated_at": {
                     "type": "string"
                 },
+                "updated_by": {
+                    "type": "string"
+                },
                 "user_id": {
                     "type": "string"
                 }
             }
         },
-        "studentprofile.UpdateCertificateRequest": {
+        "internal_studentprofile.UpdateCertificateRequest": {
             "type": "object",
             "required": [
                 "issue_date",

@@ -1,7 +1,7 @@
 package bookmark
 
 import (
-	"asa/internal/jobpost"
+	"github.com/Kisanlink/agriskill-academy/internal/jobpost"
 )
 
 // Assume you have a Job struct somewhere, e.g. in internal/jobpost/model.go

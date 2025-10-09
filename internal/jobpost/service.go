@@ -1,19 +1,20 @@
 package jobpost
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"asa/internal/employerprofile"
-	"asa/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/employerprofile"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 )
 
 type JobPostService interface {
-	CreateJobPost(req *CreateJobPostRequest, employerID, employerName, employerEmail string) (*JobPost, error)
-	CreateJobPostWithStatus(req *CreateJobPostRequest, employerID, employerName, employerEmail, status string) (*JobPost, error)
-	UpdateJobPost(id string, req *UpdateJobPostRequest) (*JobPost, error)
-	Delete(id string) error
-	GetByID(id string) (*JobPost, error)
+	CreateJobPost(ctx context.Context, req *CreateJobPostRequest, employerID, employerName, employerEmail string) (*JobPost, error)
+	CreateJobPostWithStatus(ctx context.Context, req *CreateJobPostRequest, employerID, employerName, employerEmail, status string) (*JobPost, error)
+	UpdateJobPost(ctx context.Context, id string, req *UpdateJobPostRequest) (*JobPost, error)
+	Delete(ctx context.Context, id string) error
+	GetByID(ctx context.Context, id string) (*JobPost, error)
 	GetByEmployer(employerID string) ([]JobPost, error)
 	Search(filter *JobPostFilter) ([]JobPost, error)
 	IncrementApplicationsCount(jobID string) error
@@ -50,7 +51,7 @@ func NewJobPostService(repo JobPostRepository, employerRepo employerprofile.Empl
 	return &jobPostService{repo: repo, employerRepo: employerRepo}
 }
 
-func (s *jobPostService) CreateJobPost(req *CreateJobPostRequest, employerID, employerName, employerEmail string) (*JobPost, error) {
+func (s *jobPostService) CreateJobPost(ctx context.Context, req *CreateJobPostRequest, employerID, employerName, employerEmail string) (*JobPost, error) {
 	// Validate required fields
 	if req.Title == "" {
 		return nil, errors.New("title is required")
@@ -144,7 +145,7 @@ func (s *jobPostService) CreateJobPost(req *CreateJobPostRequest, employerID, em
 		ApplicationsCount:   0,
 	}
 
-	err := s.repo.Create(job)
+	err := s.repo.Create(ctx, job)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +153,7 @@ func (s *jobPostService) CreateJobPost(req *CreateJobPostRequest, employerID, em
 	return job, nil
 }
 
-func (s *jobPostService) CreateJobPostWithStatus(req *CreateJobPostRequest, employerID, employerName, employerEmail, status string) (*JobPost, error) {
+func (s *jobPostService) CreateJobPostWithStatus(ctx context.Context, req *CreateJobPostRequest, employerID, employerName, employerEmail, status string) (*JobPost, error) {
 	// Validate required fields
 	if req.Title == "" {
 		return nil, errors.New("title is required")
@@ -243,7 +244,7 @@ func (s *jobPostService) CreateJobPostWithStatus(req *CreateJobPostRequest, empl
 		ApplicationsCount:   0,
 	}
 
-	err := s.repo.Create(job)
+	err := s.repo.Create(ctx, job)
 	if err != nil {
 		return nil, err
 	}
@@ -251,9 +252,9 @@ func (s *jobPostService) CreateJobPostWithStatus(req *CreateJobPostRequest, empl
 	return job, nil
 }
 
-func (s *jobPostService) UpdateJobPost(id string, req *UpdateJobPostRequest) (*JobPost, error) {
+func (s *jobPostService) UpdateJobPost(ctx context.Context, id string, req *UpdateJobPostRequest) (*JobPost, error) {
 	// Get existing job
-	existingJob, err := s.repo.GetByID(id)
+	existingJob, err := s.repo.GetByID(ctx, id, &JobPost{})
 	if err != nil {
 		return nil, err
 	}
@@ -326,7 +327,7 @@ func (s *jobPostService) UpdateJobPost(id string, req *UpdateJobPostRequest) (*J
 		existingJob.IsRemote = *req.IsRemote
 	}
 
-	err = s.repo.Update(existingJob)
+	err = s.repo.Update(ctx, existingJob)
 	if err != nil {
 		return nil, err
 	}
@@ -334,12 +335,12 @@ func (s *jobPostService) UpdateJobPost(id string, req *UpdateJobPostRequest) (*J
 	return existingJob, nil
 }
 
-func (s *jobPostService) Delete(id string) error {
-	return s.repo.Delete(id)
+func (s *jobPostService) Delete(ctx context.Context, id string) error {
+	return s.repo.Delete(ctx, id, &JobPost{})
 }
 
-func (s *jobPostService) GetByID(id string) (*JobPost, error) {
-	job, err := s.repo.GetByID(id)
+func (s *jobPostService) GetByID(ctx context.Context, id string) (*JobPost, error) {
+	job, err := s.repo.GetByID(ctx, id, &JobPost{})
 	if err != nil {
 		return nil, err
 	}
@@ -937,7 +938,7 @@ func (s *jobPostService) GetDraftsByEmployer(employerID string) ([]JobPost, erro
 
 func (s *jobPostService) PublishDraft(jobID string) (*JobPost, error) {
 	// Get the draft first
-	draft, err := s.repo.GetByID(jobID)
+	draft, err := s.repo.GetByID(context.Background(), jobID, &JobPost{})
 	if err != nil {
 		return nil, err
 	}
@@ -982,5 +983,5 @@ func (s *jobPostService) PublishDraft(jobID string) (*JobPost, error) {
 	}
 
 	// Return the updated job
-	return s.repo.GetByID(jobID)
+	return s.repo.GetByID(context.Background(), jobID, &JobPost{})
 }

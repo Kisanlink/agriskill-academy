@@ -2,12 +2,15 @@
 
 package studentprofile
 
-import "asa/internal/middleware"
+import (
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"context"
+)
 
 type StudentProfileService interface {
-	GetProfile(userID string) (*StudentProfile, error)
-	UpdateProfile(profile *StudentProfile) error
-	CreateProfile(profile *StudentProfile) error
+	GetProfile(ctx context.Context, userID string) (*StudentProfile, error)
+	UpdateProfile(ctx context.Context, profile *StudentProfile) error
+	CreateProfile(ctx context.Context, profile *StudentProfile) error
 	AddCertificate(cert *Certificate) error
 	DeleteCertificate(certID string, userID string) error
 }
@@ -20,7 +23,7 @@ func NewStudentProfileService(repo StudentProfileRepository) StudentProfileServi
 	return &studentProfileService{repo}
 }
 
-func (s *studentProfileService) GetProfile(userID string) (*StudentProfile, error) {
+func (s *studentProfileService) GetProfile(ctx context.Context, userID string) (*StudentProfile, error) {
 	middleware.DebugLog("🔍 DEBUG: Service.GetProfile called for userID: %s\n", userID)
 	profile, err := s.repo.GetByUserID(userID)
 	if err != nil {
@@ -31,9 +34,9 @@ func (s *studentProfileService) GetProfile(userID string) (*StudentProfile, erro
 	return profile, err
 }
 
-func (s *studentProfileService) UpdateProfile(profile *StudentProfile) error {
+func (s *studentProfileService) UpdateProfile(ctx context.Context, profile *StudentProfile) error {
 	middleware.DebugLog("🔍 DEBUG: Service.UpdateProfile called - ID: %s, Name: %s\n", profile.ID, profile.Name)
-	err := s.repo.Update(profile)
+	err := s.repo.Update(ctx, profile)
 	if err != nil {
 		middleware.DebugLog("❌ DEBUG: Service.UpdateProfile error: %v\n", err)
 		return err
@@ -42,9 +45,9 @@ func (s *studentProfileService) UpdateProfile(profile *StudentProfile) error {
 	return nil
 }
 
-func (s *studentProfileService) CreateProfile(profile *StudentProfile) error {
+func (s *studentProfileService) CreateProfile(ctx context.Context, profile *StudentProfile) error {
 	middleware.DebugLog("🔍 DEBUG: Service.CreateProfile called - UserID: %s, Name: %s\n", profile.UserID, profile.Name)
-	err := s.repo.Create(profile)
+	err := s.repo.Create(ctx, profile)
 	if err != nil {
 		middleware.DebugLog("❌ DEBUG: Service.CreateProfile error: %v\n", err)
 		return err

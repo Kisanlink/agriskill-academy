@@ -95,6 +95,42 @@ func (h *AdminHandler) GetApplicationAnalytics(c *gin.Context) {
 	})
 }
 
+// @Summary Create Admin User
+// @Description Create a new admin user (admin-only endpoint)
+// @Tags Admin Management
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param request body CreateAdminRequest true "Admin creation data"
+// @Success 201 {object} CreateAdminResponse "Admin created successfully"
+// @Failure 400 {object} CreateAdminResponse "Invalid request data"
+// @Failure 401 {object} CreateAdminResponse "Unauthorized"
+// @Failure 403 {object} CreateAdminResponse "Forbidden - Admin access required"
+// @Failure 500 {object} CreateAdminResponse "Internal server error"
+// @Router /api/admin/create-admin [post]
+// POST /admin/create-admin
+func (h *AdminHandler) CreateAdmin(c *gin.Context) {
+	var req CreateAdminRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, CreateAdminResponse{
+			Success: false,
+			Message: "Invalid request data: " + err.Error(),
+		})
+		return
+	}
+
+	response, err := h.service.CreateAdmin(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, CreateAdminResponse{
+			Success: false,
+			Message: "Failed to create admin: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusCreated, response)
+}
+
 // @Summary Get Dashboard Analytics
 // @Description Get comprehensive dashboard analytics for admin
 // @Tags Admin Analytics

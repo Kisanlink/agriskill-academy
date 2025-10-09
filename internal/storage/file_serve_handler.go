@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"asa/internal/middleware"
-	db "asa/pkg/db"
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	db "github.com/Kisanlink/agriskill-academy/pkg/db"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -25,8 +25,8 @@ func NewFileServeHandler(s3 *db.S3Manager, database *gorm.DB) *FileServeHandler 
 
 // StudentProfile represents the student profile model for database lookup
 type StudentProfile struct {
-	ID              string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID          string `gorm:"type:uuid;not null" json:"user_id"`
+	ID              string `gorm:"primaryKey;type:varchar(255);default:gen_random_uuid()" json:"id"`
+	UserID          string `gorm:"type:varchar(255);not null" json:"user_id"`
 	ProfilePhotoKey string `json:"profile_photo_key,omitempty"`
 	ResumeKey       string `json:"resume_key,omitempty"`
 }
@@ -37,7 +37,7 @@ func (StudentProfile) TableName() string {
 
 // Application represents the application model for database lookup
 type Application struct {
-	ID        string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	ID        string `gorm:"primaryKey;type:varchar(255);default:gen_random_uuid()" json:"id"`
 	ResumeKey string `json:"resume_key,omitempty"`
 }
 
@@ -47,7 +47,7 @@ func (Application) TableName() string {
 
 // Certificate represents the certificate model for database lookup
 type Certificate struct {
-	ID      string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	ID      string `gorm:"primaryKey;type:varchar(255);default:gen_random_uuid()" json:"id"`
 	FileKey string `json:"file_key,omitempty"`
 }
 
@@ -57,8 +57,8 @@ func (Certificate) TableName() string {
 
 // EmployerProfile represents the employer profile model for database lookup
 type EmployerProfile struct {
-	ID      string `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
-	UserID  string `gorm:"type:uuid;not null" json:"user_id"`
+	ID      string `gorm:"primaryKey;type:varchar(255);default:gen_random_uuid()" json:"id"`
+	UserID  string `gorm:"type:varchar(255);not null" json:"user_id"`
 	LogoKey string `json:"logo_key,omitempty"`
 }
 

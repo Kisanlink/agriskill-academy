@@ -1,13 +1,18 @@
 package employerapplication
 
 import (
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"time"
+
+	"github.com/Kisanlink/kisanlink-db/pkg/base"
+	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"
+	"gorm.io/gorm"
 )
 
 type JobApplicationWithApplicant struct {
-	ApplicationID     string    `json:"application_id" gorm:"column:application_id;type:uuid"`
-	JobID             string    `json:"job_id" gorm:"column:job_id;type:uuid"`
-	StudentID         string    `json:"student_id" gorm:"column:student_id;type:uuid"`
+	ApplicationID     string    `json:"application_id" gorm:"column:application_id;type:varchar(255)"`
+	JobID             string    `json:"job_id" gorm:"column:job_id;type:varchar(255)"`
+	StudentID         string    `json:"student_id" gorm:"column:student_id;type:varchar(255)"`
 	AppliedAt         time.Time `json:"applied_at" gorm:"column:applied_at"`
 	ApplicationStatus string    `json:"status" gorm:"column:application_status"`
 	CoverLetter       string    `json:"cover_letter" gorm:"column:cover_letter"`
@@ -91,11 +96,46 @@ type ApplicantProfile struct {
 }
 
 type Message struct {
-	ID            string     `gorm:"primaryKey;type:uuid;default:gen_random_uuid()" json:"id"`
+	base.BaseModel
 	ApplicationID string     `json:"application_id"`
-	SenderID      string     `gorm:"type:uuid;column:sender_id" json:"sender_id"`
+	SenderID      string     `gorm:"type:varchar(255);column:sender_id" json:"sender_id"`
 	Message       string     `json:"message" gorm:"column:message"`
 	SentAt        *time.Time `json:"sent_at" gorm:"column:sent_at;autoCreateTime"`
+}
+
+// TableName specifies the database table name for Message
+func (Message) TableName() string {
+	return "messages"
+}
+
+// NewMessage creates a new Message with proper initialization
+func NewMessage() *Message {
+	return &Message{
+		BaseModel: *base.NewBaseModel("MESS", hash.Medium),
+	}
+}
+
+func InitializeCounterFromDatabase(db *gorm.DB) {
+	var messageIDs []string
+	if err := db.Model(&Message{}).Pluck("id", &messageIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("MESS", messageIDs, hash.Medium)
+		middleware.DebugLog("Initialized MESS counter with %d existing IDs", len(messageIDs))
+	}
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (m *Message) BeforeCreateGORM(tx *gorm.DB) error {
+	return m.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (m *Message) BeforeUpdateGORM(tx *gorm.DB) error {
+	return m.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (m *Message) BeforeDeleteGORM(tx *gorm.DB) error {
+	return m.BeforeDelete()
 }
 
 type MessageWithSender struct {

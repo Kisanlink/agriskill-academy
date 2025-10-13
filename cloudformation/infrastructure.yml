@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'Production ASA AgriJobs Backend Infrastructure - ECS Fargate, RDS PostgreSQL, ElastiCache Redis, S3'
+Description: Production ASA AgriJobs Backend Infrastructure - ECS Fargate, RDS
+  PostgreSQL, ElastiCache Redis, S3
 
 Parameters:
   EnvironmentName:
@@ -68,7 +69,8 @@ Parameters:
 
   ContainerImage:
     Type: String
-    Description: ECR Docker image URI (e.g., 123456789.dkr.ecr.us-east-1.amazonaws.com/agrijobs:latest)
+    Description: ECR Docker image URI (e.g.,
+      123456789.dkr.ecr.us-east-1.amazonaws.com/agrijobs:latest)
 
   JWTSecret:
     Type: String
@@ -84,12 +86,23 @@ Parameters:
   ContainerCpu:
     Type: Number
     Default: 512
-    AllowedValues: [256, 512, 1024, 2048, 4096]
+    AllowedValues:
+      - 256
+      - 512
+      - 1024
+      - 2048
+      - 4096
 
   ContainerMemory:
     Type: Number
     Default: 1024
-    AllowedValues: [512, 1024, 2048, 4096, 8192, 16384]
+    AllowedValues:
+      - 512
+      - 1024
+      - 2048
+      - 4096
+      - 8192
+      - 16384
 
   AdminEmail:
     Type: String
@@ -97,7 +110,9 @@ Parameters:
     Description: Admin email for notifications
 
 Conditions:
-  IsProduction: !Equals [!Ref EnvironmentName, production]
+  IsProduction: !Equals
+    - !Ref EnvironmentName
+    - production
 
 Resources:
   # ===========================================
@@ -132,7 +147,9 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
       CidrBlock: !Ref PublicSubnet1CIDR
       MapPublicIpOnLaunch: true
       Tags:
@@ -143,7 +160,9 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
       CidrBlock: !Ref PublicSubnet2CIDR
       MapPublicIpOnLaunch: true
       Tags:
@@ -154,7 +173,9 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [0, !GetAZs '']
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
       CidrBlock: !Ref PrivateSubnet1CIDR
       Tags:
         - Key: Name
@@ -164,7 +185,9 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [1, !GetAZs '']
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
       CidrBlock: !Ref PrivateSubnet2CIDR
       Tags:
         - Key: Name
@@ -349,7 +372,7 @@ Resources:
       DBInstanceIdentifier: !Sub ${EnvironmentName}-agrijobs-db
       DBName: !Ref DBName
       Engine: postgres
-      EngineVersion: '16.1'
+      EngineVersion: '17.4'
       DBInstanceClass: !Ref DBInstanceClass
       AllocatedStorage: 20
       MaxAllocatedStorage: 100
@@ -360,14 +383,23 @@ Resources:
       VPCSecurityGroups:
         - !Ref RDSSecurityGroup
       DBSubnetGroupName: !Ref DBSubnetGroup
-      BackupRetentionPeriod: !If [IsProduction, 7, 3]
-      PreferredBackupWindow: '03:00-04:00'
-      PreferredMaintenanceWindow: 'sun:04:00-sun:05:00'
-      MultiAZ: !If [IsProduction, true, false]
+      BackupRetentionPeriod: !If
+        - IsProduction
+        - 7
+        - 3
+      PreferredBackupWindow: 03:00-04:00
+      PreferredMaintenanceWindow: sun:04:00-sun:05:00
+      MultiAZ: !If
+        - IsProduction
+        - true
+        - false
       PubliclyAccessible: false
       EnableCloudwatchLogsExports:
         - postgresql
-      DeletionProtection: !If [IsProduction, true, false]
+      DeletionProtection: !If
+        - IsProduction
+        - true
+        - false
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-agrijobs-db
@@ -391,17 +423,29 @@ Resources:
       Engine: redis
       EngineVersion: '7.1'
       CacheNodeType: !Ref RedisNodeType
-      NumCacheClusters: !If [IsProduction, 2, 1]
-      AutomaticFailoverEnabled: !If [IsProduction, true, false]
-      MultiAZEnabled: !If [IsProduction, true, false]
+      NumCacheClusters: !If
+        - IsProduction
+        - 2
+        - 1
+      AutomaticFailoverEnabled: !If
+        - IsProduction
+        - true
+        - false
+      MultiAZEnabled: !If
+        - IsProduction
+        - true
+        - false
       CacheSubnetGroupName: !Ref RedisSubnetGroup
       SecurityGroupIds:
         - !Ref RedisSecurityGroup
       AtRestEncryptionEnabled: true
       TransitEncryptionEnabled: false
-      SnapshotRetentionLimit: !If [IsProduction, 5, 1]
-      SnapshotWindow: '03:00-05:00'
-      PreferredMaintenanceWindow: 'sun:05:00-sun:07:00'
+      SnapshotRetentionLimit: !If
+        - IsProduction
+        - 5
+        - 1
+      SnapshotWindow: 03:00-05:00
+      PreferredMaintenanceWindow: sun:05:00-sun:07:00
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName}-agrijobs-redis
@@ -431,9 +475,16 @@ Resources:
         RestrictPublicBuckets: true
       CorsConfiguration:
         CorsRules:
-          - AllowedHeaders: ['*']
-            AllowedMethods: [GET, PUT, POST, DELETE, HEAD]
-            AllowedOrigins: ['*']
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+              - PUT
+              - POST
+              - DELETE
+              - HEAD
+            AllowedOrigins:
+              - '*'
             MaxAge: 3600
       Tags:
         - Key: Name
@@ -583,7 +634,10 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub /ecs/${EnvironmentName}-agrijobs
-      RetentionInDays: !If [IsProduction, 14, 7]
+      RetentionInDays: !If
+        - IsProduction
+        - 14
+        - 7
 
   ECSTaskDefinition:
     Type: AWS::ECS::TaskDefinition
@@ -628,6 +682,8 @@ Resources:
               Value: !Ref S3Bucket
             - Name: REDIS_ADDR
               Value: !Sub ${RedisCluster.PrimaryEndPoint.Address}:6379
+            - Name: REDIS_PORT
+              Value: '6379'
             - Name: REDIS_DB
               Value: '0'
             - Name: LOG_LEVEL
@@ -715,7 +771,7 @@ Resources:
       TargetTrackingScalingPolicyConfiguration:
         PredefinedMetricSpecification:
           PredefinedMetricType: ECSServiceAverageCPUUtilization
-        TargetValue: 70.0
+        TargetValue: 70
         ScaleInCooldown: 300
         ScaleOutCooldown: 60
 
@@ -728,7 +784,7 @@ Resources:
       TargetTrackingScalingPolicyConfiguration:
         PredefinedMetricSpecification:
           PredefinedMetricType: ECSServiceAverageMemoryUtilization
-        TargetValue: 80.0
+        TargetValue: 80
         ScaleInCooldown: 300
         ScaleOutCooldown: 60
 

@@ -134,13 +134,22 @@ func main() {
 		logger.Fatal("ASA_BASE_URL environment variable is required")
 	}
 
-	if s3Bucket != "" && s3AccessKeyID != "" && s3SecretAccessKey != "" {
-		// Use S3 storage
-		log.Printf("Using S3 storage with bucket: %s", s3Bucket)
+	// Only S3 bucket is required. Credentials are optional:
+	// - If provided (MinIO/local): uses explicit credentials
+	// - If empty (AWS ECS): AWS SDK automatically uses IAM Task Role
+	if s3Bucket != "" {
 		s3Region := cfg.AWSRegion
 		if s3Region == "" {
 			logger.Fatal("AWS_REGION environment variable is required")
 		}
+
+		// Log storage configuration
+		if s3AccessKeyID != "" && s3SecretAccessKey != "" {
+			log.Printf("Using S3 storage with explicit credentials (MinIO/local): bucket=%s", s3Bucket)
+		} else {
+			log.Printf("Using S3 storage with IAM role (AWS ECS): bucket=%s", s3Bucket)
+		}
+
 		s3Endpoint := cfg.AWSS3Endpoint
 		s3ForcePathStyle := cfg.AWSS3ForcePathStyle
 		s3DisableSSL := cfg.AWSS3DisableSSL
@@ -151,8 +160,8 @@ func main() {
 			S3Endpoint:        s3Endpoint,
 			S3ForcePathStyle:  s3ForcePathStyle,
 			S3DisableSSL:      s3DisableSSL,
-			S3AccessKeyID:     s3AccessKeyID,
-			S3SecretAccessKey: s3SecretAccessKey,
+			S3AccessKeyID:     s3AccessKeyID,     // Optional: empty for IAM role
+			S3SecretAccessKey: s3SecretAccessKey, // Optional: empty for IAM role
 			LogLevel:          "info",
 		}
 		s3Logger := zap.NewNop()
@@ -162,7 +171,7 @@ func main() {
 		}
 		storageService = storage.NewS3StorageService(s3Manager, s3Bucket, baseURL)
 	} else {
-		log.Fatalf("AWS S3 configuration is required. Please set AWS_S3_BUCKET, AWS_ACCESS_KEY_ID, and AWS_SECRET_ACCESS_KEY environment variables.")
+		log.Fatalf("AWS S3 configuration is required. Please set AWS_S3_BUCKET and AWS_REGION environment variables.")
 	}
 
 	// Create Gin router with production middleware

@@ -69,11 +69,16 @@ func (s *S3Manager) Connect(ctx context.Context) error {
 	// Create AWS session
 	awsConfig := &aws.Config{
 		Region: aws.String(s.config.S3Region),
-		Credentials: credentials.NewStaticCredentials(
+	}
+
+	// Only set static credentials if both access key and secret are provided
+	// Otherwise, the SDK will use the default credential chain (IAM role, environment vars, etc.)
+	if s.config.S3AccessKeyID != "" && s.config.S3SecretAccessKey != "" {
+		awsConfig.Credentials = credentials.NewStaticCredentials(
 			s.config.S3AccessKeyID,
 			s.config.S3SecretAccessKey,
 			"",
-		),
+		)
 	}
 
 	// Configure endpoint for MinIO or custom S3-compatible service

@@ -109,10 +109,29 @@ Parameters:
     Default: admin@agrijobs.com
     Description: Admin email for notifications
 
+  # ===========================================
+  # AWS S3 Access Key Parameters (optional)
+  # If provided, these will be injected into the task as env secrets.
+  # If omitted, the application should use the IAM Task Role.
+  # ===========================================
+  AwsAccessKeyId:
+    Type: String
+    NoEcho: true
+    Description: Optional AWS Access Key ID for S3 (prefer IAM Task Role)
+    Default: ""
+  AwsSecretAccessKey:
+    Type: String
+    NoEcho: true
+    Description: Optional AWS Secret Access Key for S3 (prefer IAM Task Role)
+    Default: ""
+
 Conditions:
   IsProduction: !Equals
     - !Ref EnvironmentName
     - production
+
+  HasS3AccessKeyId: !Not [ !Equals [ !Ref AwsAccessKeyId, "" ] ]
+  HasS3SecretAccessKey: !Not [ !Equals [ !Ref AwsSecretAccessKey, "" ] ]
 
 Resources:
   # ===========================================
@@ -680,6 +699,14 @@ Resources:
               Value: !Ref AWS::Region
             - Name: AWS_S3_BUCKET
               Value: !Ref S3Bucket
+            # Optional S3 configuration for S3-compatible services
+            # Uncomment or pass as parameters if needed
+            # - Name: AWS_S3_ENDPOINT
+            #   Value: https://s3.amazonaws.com
+            # - Name: AWS_S3_FORCE_PATH_STYLE
+            #   Value: 'false'
+            # - Name: AWS_S3_DISABLE_SSL
+            #   Value: 'false'
             - Name: REDIS_ADDR
               Value: !Sub ${RedisCluster.PrimaryEndPoint.Address}:6379
             - Name: REDIS_PORT
@@ -693,7 +720,7 @@ Resources:
             - Name: ENABLE_CORS
               Value: 'true'
             - Name: ASA_RUN_SEED
-              Value: 'false'
+              Value: 'true'
             - Name: APP_ENV
               Value: !Ref EnvironmentName
           Secrets:
@@ -701,6 +728,17 @@ Resources:
               ValueFrom: !Ref DBPasswordSecret
             - Name: JWT_SECRET
               ValueFrom: !Ref JWTSecretParameter
+            # Conditionally include AWS credentials if provided
+            - "Fn::If":
+                - HasS3AccessKeyId
+                - Name: AWS_ACCESS_KEY_ID
+                  ValueFrom: !Ref S3AccessKeyIdSecret
+                - Ref: AWS::NoValue
+            - "Fn::If":
+                - HasS3SecretAccessKey
+                - Name: AWS_SECRET_ACCESS_KEY
+                  ValueFrom: !Ref S3SecretAccessKeySecret
+                - Ref: AWS::NoValue
           LogConfiguration:
             LogDriver: awslogs
             Options:
@@ -804,6 +842,23 @@ Resources:
       Name: !Sub ${EnvironmentName}/agrijobs/jwt-secret
       Description: JWT Secret Key
       SecretString: !Ref JWTSecret
+
+  # S3 access key secrets (created only if parameters are provided)
+  S3AccessKeyIdSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: HasS3AccessKeyId
+    Properties:
+      Name: !Sub ${EnvironmentName}/agrijobs/aws-access-key-id
+      Description: AWS Access Key ID for S3 (optional)
+      SecretString: !Ref AwsAccessKeyId
+
+  S3SecretAccessKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: HasS3SecretAccessKey
+    Properties:
+      Name: !Sub ${EnvironmentName}/agrijobs/aws-secret-access-key
+      Description: AWS Secret Access Key for S3 (optional)
+      SecretString: !Ref AwsSecretAccessKey
 
   # ===========================================
   # CloudWatch Alarms

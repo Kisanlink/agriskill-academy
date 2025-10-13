@@ -104,10 +104,30 @@ Parameters:
       - 8192
       - 16384
 
-  AdminEmail:
+  # ===========================================
+  # Admin Account Seeding Parameters
+  # These credentials are used to create the initial admin account
+  # ===========================================
+  DefaultAdminEmail:
     Type: String
-    Default: admin@agrijobs.com
-    Description: Admin email for notifications
+    Default: info@agriskillacademy.com
+    Description: Email for default admin account (used during seeding)
+
+  DefaultAdminPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: Password for default admin account (CHANGE AFTER FIRST LOGIN)
+
+  DefaultAdminName:
+    Type: String
+    Default: System Administrator
+    Description: Full name for default admin account
+
+  DefaultAdminUsername:
+    Type: String
+    Default: admin
+    Description: Username for default admin account
 
   # ===========================================
   # AWS S3 Access Key Parameters (optional)
@@ -720,7 +740,13 @@ Resources:
             - Name: ENABLE_CORS
               Value: 'true'
             - Name: ASA_RUN_SEED
-              Value: 'true'
+              Value: 'true'  # Enabled - auto-creates admin from parameters
+            - Name: DEFAULT_ADMIN_EMAIL
+              Value: !Ref DefaultAdminEmail
+            - Name: DEFAULT_ADMIN_NAME
+              Value: !Ref DefaultAdminName
+            - Name: DEFAULT_ADMIN_USERNAME
+              Value: !Ref DefaultAdminUsername
             - Name: APP_ENV
               Value: !Ref EnvironmentName
           Secrets:
@@ -728,6 +754,8 @@ Resources:
               ValueFrom: !Ref DBPasswordSecret
             - Name: JWT_SECRET
               ValueFrom: !Ref JWTSecretParameter
+            - Name: DEFAULT_ADMIN_PASSWORD
+              ValueFrom: !Ref AdminPasswordSecret
             # Conditionally include AWS credentials if provided
             - "Fn::If":
                 - HasS3AccessKeyId
@@ -842,6 +870,13 @@ Resources:
       Name: !Sub ${EnvironmentName}/agrijobs/jwt-secret
       Description: JWT Secret Key
       SecretString: !Ref JWTSecret
+
+  AdminPasswordSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${EnvironmentName}/agrijobs/admin-password
+      Description: Default Admin Password (for seeding)
+      SecretString: !Ref DefaultAdminPassword
 
   # S3 access key secrets (created only if parameters are provided)
   S3AccessKeyIdSecret:

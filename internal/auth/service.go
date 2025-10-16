@@ -5,6 +5,10 @@ import (
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"github.com/Kisanlink/agriskill-academy/internal/studentprofile"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -39,10 +43,29 @@ func VerifyPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
+// generateSecureToken generates a cryptographically secure random token
+// Used for email verification and password reset tokens
+func generateSecureToken() (string, error) {
+	b := make([]byte, 32) // 32 bytes = 256 bits of entropy
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate secure token: %w", err)
+	}
+	// Use URL-safe base64 encoding (no padding) for clean URLs
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// hashToken hashes a token using SHA-256
+// Tokens are hashed before storing in database to prevent token theft from DB dumps
+func hashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
+}
+
 type AuthService interface {
 	Login(username, password string) (*User, string, error)
 	Signup(req *SignupRequest) (*User, string, error)
 	VerifyToken(tokenStr string) (bool, error)
+	VerifyEmail(token string) error
 	SendResetLink(email string) error
 	ResetPassword(token, newPassword string) error
 	UpdateProfile(userID string, req *UpdateProfileRequest) (*User, error)
@@ -53,17 +76,25 @@ type AuthService interface {
 	ListAllUsers() ([]User, error)
 }
 
+// FirebaseEmailService interface for sending emails (to allow mocking)
+type FirebaseEmailService interface {
+	SendVerificationEmail(ctx context.Context, email, token string) error
+	SendPasswordResetEmail(ctx context.Context, email, token string) error
+}
+
 type authService struct {
 	repo               UserRepository
 	employerRepo       employerprofile.EmployerProfileRepository
 	studentProfileRepo studentprofile.StudentProfileRepository
+	firebaseEmail      FirebaseEmailService // Optional: for sending verification/reset emails
 }
 
-func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository) AuthService {
+func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository, firebaseEmail FirebaseEmailService) AuthService {
 	return &authService{
 		repo:               repo,
 		employerRepo:       employerRepo,
 		studentProfileRepo: studentProfileRepo,
+		firebaseEmail:      firebaseEmail,
 	}
 }
 
@@ -194,13 +225,22 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 	}
 	middleware.DebugLog("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
 
+	// Generate verification token for email verification
+	verificationToken, err := generateSecureToken()
+	if err != nil {
+		middleware.DebugLog("❌ Failed to generate verification token: %v\n", err)
+		return nil, "", fmt.Errorf("failed to generate verification token: %w", err)
+	}
+
 	user := NewUser()
 	user.Name = req.Name
 	user.Username = req.Username
 	user.Email = req.Email
-	user.Password = hashedPassword     // Store hashed password locally
-	user.Role = req.Role               // Store role locally
-	user.PhoneNumber = req.PhoneNumber // Store phone number
+	user.Password = hashedPassword             // Store hashed password locally
+	user.Role = req.Role                       // Store role locally
+	user.PhoneNumber = req.PhoneNumber         // Store phone number
+	user.EmailVerified = false                 // Email not verified yet
+	user.VerificationToken = hashToken(verificationToken) // Store hashed token
 	err = s.repo.Create(context.Background(), user)
 	if err != nil {
 		middleware.DebugLog("❌ Failed to create user in DB: %v\n", err)
@@ -305,24 +345,143 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		middleware.DebugLog("⚠️ Unknown role: %s, no profile created\n", req.Role)
 	}
 
+	// Send verification email via Firebase (if configured)
+	if s.firebaseEmail != nil {
+		middleware.DebugLog("📧 Sending verification email to: %s\n", user.Email)
+		if err := s.firebaseEmail.SendVerificationEmail(context.Background(), user.Email, verificationToken); err != nil {
+			middleware.DebugLog("⚠️ Failed to send verification email: %v\n", err)
+			// Don't fail signup if email sending fails - user can request resend later
+		} else {
+			middleware.DebugLog("✅ Verification email sent successfully\n")
+		}
+	} else {
+		middleware.DebugLog("⚠️ Firebase email service not configured, skipping verification email\n")
+	}
+
 	return user, token, nil
 }
 
-// Send password reset link (mock)
-func (s *authService) SendResetLink(email string) error {
-	// In production: send real email with reset link/token
-	user, err := s.repo.FindByEmail(email)
+// VerifyEmail verifies a user's email using the token sent via email
+func (s *authService) VerifyEmail(token string) error {
+	middleware.DebugLog("🔍 Verifying email with token\n")
+
+	// Hash the token to find in database
+	hashedToken := hashToken(token)
+
+	// Find user by verification token
+	user, err := s.repo.FindByVerificationToken(hashedToken)
 	if err != nil {
-		return errors.New("email not found")
+		middleware.DebugLog("❌ Invalid verification token\n")
+		return errors.New("invalid or expired verification token")
 	}
-	middleware.DebugLog("Password reset requested for %s (user id: %s)\n", user.Email, user.ID)
+
+	// Check if already verified
+	if user.EmailVerified {
+		middleware.DebugLog("⚠️ Email already verified for user: %s\n", user.Email)
+		return errors.New("email already verified")
+	}
+
+	// Update user
+	now := time.Now()
+	user.EmailVerified = true
+	user.EmailVerifiedAt = &now
+	user.VerificationToken = "" // Clear token
+
+	if err := s.repo.Update(context.Background(), user); err != nil {
+		middleware.DebugLog("❌ Failed to update user verification status: %v\n", err)
+		return fmt.Errorf("failed to update verification status: %w", err)
+	}
+
+	middleware.DebugLog("✅ Email verified successfully for user: %s\n", user.Email)
 	return nil
 }
 
-// Reset password using token (mock logic)
+// SendResetLink sends a password reset email with a secure token
+func (s *authService) SendResetLink(email string) error {
+	middleware.DebugLog("🔍 SendResetLink called for email: %s\n", email)
+
+	// 1. Check if user exists in LOCAL DB
+	user, err := s.repo.FindByEmail(email)
+	if err != nil {
+		// Don't reveal if email exists or not (security best practice)
+		// Always return success to prevent email enumeration attacks
+		middleware.DebugLog("⚠️ Email not found, but returning success to prevent enumeration\n")
+		return nil
+	}
+
+	// 2. Generate secure reset token
+	resetToken, err := generateSecureToken()
+	if err != nil {
+		middleware.DebugLog("❌ Failed to generate reset token: %v\n", err)
+		return fmt.Errorf("failed to generate reset token: %w", err)
+	}
+
+	// 3. Store hashed token in LOCAL DB with expiry (1 hour)
+	expiry := time.Now().Add(1 * time.Hour)
+	user.PasswordResetToken = hashToken(resetToken)
+	user.ResetTokenExpiry = &expiry
+
+	if err := s.repo.Update(context.Background(), user); err != nil {
+		middleware.DebugLog("❌ Failed to save reset token: %v\n", err)
+		return fmt.Errorf("failed to save reset token: %w", err)
+	}
+
+	middleware.DebugLog("✅ Reset token generated and saved for user: %s\n", user.Email)
+
+	// 4. Send reset email via Firebase (if configured)
+	if s.firebaseEmail != nil {
+		middleware.DebugLog("📧 Sending password reset email to: %s\n", user.Email)
+		if err := s.firebaseEmail.SendPasswordResetEmail(context.Background(), user.Email, resetToken); err != nil {
+			middleware.DebugLog("❌ Failed to send reset email: %v\n", err)
+			return errors.New("failed to send reset email")
+		}
+		middleware.DebugLog("✅ Password reset email sent successfully\n")
+	} else {
+		middleware.DebugLog("⚠️ Firebase email service not configured\n")
+		return errors.New("email service not configured")
+	}
+
+	return nil
+}
+
+// ResetPassword resets a user's password using a valid reset token
 func (s *authService) ResetPassword(token, newPassword string) error {
-	// Password reset is now handled locally
-	// This method is kept for backward compatibility but doesn't modify local DB
+	middleware.DebugLog("🔍 ResetPassword called\n")
+
+	// 1. Hash token to find in database
+	hashedToken := hashToken(token)
+
+	// 2. Find user by reset token
+	user, err := s.repo.FindByPasswordResetToken(hashedToken)
+	if err != nil {
+		middleware.DebugLog("❌ Invalid reset token\n")
+		return errors.New("invalid or expired reset token")
+	}
+
+	// 3. Check token expiry
+	if user.ResetTokenExpiry == nil || time.Now().After(*user.ResetTokenExpiry) {
+		middleware.DebugLog("❌ Reset token has expired\n")
+		return errors.New("reset token has expired")
+	}
+
+	// 4. Hash new password for LOCAL storage
+	hashedPassword, err := HashPassword(newPassword)
+	if err != nil {
+		middleware.DebugLog("❌ Failed to hash new password: %v\n", err)
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// 5. Update password in LOCAL DB
+	user.Password = hashedPassword
+	user.PasswordResetToken = "" // Clear token
+	user.ResetTokenExpiry = nil   // Clear expiry
+
+	if err := s.repo.Update(context.Background(), user); err != nil {
+		middleware.DebugLog("❌ Failed to update password: %v\n", err)
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	middleware.DebugLog("✅ Password reset successfully for user: %s\n", user.Email)
 	return nil
 }
 

@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"time"
+
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
@@ -20,6 +22,15 @@ type User struct {
 	AvatarName  string `json:"avatar_name,omitempty"`
 	AvatarType  string `json:"avatar_type,omitempty"`
 	AvatarSize  int64  `json:"avatar_size,omitempty"`
+
+	// Email verification fields
+	EmailVerified     bool       `json:"email_verified" gorm:"default:false"`
+	EmailVerifiedAt   *time.Time `json:"email_verified_at,omitempty"`
+	VerificationToken string     `json:"-" gorm:"index"` // Hidden from JSON, indexed for lookup
+
+	// Password reset fields
+	PasswordResetToken string     `json:"-" gorm:"index"` // Hidden from JSON, indexed for lookup
+	ResetTokenExpiry   *time.Time `json:"-"`              // Token expiration time
 }
 
 // TableName specifies the database table name for User

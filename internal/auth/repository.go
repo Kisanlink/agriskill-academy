@@ -13,6 +13,8 @@ type UserRepository interface {
 	base.Repository[*User]
 	FindByEmail(email string) (*User, error)
 	FindByUsername(username string) (*User, error)
+	FindByVerificationToken(token string) (*User, error)
+	FindByPasswordResetToken(token string) (*User, error)
 	CreateWithID(user *User, id string) error
 	ListAllUsers() ([]User, error)
 }
@@ -201,4 +203,38 @@ func (r *userRepository) ListAllUsers() ([]User, error) {
 		middleware.DebugLog("   User %d: ID=%s, Name=%s, Email=%s, Role=%s\n", i+1, user.ID, user.Name, user.Email, user.Role)
 	}
 	return users, nil
+}
+
+// FindByVerificationToken finds a user by their email verification token
+func (r *userRepository) FindByVerificationToken(token string) (*User, error) {
+	middleware.DebugLog("🔍 Repository.FindByVerificationToken called\n")
+	var user User
+	err := r.db.Where("verification_token = ? AND verification_token != ''", token).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		middleware.DebugLog("❌ Repository.FindByVerificationToken: User not found\n")
+		return nil, errors.New("user not found")
+	}
+	if err != nil {
+		middleware.DebugLog("❌ Repository.FindByVerificationToken error: %v\n", err)
+		return nil, err
+	}
+	middleware.DebugLog("✅ Repository.FindByVerificationToken: Found user - ID: %s, Email: %s\n", user.ID, user.Email)
+	return &user, nil
+}
+
+// FindByPasswordResetToken finds a user by their password reset token
+func (r *userRepository) FindByPasswordResetToken(token string) (*User, error) {
+	middleware.DebugLog("🔍 Repository.FindByPasswordResetToken called\n")
+	var user User
+	err := r.db.Where("password_reset_token = ? AND password_reset_token != ''", token).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		middleware.DebugLog("❌ Repository.FindByPasswordResetToken: User not found\n")
+		return nil, errors.New("user not found")
+	}
+	if err != nil {
+		middleware.DebugLog("❌ Repository.FindByPasswordResetToken error: %v\n", err)
+		return nil, err
+	}
+	middleware.DebugLog("✅ Repository.FindByPasswordResetToken: Found user - ID: %s, Email: %s\n", user.ID, user.Email)
+	return &user, nil
 }

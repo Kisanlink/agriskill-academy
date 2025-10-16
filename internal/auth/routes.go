@@ -10,6 +10,7 @@ func RegisterPublicRoutes(rg *gin.RouterGroup, handler *AuthHandler) {
 	{
 		auth.POST("/login", handler.Login)
 		auth.POST("/signup", handler.Signup)
+		auth.GET("/verify-email", handler.VerifyEmail)       // Email verification endpoint
 		auth.POST("/forgot-password", handler.ForgotPassword)
 		auth.POST("/reset-password", handler.ResetPassword)
 	}

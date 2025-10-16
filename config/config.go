@@ -35,11 +35,13 @@ type Config struct {
 	ServerPort string
 	GinMode    string
 
-	// Email configuration
-	MailFrom string
-	MailHost string
-	MailPort string
-	MailPass string
+	// SMTP Email configuration (for notifications: job alerts, updates, etc.)
+	// NOT used for authentication emails (Firebase handles those)
+	EmailNotificationEnabled bool
+	MailFrom                 string
+	MailHost                 string
+	MailPort                 int
+	MailPass                 string
 
 	// AWS S3 configuration
 	AWSRegion           string
@@ -83,6 +85,12 @@ type Config struct {
 
 	// Job queue configuration
 	JobMaxRetries int
+
+	// Firebase configuration (for email sending only)
+	FirebaseProjectID       string
+	FirebaseCredentialsPath string
+	FirebaseCredentialsJSON string
+	FrontendURL             string
 }
 
 func LoadEnv() {
@@ -176,6 +184,17 @@ func LoadConfig() *Config {
 	awsS3ForcePathStyle := os.Getenv("AWS_S3_FORCE_PATH_STYLE") == "true"
 	awsS3DisableSSL := os.Getenv("AWS_S3_DISABLE_SSL") == "true"
 	logDevelopment := os.Getenv("LOG_DEVELOPMENT") == "true"
+	emailNotificationEnabled := os.Getenv("EMAIL_NOTIFICATION") == "true"
+
+	// Parse SMTP port with default
+	mailPort := 587
+	if mailPortStr := os.Getenv("MAIL_PORT"); mailPortStr != "" {
+		if val, err := strconv.Atoi(mailPortStr); err == nil {
+			mailPort = val
+		} else {
+			log.Printf("Warning: Invalid MAIL_PORT value '%s', using default: 587", mailPortStr)
+		}
+	}
 
 	return &Config{
 		// Database configuration
@@ -194,10 +213,11 @@ func LoadConfig() *Config {
 		GinMode:    os.Getenv("GIN_MODE"),
 
 		// Email configuration
-		MailFrom: os.Getenv("MAIL_FROM"),
-		MailHost: os.Getenv("MAIL_HOST"),
-		MailPort: os.Getenv("MAIL_PORT"),
-		MailPass: os.Getenv("MAIL_PASS"),
+		EmailNotificationEnabled: emailNotificationEnabled,
+		MailFrom:                 os.Getenv("MAIL_FROM"),
+		MailHost:                 os.Getenv("MAIL_HOST"),
+		MailPort:                 mailPort,
+		MailPass:                 os.Getenv("MAIL_PASS"),
 
 		// AWS S3 configuration
 		AWSRegion:           os.Getenv("AWS_REGION"),
@@ -241,6 +261,12 @@ func LoadConfig() *Config {
 
 		// Job queue configuration
 		JobMaxRetries: GetDefaultMaxRetries(),
+
+		// Firebase configuration
+		FirebaseProjectID:       os.Getenv("FIREBASE_PROJECT_ID"),
+		FirebaseCredentialsPath: os.Getenv("FIREBASE_CREDENTIALS_PATH"),
+		FirebaseCredentialsJSON: os.Getenv("FIREBASE_CREDENTIALS_JSON"),
+		FrontendURL:             os.Getenv("FRONTEND_URL"),
 	}
 }
 

@@ -53,12 +53,13 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	middleware.DebugLog("✅ Signup successful for user: %s", user.ID)
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"message": "User registered successfully",
+		"message": "User registered successfully. Please check your email to verify your account.",
 		"user": gin.H{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
-			"role":  user.Role,
+			"id":             user.ID,
+			"name":           user.Name,
+			"email":          user.Email,
+			"role":           user.Role,
+			"email_verified": user.EmailVerified, // Will be false
 		},
 		"token": token,
 	})
@@ -110,8 +111,51 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+// @Summary Verify Email
+// @Description Verify user email with token from email link
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param token query string true "Verification token"
+// @Success 200 {object} map[string]interface{} "Email verified successfully"
+// @Failure 400 {object} map[string]interface{} "Invalid token"
+// @Router /api/auth/verify-email [get]
+// GET /auth/verify-email
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+	middleware.DebugLog("=== VERIFY EMAIL DEBUG START ===")
+
+	token := c.Query("token")
+	if token == "" {
+		middleware.DebugLog("❌ Verification token is missing")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "Verification token is required",
+		})
+		return
+	}
+
+	middleware.DebugLog("📝 Verify email request received with token")
+
+	// Call auth service to verify email
+	err := h.authService.VerifyEmail(token)
+	if err != nil {
+		middleware.DebugLog("❌ Email verification failed: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	middleware.DebugLog("✅ Email verification successful")
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Email verified successfully! You can now login.",
+	})
+}
+
 // @Summary Forgot Password
-// @Description Send password reset link (mock implementation)
+// @Description Send password reset link via email
 // @Tags Authentication
 // @Accept json
 // @Produce json

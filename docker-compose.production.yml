@@ -109,10 +109,19 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
       REDIS_DB: ${REDIS_DB:-0}
 
-      # Email Configuration
+      # Firebase Configuration (Authentication Emails: verification & password reset)
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH}
+      FIREBASE_CREDENTIALS_JSON: ${FIREBASE_CREDENTIALS_JSON}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+
+      # Email Notifications (Optional)
+      EMAIL_NOTIFICATION: ${EMAIL_NOTIFICATION:-false}
+
+      # SMTP Email Configuration (Notifications: job alerts, application updates, etc.)
       MAIL_FROM: ${MAIL_FROM}
       MAIL_HOST: ${MAIL_HOST}
-      MAIL_PORT: ${MAIL_PORT}
+      MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_PASS: ${MAIL_PASS}
 
       # Logging

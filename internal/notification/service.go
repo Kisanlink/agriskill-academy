@@ -3,7 +3,12 @@
 package notification
 
 import (
+	"errors"
+	"fmt"
+	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"gopkg.in/gomail.v2"
 )
@@ -21,6 +26,8 @@ type mailService struct {
 	SMTPHost  string
 	SMTPPort  int
 	Password  string
+	Timeout   time.Duration
+	enabled   bool
 	prefsRepo NotificationPreferencesRepository
 }
 
@@ -34,24 +41,100 @@ func NewMailService() NotificationService {
 }
 
 func NewNotificationService(prefsRepo NotificationPreferencesRepository) NotificationService {
+	// Check if email notifications are enabled
+	emailEnabled := os.Getenv("EMAIL_NOTIFICATION") == "true"
+
+	if !emailEnabled {
+		log.Println("📧 Email notifications disabled (EMAIL_NOTIFICATION=false)")
+		return &mailService{
+			prefsRepo: prefsRepo,
+			enabled:   false,
+		}
+	}
+
+	// Validate SMTP configuration
+	mailFrom := os.Getenv("MAIL_FROM")
+	mailHost := os.Getenv("MAIL_HOST")
+	mailPass := os.Getenv("MAIL_PASS")
+
+	if mailFrom == "" || mailHost == "" || mailPass == "" {
+		log.Println("⚠️  Email notifications enabled but SMTP not fully configured")
+		log.Println("⚠️  Missing one or more: MAIL_FROM, MAIL_HOST, MAIL_PASS")
+		log.Println("⚠️  Email notifications will be disabled")
+		return &mailService{
+			prefsRepo: prefsRepo,
+			enabled:   false,
+		}
+	}
+
+	// Parse SMTP port with default
+	mailPort := 587
+	if mailPortStr := os.Getenv("MAIL_PORT"); mailPortStr != "" {
+		if parsed, err := strconv.Atoi(mailPortStr); err == nil {
+			mailPort = parsed
+		} else {
+			log.Printf("⚠️  Invalid MAIL_PORT value '%s', using default: 587", mailPortStr)
+		}
+	}
+
+	log.Printf("✅ Email notifications enabled: %s:%d", mailHost, mailPort)
+
 	return &mailService{
-		From:      os.Getenv("MAIL_FROM"),
-		SMTPHost:  os.Getenv("MAIL_HOST"),
-		SMTPPort:  587,
-		Password:  os.Getenv("MAIL_PASS"),
+		From:      mailFrom,
+		SMTPHost:  mailHost,
+		SMTPPort:  mailPort,
+		Password:  mailPass,
+		Timeout:   10 * time.Second,
+		enabled:   true,
 		prefsRepo: prefsRepo,
 	}
 }
 
 func (s *mailService) SendEmail(to, subject, body string) error {
+	// Check if email notifications are enabled
+	if !s.enabled {
+		log.Printf("⚠️  Skipping email to %s - SMTP not configured", to)
+		return nil // Don't fail, just skip silently
+	}
+
+	// Validate inputs
+	if to == "" {
+		return errors.New("email recipient is required")
+	}
+	if subject == "" {
+		return errors.New("email subject is required")
+	}
+
+	// Create message
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.From)
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/html", body)
 
+	// Create dialer
+	// Note: gomail v2 uses default timeouts internally
 	d := gomail.NewDialer(s.SMTPHost, s.SMTPPort, s.From, s.Password)
-	return d.DialAndSend(m)
+
+	// Retry logic: 3 attempts with exponential backoff
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		err := d.DialAndSend(m)
+		if err == nil {
+			log.Printf("✅ Email sent successfully to: %s (attempt %d)", to, attempt)
+			return nil
+		}
+
+		lastErr = err
+		if attempt < 3 {
+			backoff := time.Duration(attempt) * time.Second
+			log.Printf("⚠️  Email send failed (attempt %d/3), retrying in %v: %v", attempt, backoff, err)
+			time.Sleep(backoff)
+		}
+	}
+
+	log.Printf("❌ Failed to send email to %s after 3 attempts: %v", to, lastErr)
+	return fmt.Errorf("failed to send email after 3 attempts: %w", lastErr)
 }
 
 func (s *mailService) GetPreferences(userID string) (*NotificationPreferences, error) {

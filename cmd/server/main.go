@@ -27,6 +27,7 @@ import (
 	_ "github.com/Kisanlink/agriskill-academy/docs" // Import swagger docs
 
 	kdb "github.com/Kisanlink/agriskill-academy/pkg/db"
+	"github.com/Kisanlink/agriskill-academy/pkg/firebase"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -206,8 +207,28 @@ func main() {
 	// Using local authentication only - no AAA service dependency
 	log.Printf("Using local authentication with kisanlink-db")
 
+	// Initialize Firebase email service (optional - for email verification/reset)
+	var firebaseEmail auth.FirebaseEmailService
+	if cfg.FirebaseProjectID != "" && (cfg.FirebaseCredentialsPath != "" || cfg.FirebaseCredentialsJSON != "") {
+		log.Printf("Initializing Firebase email service...")
+		fbEmail, err := firebase.NewEmailService(
+			cfg.FirebaseCredentialsPath,
+			cfg.FirebaseCredentialsJSON,
+			cfg.FrontendURL,
+		)
+		if err != nil {
+			logger.Warn("Failed to initialize Firebase email service, email verification/reset will not work",
+				zap.Error(err))
+		} else {
+			firebaseEmail = fbEmail
+			logger.Info("Firebase email service initialized successfully")
+		}
+	} else {
+		logger.Info("Firebase not configured, email verification/reset will not be available")
+	}
+
 	// Services and handlers
-	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo)
+	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo, firebaseEmail)
 	authHandler := auth.NewAuthHandler(authService)
 
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)

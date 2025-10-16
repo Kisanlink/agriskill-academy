@@ -351,6 +351,8 @@ CHANGELOG.md
 *.todo
 *.note
 API_DOCUMENTATION.md
+FIREBASE_EMAIL_SETUP.md
+API_CHANGES.md
 test-agriskill-api.ps1
 docker-compose.yml
 
@@ -404,3 +406,4 @@ uploads/*
 !README.md
 !CHANGELOG.md
 !LICENSE
+serviceAccountKey.json

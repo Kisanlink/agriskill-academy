@@ -209,11 +209,12 @@ func main() {
 
 	// Initialize Firebase email service (optional - for email verification/reset)
 	var firebaseEmail auth.FirebaseEmailService
-	if cfg.FirebaseProjectID != "" && (cfg.FirebaseCredentialsPath != "" || cfg.FirebaseCredentialsJSON != "") {
+	if cfg.FirebaseProjectID != "" && (cfg.FirebaseCredentialsPath != "" || cfg.FirebaseCredentialsJSON != "") && cfg.FirebaseWebAPIKey != "" {
 		log.Printf("Initializing Firebase email service...")
 		fbEmail, err := firebase.NewEmailService(
 			cfg.FirebaseCredentialsPath,
 			cfg.FirebaseCredentialsJSON,
+			cfg.FirebaseWebAPIKey,
 			cfg.FrontendURL,
 		)
 		if err != nil {

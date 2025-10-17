@@ -143,7 +143,7 @@ curl -X POST http://localhost:8080/api/auth/signup \
   -d '{
     "name": "Test User",
     "user_name": "testuser",
-    "email": "test@example.com",
+    "email": "lisise3548@datoinf.com",
     "password": "SecurePass123!",
     "confirm_password": "SecurePass123!",
     "role": "student",

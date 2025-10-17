@@ -7,9 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 )
 
 // AuthClient handles Firebase Authentication via REST API
@@ -107,7 +108,7 @@ func (c *AuthClient) SignUpWithPassword(email, password string) (*SignUpResponse
 		return nil, fmt.Errorf("failed to parse signup response: %w", err)
 	}
 
-	log.Printf("✅ Firebase user created successfully: %s (UID: %s)", email, result.LocalID)
+	middleware.DebugLog("✅ Firebase user created successfully: %s (UID: %s)", email, result.LocalID)
 	return &result, nil
 }
 
@@ -146,7 +147,7 @@ func (c *AuthClient) SignInWithPassword(email, password string) (*SignInResponse
 		return nil, fmt.Errorf("failed to parse signin response: %w", err)
 	}
 
-	log.Printf("✅ Firebase authentication successful: %s (UID: %s, Verified: %v)",
+	middleware.DebugLog("✅ Firebase authentication successful: %s (UID: %s, Verified: %v)",
 		email, result.LocalID, result.EmailVerified)
 	return &result, nil
 }
@@ -186,7 +187,7 @@ func (c *AuthClient) UpdatePassword(idToken, newPassword string) (*UpdatePasswor
 		return nil, fmt.Errorf("failed to parse update password response: %w", err)
 	}
 
-	log.Printf("✅ Firebase password updated successfully for UID: %s", result.LocalID)
+	middleware.DebugLog("✅ Firebase password updated successfully for UID: %s", result.LocalID)
 	return &result, nil
 }
 

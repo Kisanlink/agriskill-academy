@@ -8,10 +8,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
 	"google.golang.org/api/option"
@@ -33,10 +33,10 @@ func NewEmailService(credentialsPath, credentialsJSON, apiKey, frontendURL strin
 
 	// Priority: JSON credentials (for containers) > file path (for local dev)
 	if credentialsJSON != "" {
-		log.Println("Initializing Firebase with base64 credentials from environment")
+		middleware.DebugLog("Initializing Firebase with base64 credentials from environment")
 		opt = option.WithCredentialsJSON([]byte(credentialsJSON))
 	} else if credentialsPath != "" {
-		log.Printf("Initializing Firebase with credentials file: %s", credentialsPath)
+		middleware.DebugLog("Initializing Firebase with credentials file: %s", credentialsPath)
 		if _, err := os.Stat(credentialsPath); os.IsNotExist(err) {
 			return nil, fmt.Errorf("firebase credentials file not found: %s", credentialsPath)
 		}
@@ -61,7 +61,7 @@ func NewEmailService(credentialsPath, credentialsJSON, apiKey, frontendURL strin
 		return nil, fmt.Errorf("firebase Web API key not provided: set FIREBASE_WEB_API_KEY")
 	}
 
-	log.Println("✅ Firebase email service initialized successfully")
+	middleware.DebugLog("✅ Firebase email service initialized successfully")
 
 	return &EmailService{
 		client:      client,
@@ -73,7 +73,7 @@ func NewEmailService(credentialsPath, credentialsJSON, apiKey, frontendURL strin
 
 // SendVerificationEmail sends an email verification email to the user via Firebase REST API
 func (s *EmailService) SendVerificationEmail(ctx context.Context, email, token string) error {
-	log.Printf("📧 Sending verification email to: %s", email)
+	middleware.DebugLog("📧 Sending verification email to: %s", email)
 
 	// First, get or create Firebase user
 	userRecord, err := s.client.GetUserByEmail(ctx, email)
@@ -84,7 +84,7 @@ func (s *EmailService) SendVerificationEmail(ctx context.Context, email, token s
 		if err != nil {
 			return fmt.Errorf("failed to create Firebase user for email: %w", err)
 		}
-		log.Printf("Created Firebase user for email: %s", email)
+		middleware.DebugLog("Created Firebase user for email: %s", email)
 	}
 
 	// Generate a custom token for the user
@@ -105,13 +105,13 @@ func (s *EmailService) SendVerificationEmail(ctx context.Context, email, token s
 		return fmt.Errorf("failed to send verification email: %w", err)
 	}
 
-	log.Printf("✅ Verification email sent successfully to: %s", email)
+	middleware.DebugLog("✅ Verification email sent successfully to: %s", email)
 	return nil
 }
 
 // SendPasswordResetEmail sends a password reset email to the user via Firebase REST API
 func (s *EmailService) SendPasswordResetEmail(ctx context.Context, email, token string) error {
-	log.Printf("📧 Sending password reset email to: %s", email)
+	middleware.DebugLog("📧 Sending password reset email to: %s", email)
 
 	// Get or create Firebase user
 	_, err := s.client.GetUserByEmail(ctx, email)
@@ -122,7 +122,7 @@ func (s *EmailService) SendPasswordResetEmail(ctx context.Context, email, token 
 		if err != nil {
 			return fmt.Errorf("failed to create Firebase user for password reset: %w", err)
 		}
-		log.Printf("Created Firebase user for password reset: %s", email)
+		middleware.DebugLog("Created Firebase user for password reset: %s", email)
 	}
 
 	// Send password reset email directly using Firebase REST API
@@ -131,7 +131,7 @@ func (s *EmailService) SendPasswordResetEmail(ctx context.Context, email, token 
 		return fmt.Errorf("failed to send password reset email: %w", err)
 	}
 
-	log.Printf("✅ Password reset email sent successfully to: %s", email)
+	middleware.DebugLog("✅ Password reset email sent successfully to: %s", email)
 	return nil
 }
 
@@ -206,7 +206,7 @@ func (s *EmailService) sendOobCode(idToken, requestType string) error {
 		return fmt.Errorf("firebase API error (%d): %s", resp.StatusCode, string(body))
 	}
 
-	log.Printf("📧 Firebase sendOobCode response: %s", string(body))
+	middleware.DebugLog("📧 Firebase sendOobCode response: %s", string(body))
 	return nil
 }
 
@@ -239,14 +239,14 @@ func (s *EmailService) sendPasswordResetByEmail(email string) error {
 		return fmt.Errorf("firebase API error (%d): %s", resp.StatusCode, string(body))
 	}
 
-	log.Printf("📧 Firebase password reset response: %s", string(body))
+	middleware.DebugLog("📧 Firebase password reset response: %s", string(body))
 	return nil
 }
 
 // UpdateFirebasePassword updates a user's password in Firebase using Admin SDK
 // This is used during password reset to keep both PostgreSQL and Firebase in sync
 func (s *EmailService) UpdateFirebasePassword(ctx context.Context, email, newPassword string) error {
-	log.Printf("🔄 Updating Firebase password for: %s", email)
+	middleware.DebugLog("🔄 Updating Firebase password for: %s", email)
 
 	// Get user by email
 	userRecord, err := s.client.GetUserByEmail(ctx, email)
@@ -261,7 +261,7 @@ func (s *EmailService) UpdateFirebasePassword(ctx context.Context, email, newPas
 		return fmt.Errorf("failed to update Firebase password: %w", err)
 	}
 
-	log.Printf("✅ Firebase password updated successfully for: %s", email)
+	middleware.DebugLog("✅ Firebase password updated successfully for: %s", email)
 	return nil
 }
 
@@ -276,6 +276,6 @@ func (s *EmailService) DeleteFirebaseUser(ctx context.Context, email string) err
 		return fmt.Errorf("failed to delete Firebase user: %w", err)
 	}
 
-	log.Printf("Deleted Firebase user: %s", email)
+	middleware.DebugLog("Deleted Firebase user: %s", email)
 	return nil
 }

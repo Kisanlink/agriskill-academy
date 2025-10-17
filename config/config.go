@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -310,7 +311,19 @@ func InitDB() (*gorm.DB, error) {
 		host, port, user, password, dbname, sslmode,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Configure GORM logger based on GIN_MODE
+	var gormLogger logger.Interface
+	if os.Getenv("GIN_MODE") == "debug" {
+		// In debug mode: show all SQL queries with colors
+		gormLogger = logger.Default.LogMode(logger.Info)
+	} else {
+		// In production: only log warnings and errors (no SQL queries)
+		gormLogger = logger.Default.LogMode(logger.Warn)
+	}
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: gormLogger,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}

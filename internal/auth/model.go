@@ -23,10 +23,8 @@ type User struct {
 	AvatarType  string `json:"avatar_type,omitempty"`
 	AvatarSize  int64  `json:"avatar_size,omitempty"`
 
-	// Email verification fields
-	EmailVerified     bool       `json:"email_verified" gorm:"default:false"`
-	EmailVerifiedAt   *time.Time `json:"email_verified_at,omitempty"`
-	VerificationToken string     `json:"-" gorm:"index"` // Hidden from JSON, indexed for lookup
+	// Firebase integration fields
+	FirebaseUID string `json:"-" gorm:"index"` // Firebase User ID for account linking (hidden from JSON)
 
 	// Password reset fields
 	PasswordResetToken string     `json:"-" gorm:"index"` // Hidden from JSON, indexed for lookup

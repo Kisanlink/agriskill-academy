@@ -243,6 +243,28 @@ func (s *EmailService) sendPasswordResetByEmail(email string) error {
 	return nil
 }
 
+// UpdateFirebasePassword updates a user's password in Firebase using Admin SDK
+// This is used during password reset to keep both PostgreSQL and Firebase in sync
+func (s *EmailService) UpdateFirebasePassword(ctx context.Context, email, newPassword string) error {
+	log.Printf("🔄 Updating Firebase password for: %s", email)
+
+	// Get user by email
+	userRecord, err := s.client.GetUserByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("user not found in Firebase: %w", err)
+	}
+
+	// Update password using Admin SDK
+	params := (&auth.UserToUpdate{}).Password(newPassword)
+	_, err = s.client.UpdateUser(ctx, userRecord.UID, params)
+	if err != nil {
+		return fmt.Errorf("failed to update Firebase password: %w", err)
+	}
+
+	log.Printf("✅ Firebase password updated successfully for: %s", email)
+	return nil
+}
+
 // DeleteFirebaseUser deletes a Firebase user (cleanup helper)
 func (s *EmailService) DeleteFirebaseUser(ctx context.Context, email string) error {
 	userRecord, err := s.client.GetUserByEmail(ctx, email)

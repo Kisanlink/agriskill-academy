@@ -13,7 +13,7 @@ type UserRepository interface {
 	base.Repository[*User]
 	FindByEmail(email string) (*User, error)
 	FindByUsername(username string) (*User, error)
-	FindByVerificationToken(token string) (*User, error)
+	FindByFirebaseUID(firebaseUID string) (*User, error)
 	FindByPasswordResetToken(token string) (*User, error)
 	CreateWithID(user *User, id string) error
 	ListAllUsers() ([]User, error)
@@ -189,6 +189,23 @@ func (r *userRepository) FindByUsername(username string) (*User, error) {
 	return &user, err
 }
 
+// FindByFirebaseUID finds a user by their Firebase UID
+func (r *userRepository) FindByFirebaseUID(firebaseUID string) (*User, error) {
+	middleware.DebugLog("🔍 Repository.FindByFirebaseUID called with firebase_uid: %s\n", firebaseUID)
+	var user User
+	err := r.db.Where("firebase_uid = ? AND firebase_uid != ''", firebaseUID).First(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		middleware.DebugLog("❌ Repository.FindByFirebaseUID: User not found for firebase_uid: %s\n", firebaseUID)
+		return nil, errors.New("user not found")
+	}
+	if err != nil {
+		middleware.DebugLog("❌ Repository.FindByFirebaseUID error: %v\n", err)
+		return nil, err
+	}
+	middleware.DebugLog("✅ Repository.FindByFirebaseUID: Found user - ID: %s, Name: %s, Email: %s\n", user.ID, user.Name, user.Email)
+	return &user, err
+}
+
 // Debug method to list all users (for debugging only)
 func (r *userRepository) ListAllUsers() ([]User, error) {
 	middleware.DebugLog("🔍 Repository.ListAllUsers called\n")
@@ -203,23 +220,6 @@ func (r *userRepository) ListAllUsers() ([]User, error) {
 		middleware.DebugLog("   User %d: ID=%s, Name=%s, Email=%s, Role=%s\n", i+1, user.ID, user.Name, user.Email, user.Role)
 	}
 	return users, nil
-}
-
-// FindByVerificationToken finds a user by their email verification token
-func (r *userRepository) FindByVerificationToken(token string) (*User, error) {
-	middleware.DebugLog("🔍 Repository.FindByVerificationToken called\n")
-	var user User
-	err := r.db.Where("verification_token = ? AND verification_token != ''", token).First(&user).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		middleware.DebugLog("❌ Repository.FindByVerificationToken: User not found\n")
-		return nil, errors.New("user not found")
-	}
-	if err != nil {
-		middleware.DebugLog("❌ Repository.FindByVerificationToken error: %v\n", err)
-		return nil, err
-	}
-	middleware.DebugLog("✅ Repository.FindByVerificationToken: Found user - ID: %s, Email: %s\n", user.ID, user.Email)
-	return &user, nil
 }
 
 // FindByPasswordResetToken finds a user by their password reset token

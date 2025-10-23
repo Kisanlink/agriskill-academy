@@ -148,42 +148,8 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	})
 }
 
-// @Summary Reset Password
-// @Description Reset password using token (mock implementation)
-// @Tags Authentication
-// @Accept json
-// @Produce json
-// @Param request body ResetPasswordRequest true "Password reset data"
-// @Success 200 {object} map[string]interface{} "Password reset successful"
-// @Failure 400 {object} map[string]interface{} "Invalid request"
-// @Router /api/auth/reset-password [post]
-// POST /auth/reset-password
-func (h *AuthHandler) ResetPassword(c *gin.Context) {
-	middleware.DebugLog("=== RESET PASSWORD DEBUG START ===")
-
-	var req ResetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		middleware.DebugLog("❌ Reset password validation error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid request: " + err.Error()})
-		return
-	}
-
-	middleware.DebugLog("📝 Reset password request received")
-
-	// Call local auth service
-	err := h.authService.ResetPassword(req.Token, req.NewPassword)
-	if err != nil {
-		middleware.DebugLog("❌ Reset password failed: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": err.Error()})
-		return
-	}
-
-	middleware.DebugLog("✅ Reset password successful")
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Password reset successful",
-	})
-}
+// Note: Password reset is handled by Firebase UI + login auto-sync
+// The reset-password endpoint has been removed as it's no longer needed
 
 // @Summary Get User Profile
 // @Description Get current user's profile information

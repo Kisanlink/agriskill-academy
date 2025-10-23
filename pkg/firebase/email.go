@@ -19,14 +19,13 @@ import (
 
 // EmailService handles sending emails via Firebase
 type EmailService struct {
-	client      *auth.Client
-	app         *firebase.App
-	apiKey      string
-	frontendURL string
+	client *auth.Client
+	app    *firebase.App
+	apiKey string
 }
 
 // NewEmailService initializes Firebase Admin SDK for email sending
-func NewEmailService(credentialsPath, credentialsJSON, apiKey, frontendURL string) (*EmailService, error) {
+func NewEmailService(credentialsPath, credentialsJSON, apiKey string) (*EmailService, error) {
 	ctx := context.Background()
 
 	var opt option.ClientOption
@@ -64,10 +63,9 @@ func NewEmailService(credentialsPath, credentialsJSON, apiKey, frontendURL strin
 	middleware.DebugLog("✅ Firebase email service initialized successfully")
 
 	return &EmailService{
-		client:      client,
-		app:         app,
-		apiKey:      apiKey,
-		frontendURL: frontendURL,
+		client: client,
+		app:    app,
+		apiKey: apiKey,
 	}, nil
 }
 

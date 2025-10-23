@@ -219,7 +219,6 @@ func main() {
 			cfg.FirebaseCredentialsPath,
 			cfg.FirebaseCredentialsJSON,
 			cfg.FirebaseWebAPIKey,
-			cfg.FrontendURL,
 		)
 		if err != nil {
 			logger.Warn("Failed to initialize Firebase email service",

@@ -92,7 +92,6 @@ type Config struct {
 	FirebaseCredentialsPath string
 	FirebaseCredentialsJSON string
 	FirebaseWebAPIKey       string
-	FrontendURL             string
 }
 
 func LoadEnv() {
@@ -269,7 +268,6 @@ func LoadConfig() *Config {
 		FirebaseCredentialsPath: os.Getenv("FIREBASE_CREDENTIALS_PATH"),
 		FirebaseCredentialsJSON: os.Getenv("FIREBASE_CREDENTIALS_JSON"),
 		FirebaseWebAPIKey:       os.Getenv("FIREBASE_WEB_API_KEY"),
-		FrontendURL:             os.Getenv("FRONTEND_URL"),
 	}
 }
 

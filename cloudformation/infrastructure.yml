@@ -145,6 +145,25 @@ Parameters:
     Description: Optional AWS Secret Access Key for S3 (prefer IAM Task Role)
     Default: ""
 
+  # ===========================================
+  # Firebase Configuration Parameters
+  # Used for sending authentication emails (verification and password reset)
+  # ===========================================
+  FirebaseProjectID:
+    Type: String
+    Description: Firebase Project ID
+    Default: ""
+  FirebaseCredentialsJSON:
+    Type: String
+    NoEcho: true
+    Description: Complete Firebase service account JSON (entire contents from serviceAccountKey.json)
+    Default: ""
+  FirebaseWebAPIKey:
+    Type: String
+    NoEcho: true
+    Description: Firebase Web API Key (from Firebase Console -> Project Settings)
+    Default: ""
+
 Conditions:
   IsProduction: !Equals
     - !Ref EnvironmentName
@@ -152,6 +171,8 @@ Conditions:
 
   HasS3AccessKeyId: !Not [ !Equals [ !Ref AwsAccessKeyId, "" ] ]
   HasS3SecretAccessKey: !Not [ !Equals [ !Ref AwsSecretAccessKey, "" ] ]
+
+  HasFirebaseConfig: !Not [ !Equals [ !Ref FirebaseProjectID, "" ] ]
 
 Resources:
   # ===========================================
@@ -749,6 +770,12 @@ Resources:
               Value: !Ref DefaultAdminUsername
             - Name: APP_ENV
               Value: !Ref EnvironmentName
+            # Firebase configuration (if provided)
+            - "Fn::If":
+                - HasFirebaseConfig
+                - Name: FIREBASE_PROJECT_ID
+                  Value: !Ref FirebaseProjectID
+                - Ref: AWS::NoValue
           Secrets:
             - Name: POSTGRES_PASS
               ValueFrom: !Ref DBPasswordSecret
@@ -766,6 +793,17 @@ Resources:
                 - HasS3SecretAccessKey
                 - Name: AWS_SECRET_ACCESS_KEY
                   ValueFrom: !Ref S3SecretAccessKeySecret
+                - Ref: AWS::NoValue
+            # Firebase secrets (conditionally included if Firebase is configured)
+            - "Fn::If":
+                - HasFirebaseConfig
+                - Name: FIREBASE_CREDENTIALS_JSON
+                  ValueFrom: !Ref FirebaseCredentialsJSONSecret
+                - Ref: AWS::NoValue
+            - "Fn::If":
+                - HasFirebaseConfig
+                - Name: FIREBASE_WEB_API_KEY
+                  ValueFrom: !Ref FirebaseWebAPIKeySecret
                 - Ref: AWS::NoValue
           LogConfiguration:
             LogDriver: awslogs
@@ -894,6 +932,23 @@ Resources:
       Name: !Sub ${EnvironmentName}/agrijobs/aws-secret-access-key
       Description: AWS Secret Access Key for S3 (optional)
       SecretString: !Ref AwsSecretAccessKey
+
+  # Firebase secrets (created only if Firebase is configured)
+  FirebaseCredentialsJSONSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: HasFirebaseConfig
+    Properties:
+      Name: !Sub ${EnvironmentName}/agrijobs/firebase-credentials-json
+      Description: Firebase Service Account JSON credentials
+      SecretString: !Ref FirebaseCredentialsJSON
+
+  FirebaseWebAPIKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: HasFirebaseConfig
+    Properties:
+      Name: !Sub ${EnvironmentName}/agrijobs/firebase-web-api-key
+      Description: Firebase Web API Key
+      SecretString: !Ref FirebaseWebAPIKey
 
   # ===========================================
   # CloudWatch Alarms

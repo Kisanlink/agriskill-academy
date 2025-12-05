@@ -88,7 +88,7 @@ func (s *jobPostService) CreateJobPost(ctx context.Context, req *CreateJobPostRe
 		employerProfile, err := s.employerRepo.GetByUserID(employerID)
 		if err == nil && employerProfile != nil {
 			if employerName == "" {
-				employerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
+				employerName = employerProfile.CompanyName // Use company name from employer profile
 			}
 			if employerEmail == "" {
 				employerEmail = employerProfile.OfficialEmail
@@ -123,27 +123,26 @@ func (s *jobPostService) CreateJobPost(ctx context.Context, req *CreateJobPostRe
 		return nil, errors.New("application deadline cannot be in the past")
 	}
 
-	job := &JobPost{
-		Title:               req.Title,
-		RoleOverview:        req.RoleOverview,
-		Requirements:        req.Requirements,
-		Location:            req.Location,
-		RequiredSkills:      req.RequiredSkills,
-		EmployerID:          employerID,
-		EmployerName:        employerName,
-		EmployerEmail:       employerEmail,
-		Status:              "draft", // Default status
-		ApplicationDeadline: req.ApplicationDeadline,
-		JobType:             req.JobType,
-		Experience:          req.Experience,
-		Salary:              salary,
-		SalaryMin:           salary.Min,
-		SalaryMax:           salary.Max,
-		SalaryCurrency:      salary.Currency,
-		Benefits:            req.Benefits,
-		IsRemote:            req.IsRemote,
-		ApplicationsCount:   0,
-	}
+	job := NewJobPost() // Initialize with BaseModel to generate ID
+	job.Title = req.Title
+	job.RoleOverview = req.RoleOverview
+	job.Requirements = req.Requirements
+	job.Location = req.Location
+	job.RequiredSkills = req.RequiredSkills
+	job.EmployerID = employerID
+	job.EmployerName = employerName
+	job.EmployerEmail = employerEmail
+	job.Status = "draft" // Default status
+	job.ApplicationDeadline = req.ApplicationDeadline
+	job.JobType = req.JobType
+	job.Experience = req.Experience
+	job.Salary = salary
+	job.SalaryMin = salary.Min
+	job.SalaryMax = salary.Max
+	job.SalaryCurrency = salary.Currency
+	job.Benefits = req.Benefits
+	job.IsRemote = req.IsRemote
+	job.ApplicationsCount = 0
 
 	err := s.repo.Create(ctx, job)
 	if err != nil {
@@ -187,7 +186,7 @@ func (s *jobPostService) CreateJobPostWithStatus(ctx context.Context, req *Creat
 		employerProfile, err := s.employerRepo.GetByUserID(employerID)
 		if err == nil && employerProfile != nil {
 			if employerName == "" {
-				employerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
+				employerName = employerProfile.CompanyName // Use company name from employer profile
 			}
 			if employerEmail == "" {
 				employerEmail = employerProfile.OfficialEmail
@@ -222,27 +221,26 @@ func (s *jobPostService) CreateJobPostWithStatus(ctx context.Context, req *Creat
 		return nil, errors.New("application deadline cannot be in the past")
 	}
 
-	job := &JobPost{
-		Title:               req.Title,
-		RoleOverview:        req.RoleOverview,
-		Requirements:        req.Requirements,
-		Location:            req.Location,
-		RequiredSkills:      req.RequiredSkills,
-		EmployerID:          employerID,
-		EmployerName:        employerName,
-		EmployerEmail:       employerEmail,
-		Status:              status, // Use the provided status
-		ApplicationDeadline: req.ApplicationDeadline,
-		JobType:             req.JobType,
-		Experience:          req.Experience,
-		Salary:              salary,
-		SalaryMin:           salary.Min,
-		SalaryMax:           salary.Max,
-		SalaryCurrency:      salary.Currency,
-		Benefits:            req.Benefits,
-		IsRemote:            req.IsRemote,
-		ApplicationsCount:   0,
-	}
+	job := NewJobPost() // Initialize with BaseModel to generate ID
+	job.Title = req.Title
+	job.RoleOverview = req.RoleOverview
+	job.Requirements = req.Requirements
+	job.Location = req.Location
+	job.RequiredSkills = req.RequiredSkills
+	job.EmployerID = employerID
+	job.EmployerName = employerName
+	job.EmployerEmail = employerEmail
+	job.Status = status // Use the provided status
+	job.ApplicationDeadline = req.ApplicationDeadline
+	job.JobType = req.JobType
+	job.Experience = req.Experience
+	job.Salary = salary
+	job.SalaryMin = salary.Min
+	job.SalaryMax = salary.Max
+	job.SalaryCurrency = salary.Currency
+	job.Benefits = req.Benefits
+	job.IsRemote = req.IsRemote
+	job.ApplicationsCount = 0
 
 	err := s.repo.Create(ctx, job)
 	if err != nil {
@@ -716,17 +714,16 @@ func (s *jobPostService) CreateJobAlert(request *JobAlertRequest) (*JobAlert, er
 	}
 
 	// Create alert
-	alert := &JobAlert{
-		UserID:     request.UserID,
-		Keywords:   request.Keywords,
-		Location:   request.Location,
-		JobType:    request.JobType,
-		Experience: request.Experience,
-		Skills:     request.Skills,
-		IsRemote:   request.IsRemote,
-		Frequency:  request.Frequency,
-		IsActive:   request.IsActive,
-	}
+	alert := NewJobAlert() // Use constructor to generate ID
+	alert.UserID = request.UserID
+	alert.Keywords = request.Keywords
+	alert.Location = request.Location
+	alert.JobType = request.JobType
+	alert.Experience = request.Experience
+	alert.Skills = request.Skills
+	alert.IsRemote = request.IsRemote
+	alert.Frequency = request.Frequency
+	alert.IsActive = request.IsActive
 
 	// Set salary range if provided
 	if request.SalaryRange != nil {
@@ -839,7 +836,7 @@ func (s *jobPostService) CreateDraft(req *CreateDraftRequest, employerID, employ
 		employerProfile, err := s.employerRepo.GetByUserID(employerID)
 		if err == nil && employerProfile != nil {
 			if employerName == "" {
-				employerName = employerProfile.RecruiterName // Use recruiter name (actual employer name)
+				employerName = employerProfile.CompanyName // Use company name from employer profile
 			}
 			if employerEmail == "" {
 				employerEmail = employerProfile.OfficialEmail
@@ -848,13 +845,12 @@ func (s *jobPostService) CreateDraft(req *CreateDraftRequest, employerID, employ
 	}
 
 	// For drafts, all fields are optional
-	job := &JobPost{
-		EmployerID:        employerID,
-		EmployerName:      employerName,
-		EmployerEmail:     employerEmail,
-		Status:            "draft",
-		ApplicationsCount: 0,
-	}
+	job := NewJobPost() // Use constructor to generate ID
+	job.EmployerID = employerID
+	job.EmployerName = employerName
+	job.EmployerEmail = employerEmail
+	job.Status = "draft"
+	job.ApplicationsCount = 0
 
 	// Set fields if provided
 	if req.Title != nil {

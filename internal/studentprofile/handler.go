@@ -449,11 +449,10 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 	if err != nil {
 		middleware.DebugLog("🔍 DEBUG: Profile not found, creating new one for user: %s\n", userID)
 		// Create new profile
-		profile = &StudentProfile{
-			UserID: userID,
-			Name:   req.Name,
-			Email:  req.Email,
-		}
+		profile = NewStudentProfile() // Use constructor to generate ID
+		profile.UserID = userID
+		profile.Name = req.Name
+		profile.Email = req.Email
 		middleware.DebugLog("🔍 DEBUG: New profile created: %+v\n", profile)
 	} else {
 		middleware.DebugLog("✅ DEBUG: Existing profile found: %+v\n", profile)
@@ -598,11 +597,10 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		// Create new profile
-		profile = &StudentProfile{
-			UserID: userID,
-			Name:   c.GetString("name"),
-			Email:  c.GetString("email"),
-		}
+		profile = NewStudentProfile() // Use constructor to generate ID
+		profile.UserID = userID
+		profile.Name = c.GetString("name")
+		profile.Email = c.GetString("email")
 		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -615,12 +613,11 @@ func (h *StudentProfileHandler) AddMyCertificate(c *gin.Context) {
 	}
 
 	// Create certificate record
-	certificate := &Certificate{
-		StudentProfileID: profile.ID,
-		Name:             req.Name,
-		FileKey:          req.FileKey,
-		IssueDate:        req.IssueDate,
-	}
+	certificate := NewCertificate() // Use constructor to generate ID
+	certificate.StudentProfileID = profile.ID
+	certificate.Name = req.Name
+	certificate.FileKey = req.FileKey
+	certificate.IssueDate = req.IssueDate
 
 	// Save certificate to database
 	err = h.service.AddCertificate(certificate)
@@ -711,18 +708,17 @@ func (h *StudentProfileHandler) UploadMyResume(c *gin.Context) {
 	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		// Create new profile
-		profile = &StudentProfile{
-			UserID: userID,
-			Name:   c.GetString("name"),
-			Email:  c.GetString("email"),
-		}
+		profile = NewStudentProfile() // Use constructor to generate ID
+		profile.UserID = userID
+		profile.Name = c.GetString("name")
+		profile.Email = c.GetString("email")
 	}
 
 	// Update resume key
 	profile.ResumeKey = key
 
-	// Save profile
-	if profile.ID == "" {
+	// Save profile (ID will already be set from constructor)
+	if err != nil { // Was a new profile
 		err = h.service.CreateProfile(c.Request.Context(), profile)
 	} else {
 		// Update the profile with resume data
@@ -861,11 +857,10 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		// Create new profile
-		profile = &StudentProfile{
-			UserID: userID,
-			Name:   c.GetString("name"),
-			Email:  c.GetString("email"),
-		}
+		profile = NewStudentProfile() // Use constructor to generate ID
+		profile.UserID = userID
+		profile.Name = c.GetString("name")
+		profile.Email = c.GetString("email")
 		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -886,15 +881,14 @@ func (h *StudentProfileHandler) UploadMyCertificate(c *gin.Context) {
 	fileSize := certificateFile.Size
 
 	// Create certificate record
-	certificate := &Certificate{
-		StudentProfileID: profile.ID,
-		Name:             certificateName,
-		FileKey:          key, // Store S3 key
-		FileName:         fileName,
-		FileType:         fileType,
-		FileSize:         fileSize,
-		IssueDate:        issueDate,
-	}
+	certificate := NewCertificate() // Use constructor to generate ID
+	certificate.StudentProfileID = profile.ID
+	certificate.Name = certificateName
+	certificate.FileKey = key // Store S3 key
+	certificate.FileName = fileName
+	certificate.FileType = fileType
+	certificate.FileSize = fileSize
+	certificate.IssueDate = issueDate
 
 	// Save certificate to database
 	err = h.service.AddCertificate(certificate)
@@ -990,18 +984,17 @@ func (h *StudentProfileHandler) UpdateMyResume(c *gin.Context) {
 	profile, err := h.service.GetProfile(c.Request.Context(), userID)
 	if err != nil {
 		// Create new profile
-		profile = &StudentProfile{
-			UserID: userID,
-			Name:   c.GetString("name"),
-			Email:  c.GetString("email"),
-		}
+		profile = NewStudentProfile() // Use constructor to generate ID
+		profile.UserID = userID
+		profile.Name = c.GetString("name")
+		profile.Email = c.GetString("email")
 	}
 
 	// Update resume key
 	profile.ResumeKey = key
 
-	// Save profile
-	if profile.ID == "" {
+	// Save profile (ID will already be set from constructor)
+	if err != nil { // Was a new profile
 		err = h.service.CreateProfile(c.Request.Context(), profile)
 	} else {
 		err = h.service.UpdateProfile(c.Request.Context(), profile)
@@ -1155,11 +1148,10 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	if err != nil {
 		middleware.DebugLog("DEBUG: Profile not found, creating new one\n")
 		// Create new profile
-		profile = &StudentProfile{
-			UserID: userID,
-			Name:   c.GetString("name"),
-			Email:  c.GetString("email"),
-		}
+		profile = NewStudentProfile() // Use constructor to generate ID
+		profile.UserID = userID
+		profile.Name = c.GetString("name")
+		profile.Email = c.GetString("email")
 		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			middleware.DebugLog("DEBUG: Failed to create profile: %v\n", err)
@@ -1175,15 +1167,14 @@ func (h *StudentProfileHandler) UploadCertificate(c *gin.Context) {
 	}
 
 	// Create certificate record
-	certificate := &Certificate{
-		StudentProfileID: profile.ID,
-		Name:             certificateName,
-		FileKey:          key, // Store S3 key
-		FileName:         fileName,
-		FileType:         fileType,
-		FileSize:         fileSize,
-		IssueDate:        issueDate,
-	}
+	certificate := NewCertificate() // Use constructor to generate ID
+	certificate.StudentProfileID = profile.ID
+	certificate.Name = certificateName
+	certificate.FileKey = key // Store S3 key
+	certificate.FileName = fileName
+	certificate.FileType = fileType
+	certificate.FileSize = fileSize
+	certificate.IssueDate = issueDate
 
 	// Save certificate to database
 	err = h.service.AddCertificate(certificate)
@@ -1341,11 +1332,10 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	if err != nil {
 		middleware.DebugLog("DEBUG: Profile not found, creating new one\n")
 		// Create new profile
-		profile = &StudentProfile{
-			UserID: userID,
-			Name:   c.GetString("name"),
-			Email:  c.GetString("email"),
-		}
+		profile = NewStudentProfile() // Use constructor to generate ID
+		profile.UserID = userID
+		profile.Name = c.GetString("name")
+		profile.Email = c.GetString("email")
 		err = h.service.CreateProfile(c.Request.Context(), profile)
 		if err != nil {
 			middleware.DebugLog("DEBUG: Failed to create profile: %v\n", err)
@@ -1361,15 +1351,14 @@ func (h *StudentProfileHandler) AddCertificateToProfile(c *gin.Context) {
 	}
 
 	// Create certificate record
-	certificate := &Certificate{
-		StudentProfileID: profile.ID,
-		Name:             certificateName,
-		FileKey:          key, // Store S3 key
-		FileName:         fileName,
-		FileType:         fileType,
-		FileSize:         fileSize,
-		IssueDate:        issueDate,
-	}
+	certificate := NewCertificate() // Use constructor to generate ID
+	certificate.StudentProfileID = profile.ID
+	certificate.Name = certificateName
+	certificate.FileKey = key // Store S3 key
+	certificate.FileName = fileName
+	certificate.FileType = fileType
+	certificate.FileSize = fileSize
+	certificate.IssueDate = issueDate
 
 	// Save certificate to database
 	err = h.service.AddCertificate(certificate)

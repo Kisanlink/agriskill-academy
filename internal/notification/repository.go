@@ -50,17 +50,16 @@ func (r *notificationPreferencesRepository) GetOrCreate(userID string) (*Notific
 	preferences, err := r.GetByUserID(userID)
 	if err != nil {
 		// Create default preferences if not found
-		preferences = &NotificationPreferences{
-			UserID:             userID,
-			EmailNotifications: true,
-			PushNotifications:  true,
-			JobAlerts:          true,
-			ApplicationUpdates: true,
-			CompanyNews:        false,
-			MarketingEmails:    false,
-			WeeklyDigest:       true,
-			DailyJobMatches:    false,
-		}
+		preferences = NewNotificationPreferences() // Use constructor to generate ID
+		preferences.UserID = userID
+		preferences.EmailNotifications = true
+		preferences.PushNotifications = true
+		preferences.JobAlerts = true
+		preferences.ApplicationUpdates = true
+		preferences.CompanyNews = false
+		preferences.MarketingEmails = false
+		preferences.WeeklyDigest = true
+		preferences.DailyJobMatches = false
 		err = r.Create(preferences)
 		if err != nil {
 			return nil, err

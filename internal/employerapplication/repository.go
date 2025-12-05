@@ -1,6 +1,8 @@
 package employerapplication
 
 import (
+	"time"
+
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"gorm.io/gorm"
@@ -16,6 +18,8 @@ type EmployerApplicationRepository interface {
 	GetMessagesWithSenderInfo(applicationID string) ([]MessageWithSender, error)
 	IsUserAuthorizedForApplication(applicationID, userID string) (bool, error)
 	GetJobEmployerID(jobID string) (string, error)
+	GetJobIDAndCandidateName(applicationID string) (string, string, error)
+	UpdateJobAsCompleted(jobID, candidateName string) error
 }
 
 type employerApplicationRepository struct {
@@ -42,7 +46,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				a.cover_letter, a.resume_key AS student_resume_key,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
-				up.profile_photo AS avatar, 
+				up.profile_photo_key AS avatar, 
 				up.skills::text AS skills, 
 				COALESCE(up.location, '') AS user_location, 
 				COALESCE(CAST(up.experience AS TEXT), '') AS user_experience, 
@@ -65,7 +69,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				a.cover_letter, a.resume_key AS student_resume_key,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
-				up.profile_photo AS avatar, 
+				up.profile_photo_key AS avatar, 
 				up.skills::text AS skills, 
 				COALESCE(up.location, '') AS user_location, 
 				COALESCE(CAST(up.experience AS TEXT), '') AS user_experience, 
@@ -129,7 +133,7 @@ func (r *employerApplicationRepository) GetApplicantProfile(studentID string) (*
 		SELECT 
 			u.id, u.name, u.email, 
 			up.phone_number as phone, up.location, up.skills::text as skills, CAST(up.experience AS TEXT) as experience, up.education,
-			up.profile_photo as avatar, up.resume as resume_url, up.portfolio, up.linkedin, up.github, up.name as name
+			up.profile_photo_key as avatar, up.resume_key as resume_url, up.portfolio, up.linkedin, up.github, up.name as name
 		FROM users u
 		JOIN student_profiles up ON up.user_id = u.id
 		WHERE u.id = ?
@@ -172,7 +176,7 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(
 			a.id AS application_id, a.job_id, a.student_id, a.applied_at, a.status AS application_status, a.cover_letter, a.resume_key,
 			a.job_title, a.company, a.location AS job_location, a.job_type,
 			u.id AS user_id, u.name AS user_name, u.email AS user_email,
-			up.profile_photo AS avatar_key, up.skills::text AS skills, up.location AS user_location, 
+			up.profile_photo_key AS avatar_key, up.skills::text AS skills, up.location AS user_location, 
 			up.experience AS user_experience, up.education, up.portfolio, up.linkedin, up.github, up.name AS profile_name,
 			up.phone_number AS phone
 		FROM applications a
@@ -239,4 +243,30 @@ func (r *employerApplicationRepository) GetJobEmployerID(jobID string) (string, 
 
 	middleware.DebugLog("DEBUG: Repository GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
 	return employerID, err
+}
+
+func (r *employerApplicationRepository) GetJobIDAndCandidateName(applicationID string) (string, string, error) {
+	var result struct {
+		JobID         string `gorm:"column:job_id"`
+		CandidateName string `gorm:"column:candidate_name"`
+	}
+	err := r.db.Raw(`
+		SELECT a.job_id, COALESCE(sp.name, u.name) as candidate_name
+		FROM applications a
+		JOIN users u ON u.id = a.student_id
+		LEFT JOIN student_profiles sp ON sp.user_id = a.student_id
+		WHERE a.id = ?
+	`, applicationID).Scan(&result).Error
+	return result.JobID, result.CandidateName, err
+}
+
+func (r *employerApplicationRepository) UpdateJobAsCompleted(jobID, candidateName string) error {
+	now := time.Now()
+	return r.db.Table("job_posts").
+		Where("id = ?", jobID).
+		Updates(map[string]interface{}{
+			"hired_candidate_name": candidateName,
+			"status":               "completed",
+			"completed_at":         &now,
+		}).Error
 }

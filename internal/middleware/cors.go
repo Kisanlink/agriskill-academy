@@ -17,7 +17,7 @@ func CORSMiddleware() gin.HandlerFunc {
 	if err != nil {
 		DebugLog("Error loading .env file:", err)
 	}
-	allowOrigins := os.Getenv("CORS_ALLOW_ORIGINS")
+	allowOrigins := os.Getenv("CORS_ALLOWED_ORIGINS")
 
 	// Default origins if not set
 	if allowOrigins == "" {

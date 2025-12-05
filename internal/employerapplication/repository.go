@@ -42,7 +42,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				a.cover_letter, a.resume_key AS student_resume_key,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
-				up.profile_photo AS avatar, 
+				up.profile_photo_key AS avatar, 
 				up.skills::text AS skills, 
 				COALESCE(up.location, '') AS user_location, 
 				COALESCE(CAST(up.experience AS TEXT), '') AS user_experience, 
@@ -65,7 +65,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				a.cover_letter, a.resume_key AS student_resume_key,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
-				up.profile_photo AS avatar, 
+				up.profile_photo_key AS avatar, 
 				up.skills::text AS skills, 
 				COALESCE(up.location, '') AS user_location, 
 				COALESCE(CAST(up.experience AS TEXT), '') AS user_experience, 
@@ -129,7 +129,7 @@ func (r *employerApplicationRepository) GetApplicantProfile(studentID string) (*
 		SELECT 
 			u.id, u.name, u.email, 
 			up.phone_number as phone, up.location, up.skills::text as skills, CAST(up.experience AS TEXT) as experience, up.education,
-			up.profile_photo as avatar, up.resume as resume_url, up.portfolio, up.linkedin, up.github, up.name as name
+			up.profile_photo_key as avatar, up.resume_key as resume_url, up.portfolio, up.linkedin, up.github, up.name as name
 		FROM users u
 		JOIN student_profiles up ON up.user_id = u.id
 		WHERE u.id = ?
@@ -172,7 +172,7 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(
 			a.id AS application_id, a.job_id, a.student_id, a.applied_at, a.status AS application_status, a.cover_letter, a.resume_key,
 			a.job_title, a.company, a.location AS job_location, a.job_type,
 			u.id AS user_id, u.name AS user_name, u.email AS user_email,
-			up.profile_photo AS avatar_key, up.skills::text AS skills, up.location AS user_location, 
+			up.profile_photo_key AS avatar_key, up.skills::text AS skills, up.location AS user_location, 
 			up.experience AS user_experience, up.education, up.portfolio, up.linkedin, up.github, up.name AS profile_name,
 			up.phone_number AS phone
 		FROM applications a

@@ -477,10 +477,18 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 	for _, job := range jobs {
 		// Only include published jobs
 		if job.Status == "published" {
+			// Use CompanyName if available, otherwise fallback to EmployerName
+			companyName := job.CompanyName
+			if companyName == "" {
+				companyName = job.EmployerName
+			}
+			// Debug: Log the job ID
+			middleware.DebugLog("DEBUG GetAllJobs: Job ID='%s', Title='%s', CompanyName='%s', EmployerName='%s'\n",
+				job.ID, job.Title, job.CompanyName, job.EmployerName)
 			transformedJob := gin.H{
 				"id":                  job.ID,
 				"title":               job.Title,
-				"company":             job.EmployerName,
+				"company":             companyName,
 				"location":            job.Location,
 				"jobType":             job.JobType,
 				"experience":          job.Experience,
@@ -493,7 +501,7 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 				"recruiter": gin.H{
 					"name":    job.EmployerName,
 					"email":   job.EmployerEmail,
-					"company": job.EmployerName,
+					"company": companyName,
 					"avatar":  nil,
 				},
 				"benefits":          job.Benefits,

@@ -135,15 +135,14 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 		return
 	}
 
-	app := &Application{
-		JobID:          jobId,
-		StudentID:      studentID,
-		CoverLetter:    coverLetter,
-		ResumeKey:      resumeKey,
-		ResumeFileName: fileName,
-		ResumeFileType: fileType,
-		ResumeFileSize: fileSize,
-	}
+	app := NewApplication() // Use constructor to generate ID
+	app.JobID = jobId
+	app.StudentID = studentID
+	app.CoverLetter = coverLetter
+	app.ResumeKey = resumeKey
+	app.ResumeFileName = fileName
+	app.ResumeFileType = fileType
+	app.ResumeFileSize = fileSize
 
 	middleware.DebugLog("DEBUG: Application object created - JobID: %s, StudentID: %s, ResumeFileName: %s, ResumeFileSize: %d\n", app.JobID, app.StudentID, app.ResumeFileName, app.ResumeFileSize)
 

@@ -24,15 +24,14 @@ func NewContactService(repo ContactRepository) ContactService {
 
 func (s *contactService) SubmitContactForm(req *ContactSubmissionRequest) (*ContactSubmissionResponse, error) {
 	// Create contact request entity
-	contact := &ContactRequest{
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Email:     req.Email,
-		Phone:     req.Phone,
-		Subject:   req.Subject,
-		Message:   req.Message,
-		Status:    "new",
-	}
+	contact := NewContactRequest() // Use constructor to generate ID
+	contact.FirstName = req.FirstName
+	contact.LastName = req.LastName
+	contact.Email = req.Email
+	contact.Phone = req.Phone
+	contact.Subject = req.Subject
+	contact.Message = req.Message
+	contact.Status = "new"
 
 	// Save to database
 	if err := s.repo.Create(contact); err != nil {

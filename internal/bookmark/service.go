@@ -28,10 +28,9 @@ func NewBookmarkService(repo BookmarkRepository, jobRepo JobRepository) Bookmark
 }
 
 func (s *bookmarkService) Save(userID, jobID string) error {
-	b := &Bookmark{
-		UserID: userID,
-		JobID:  jobID,
-	}
+	b := NewBookmark() // Use constructor to generate ID
+	b.UserID = userID
+	b.JobID = jobID
 	return s.repo.Save(b)
 }
 

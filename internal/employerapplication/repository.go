@@ -1,6 +1,8 @@
 package employerapplication
 
 import (
+	"time"
+
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"gorm.io/gorm"
@@ -16,6 +18,8 @@ type EmployerApplicationRepository interface {
 	GetMessagesWithSenderInfo(applicationID string) ([]MessageWithSender, error)
 	IsUserAuthorizedForApplication(applicationID, userID string) (bool, error)
 	GetJobEmployerID(jobID string) (string, error)
+	GetJobIDAndCandidateName(applicationID string) (string, string, error)
+	UpdateJobAsCompleted(jobID, candidateName string) error
 }
 
 type employerApplicationRepository struct {
@@ -239,4 +243,30 @@ func (r *employerApplicationRepository) GetJobEmployerID(jobID string) (string, 
 
 	middleware.DebugLog("DEBUG: Repository GetJobEmployerID result - EmployerID: %s, Error: %v\n", employerID, err)
 	return employerID, err
+}
+
+func (r *employerApplicationRepository) GetJobIDAndCandidateName(applicationID string) (string, string, error) {
+	var result struct {
+		JobID         string `gorm:"column:job_id"`
+		CandidateName string `gorm:"column:candidate_name"`
+	}
+	err := r.db.Raw(`
+		SELECT a.job_id, COALESCE(sp.name, u.name) as candidate_name
+		FROM applications a
+		JOIN users u ON u.id = a.student_id
+		LEFT JOIN student_profiles sp ON sp.user_id = a.student_id
+		WHERE a.id = ?
+	`, applicationID).Scan(&result).Error
+	return result.JobID, result.CandidateName, err
+}
+
+func (r *employerApplicationRepository) UpdateJobAsCompleted(jobID, candidateName string) error {
+	now := time.Now()
+	return r.db.Table("job_posts").
+		Where("id = ?", jobID).
+		Updates(map[string]interface{}{
+			"hired_candidate_name": candidateName,
+			"status":               "completed",
+			"completed_at":         &now,
+		}).Error
 }

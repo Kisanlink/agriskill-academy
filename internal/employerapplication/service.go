@@ -152,7 +152,25 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 }
 
 func (s *employerApplicationService) UpdateStatus(applicationID, status string) error {
-	return s.repo.UpdateStatus(applicationID, status)
+	// Update application status
+	if err := s.repo.UpdateStatus(applicationID, status); err != nil {
+		return err
+	}
+
+	// If hired/accepted, also update the job post as completed
+	if status == "accepted" || status == "hired" {
+		jobID, candidateName, err := s.repo.GetJobIDAndCandidateName(applicationID)
+		if err != nil {
+			middleware.DebugLog("DEBUG: Failed to get job ID and candidate name: %v\n", err)
+			return err
+		}
+		if err := s.repo.UpdateJobAsCompleted(jobID, candidateName); err != nil {
+			middleware.DebugLog("DEBUG: Failed to update job as completed: %v\n", err)
+			return err
+		}
+		middleware.DebugLog("DEBUG: Job %s marked as completed with hired candidate: %s\n", jobID, candidateName)
+	}
+	return nil
 }
 
 func (s *employerApplicationService) GetApplicantProfile(studentID string) (*ApplicantProfile, error) {

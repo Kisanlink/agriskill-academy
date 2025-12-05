@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"time"
+
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
@@ -20,6 +22,13 @@ type User struct {
 	AvatarName  string `json:"avatar_name,omitempty"`
 	AvatarType  string `json:"avatar_type,omitempty"`
 	AvatarSize  int64  `json:"avatar_size,omitempty"`
+
+	// Firebase integration fields
+	FirebaseUID string `json:"-" gorm:"index"` // Firebase User ID for account linking (hidden from JSON)
+
+	// Password reset fields
+	PasswordResetToken string     `json:"-" gorm:"index"` // Hidden from JSON, indexed for lookup
+	ResetTokenExpiry   *time.Time `json:"-"`              // Token expiration time
 }
 
 // TableName specifies the database table name for User

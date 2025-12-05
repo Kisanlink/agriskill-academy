@@ -79,13 +79,13 @@ Parameters:
 
   DesiredCount:
     Type: Number
-    Default: 2
+    Default: 1
     MinValue: 1
     MaxValue: 10
 
   ContainerCpu:
     Type: Number
-    Default: 512
+    Default: 256
     AllowedValues:
       - 256
       - 512
@@ -95,7 +95,7 @@ Parameters:
 
   ContainerMemory:
     Type: Number
-    Default: 1024
+    Default: 512
     AllowedValues:
       - 512
       - 1024
@@ -145,6 +145,25 @@ Parameters:
     Description: Optional AWS Secret Access Key for S3 (prefer IAM Task Role)
     Default: ""
 
+  # ===========================================
+  # Firebase Configuration Parameters
+  # Used for sending authentication emails (verification and password reset)
+  # ===========================================
+  FirebaseProjectID:
+    Type: String
+    Description: Firebase Project ID
+    Default: ""
+  FirebaseCredentialsJSON:
+    Type: String
+    NoEcho: true
+    Description: Complete Firebase service account JSON (entire contents from serviceAccountKey.json)
+    Default: ""
+  FirebaseWebAPIKey:
+    Type: String
+    NoEcho: true
+    Description: Firebase Web API Key (from Firebase Console -> Project Settings)
+    Default: ""
+
 Conditions:
   IsProduction: !Equals
     - !Ref EnvironmentName
@@ -152,6 +171,8 @@ Conditions:
 
   HasS3AccessKeyId: !Not [ !Equals [ !Ref AwsAccessKeyId, "" ] ]
   HasS3SecretAccessKey: !Not [ !Equals [ !Ref AwsSecretAccessKey, "" ] ]
+
+  HasFirebaseConfig: !Not [ !Equals [ !Ref FirebaseProjectID, "" ] ]
 
 Resources:
   # ===========================================
@@ -238,23 +259,12 @@ Resources:
     Properties:
       Domain: vpc
 
-  NatGateway2EIP:
-    Type: AWS::EC2::EIP
-    DependsOn: InternetGatewayAttachment
-    Properties:
-      Domain: vpc
 
   NatGateway1:
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt NatGateway1EIP.AllocationId
       SubnetId: !Ref PublicSubnet1
-
-  NatGateway2:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatGateway2EIP.AllocationId
-      SubnetId: !Ref PublicSubnet2
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -305,25 +315,10 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable1
       SubnetId: !Ref PrivateSubnet1
 
-  PrivateRouteTable2:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: !Sub ${EnvironmentName}-private-rt-2
-
-  DefaultPrivateRoute2:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateRouteTable2
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway2
-
   PrivateSubnet2RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref PrivateRouteTable2
+      RouteTableId: !Ref PrivateRouteTable1
       SubnetId: !Ref PrivateSubnet2
 
   # ===========================================
@@ -408,7 +403,7 @@ Resources:
     DeletionPolicy: Snapshot
     UpdateReplacePolicy: Snapshot
     Properties:
-      DBInstanceIdentifier: !Sub ${EnvironmentName}-agrijobs-db
+      DBInstanceIdentifier: !Sub ${EnvironmentName}-${AWS::StackName}-db
       DBName: !Ref DBName
       Engine: postgres
       EngineVersion: '17.4'
@@ -428,10 +423,7 @@ Resources:
         - 3
       PreferredBackupWindow: 03:00-04:00
       PreferredMaintenanceWindow: sun:04:00-sun:05:00
-      MultiAZ: !If
-        - IsProduction
-        - true
-        - false
+      MultiAZ: false
       PubliclyAccessible: false
       EnableCloudwatchLogsExports:
         - postgresql
@@ -457,23 +449,14 @@ Resources:
   RedisCluster:
     Type: AWS::ElastiCache::ReplicationGroup
     Properties:
-      ReplicationGroupId: !Sub ${EnvironmentName}-agrijobs-redis
+      ReplicationGroupId: !Sub ${EnvironmentName}-${AWS::StackName}-redis
       ReplicationGroupDescription: Redis for AgriJobs
       Engine: redis
       EngineVersion: '7.1'
       CacheNodeType: !Ref RedisNodeType
-      NumCacheClusters: !If
-        - IsProduction
-        - 2
-        - 1
-      AutomaticFailoverEnabled: !If
-        - IsProduction
-        - true
-        - false
-      MultiAZEnabled: !If
-        - IsProduction
-        - true
-        - false
+      NumCacheClusters: 1
+      AutomaticFailoverEnabled: false
+      MultiAZEnabled: false
       CacheSubnetGroupName: !Ref RedisSubnetGroup
       SecurityGroupIds:
         - !Ref RedisSecurityGroup
@@ -523,7 +506,7 @@ Resources:
               - DELETE
               - HEAD
             AllowedOrigins:
-              - '*'
+              - 'https://agriskillacademy.com'
             MaxAge: 3600
       Tags:
         - Key: Name
@@ -554,7 +537,7 @@ Resources:
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Name: !Sub ${EnvironmentName}-agrijobs-alb
+      Name: !Sub ${AWS::StackName}-alb
       Type: application
       Scheme: internet-facing
       IpAddressType: ipv4
@@ -570,7 +553,7 @@ Resources:
   ALBTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      Name: !Sub ${EnvironmentName}-agrijobs-tg
+      Name: !Sub ${AWS::StackName}-tg
       Port: 8080
       Protocol: HTTP
       TargetType: ip
@@ -609,7 +592,7 @@ Resources:
   ECSCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Sub ${EnvironmentName}-agrijobs-cluster
+      ClusterName: !Sub ${EnvironmentName}-${AWS::StackName}-cluster
       CapacityProviders:
         - FARGATE
         - FARGATE_SPOT
@@ -629,7 +612,7 @@ Resources:
   ECSTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${EnvironmentName}-agrijobs-exec-role
+      RoleName: !Sub ${EnvironmentName}-${AWS::StackName}-exec
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow
@@ -651,7 +634,7 @@ Resources:
   ECSTaskRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${EnvironmentName}-agrijobs-task-role
+      RoleName: !Sub ${EnvironmentName}-${AWS::StackName}-task
       AssumeRolePolicyDocument:
         Statement:
           - Effect: Allow
@@ -664,6 +647,10 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - s3:ListAllMyBuckets
+                Resource: '*'
+              - Effect: Allow
+                Action:
                   - s3:*
                 Resource:
                   - !GetAtt S3Bucket.Arn
@@ -672,7 +659,7 @@ Resources:
   CloudWatchLogsGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /ecs/${EnvironmentName}-agrijobs
+      LogGroupName: !Sub /ecs/${EnvironmentName}-${AWS::StackName}
       RetentionInDays: !If
         - IsProduction
         - 14
@@ -739,6 +726,8 @@ Resources:
               Value: json
             - Name: ENABLE_CORS
               Value: 'true'
+            - Name: CORS_ALLOWED_ORIGINS
+              Value: 'https://agriskillacademy.com'
             - Name: ASA_RUN_SEED
               Value: 'true'  # Enabled - auto-creates admin from parameters
             - Name: DEFAULT_ADMIN_EMAIL
@@ -749,6 +738,12 @@ Resources:
               Value: !Ref DefaultAdminUsername
             - Name: APP_ENV
               Value: !Ref EnvironmentName
+            # Firebase configuration (if provided)
+            - "Fn::If":
+                - HasFirebaseConfig
+                - Name: FIREBASE_PROJECT_ID
+                  Value: !Ref FirebaseProjectID
+                - Ref: AWS::NoValue
           Secrets:
             - Name: POSTGRES_PASS
               ValueFrom: !Ref DBPasswordSecret
@@ -766,6 +761,17 @@ Resources:
                 - HasS3SecretAccessKey
                 - Name: AWS_SECRET_ACCESS_KEY
                   ValueFrom: !Ref S3SecretAccessKeySecret
+                - Ref: AWS::NoValue
+            # Firebase secrets (conditionally included if Firebase is configured)
+            - "Fn::If":
+                - HasFirebaseConfig
+                - Name: FIREBASE_CREDENTIALS_JSON
+                  ValueFrom: !Ref FirebaseCredentialsJSONSecret
+                - Ref: AWS::NoValue
+            - "Fn::If":
+                - HasFirebaseConfig
+                - Name: FIREBASE_WEB_API_KEY
+                  ValueFrom: !Ref FirebaseWebAPIKeySecret
                 - Ref: AWS::NoValue
           LogConfiguration:
             LogDriver: awslogs
@@ -786,7 +792,7 @@ Resources:
     Type: AWS::ECS::Service
     DependsOn: ALBListener
     Properties:
-      ServiceName: !Sub ${EnvironmentName}-agrijobs-service
+      ServiceName: !Sub ${EnvironmentName}-${AWS::StackName}-svc
       Cluster: !Ref ECSCluster
       TaskDefinition: !Ref ECSTaskDefinition
       DesiredCount: !Ref DesiredCount
@@ -860,21 +866,21 @@ Resources:
   DBPasswordSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub ${EnvironmentName}/agrijobs/db-password
+      Name: !Sub ${EnvironmentName}/${AWS::StackName}/db-password
       Description: RDS PostgreSQL Password
       SecretString: !Ref DBPassword
 
   JWTSecretParameter:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub ${EnvironmentName}/agrijobs/jwt-secret
+      Name: !Sub ${EnvironmentName}/${AWS::StackName}/jwt-secret
       Description: JWT Secret Key
       SecretString: !Ref JWTSecret
 
   AdminPasswordSecret:
     Type: AWS::SecretsManager::Secret
     Properties:
-      Name: !Sub ${EnvironmentName}/agrijobs/admin-password
+      Name: !Sub ${EnvironmentName}/${AWS::StackName}/admin-password
       Description: Default Admin Password (for seeding)
       SecretString: !Ref DefaultAdminPassword
 
@@ -883,7 +889,7 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Condition: HasS3AccessKeyId
     Properties:
-      Name: !Sub ${EnvironmentName}/agrijobs/aws-access-key-id
+      Name: !Sub ${EnvironmentName}/${AWS::StackName}/aws-access-key-id
       Description: AWS Access Key ID for S3 (optional)
       SecretString: !Ref AwsAccessKeyId
 
@@ -891,9 +897,26 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Condition: HasS3SecretAccessKey
     Properties:
-      Name: !Sub ${EnvironmentName}/agrijobs/aws-secret-access-key
+      Name: !Sub ${EnvironmentName}/${AWS::StackName}/aws-secret-access-key
       Description: AWS Secret Access Key for S3 (optional)
       SecretString: !Ref AwsSecretAccessKey
+
+  # Firebase secrets (created only if Firebase is configured)
+  FirebaseCredentialsJSONSecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: HasFirebaseConfig
+    Properties:
+      Name: !Sub ${EnvironmentName}/${AWS::StackName}/firebase-credentials-json
+      Description: Firebase Service Account JSON credentials
+      SecretString: !Ref FirebaseCredentialsJSON
+
+  FirebaseWebAPIKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Condition: HasFirebaseConfig
+    Properties:
+      Name: !Sub ${EnvironmentName}/${AWS::StackName}/firebase-web-api-key
+      Description: Firebase Web API Key
+      SecretString: !Ref FirebaseWebAPIKey
 
   # ===========================================
   # CloudWatch Alarms
@@ -901,7 +924,7 @@ Resources:
   HighCPUAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub ${EnvironmentName}-agrijobs-high-cpu
+      AlarmName: !Sub ${EnvironmentName}-${AWS::StackName}-high-cpu
       AlarmDescription: Alert when CPU exceeds 80%
       MetricName: CPUUtilization
       Namespace: AWS/ECS
@@ -919,7 +942,7 @@ Resources:
   HighMemoryAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
-      AlarmName: !Sub ${EnvironmentName}-agrijobs-high-memory
+      AlarmName: !Sub ${EnvironmentName}-${AWS::StackName}-high-memory
       AlarmDescription: Alert when memory exceeds 85%
       MetricName: MemoryUtilization
       Namespace: AWS/ECS

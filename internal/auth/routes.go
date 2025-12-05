@@ -10,8 +10,9 @@ func RegisterPublicRoutes(rg *gin.RouterGroup, handler *AuthHandler) {
 	{
 		auth.POST("/login", handler.Login)
 		auth.POST("/signup", handler.Signup)
+		// Note: Email verification is handled by Firebase automatically
 		auth.POST("/forgot-password", handler.ForgotPassword)
-		auth.POST("/reset-password", handler.ResetPassword)
+		// Note: Password reset is handled by Firebase UI + login auto-sync
 	}
 }
 

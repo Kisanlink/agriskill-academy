@@ -11,6 +11,7 @@ import (
 	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var (
@@ -35,11 +36,13 @@ type Config struct {
 	ServerPort string
 	GinMode    string
 
-	// Email configuration
-	MailFrom string
-	MailHost string
-	MailPort string
-	MailPass string
+	// SMTP Email configuration (for notifications: job alerts, updates, etc.)
+	// NOT used for authentication emails (Firebase handles those)
+	EmailNotificationEnabled bool
+	MailFrom                 string
+	MailHost                 string
+	MailPort                 int
+	MailPass                 string
 
 	// AWS S3 configuration
 	AWSRegion           string
@@ -83,6 +86,12 @@ type Config struct {
 
 	// Job queue configuration
 	JobMaxRetries int
+
+	// Firebase configuration (for email sending only)
+	FirebaseProjectID       string
+	FirebaseCredentialsPath string
+	FirebaseCredentialsJSON string
+	FirebaseWebAPIKey       string
 }
 
 func LoadEnv() {
@@ -176,6 +185,17 @@ func LoadConfig() *Config {
 	awsS3ForcePathStyle := os.Getenv("AWS_S3_FORCE_PATH_STYLE") == "true"
 	awsS3DisableSSL := os.Getenv("AWS_S3_DISABLE_SSL") == "true"
 	logDevelopment := os.Getenv("LOG_DEVELOPMENT") == "true"
+	emailNotificationEnabled := os.Getenv("EMAIL_NOTIFICATION") == "true"
+
+	// Parse SMTP port with default
+	mailPort := 587
+	if mailPortStr := os.Getenv("MAIL_PORT"); mailPortStr != "" {
+		if val, err := strconv.Atoi(mailPortStr); err == nil {
+			mailPort = val
+		} else {
+			log.Printf("Warning: Invalid MAIL_PORT value '%s', using default: 587", mailPortStr)
+		}
+	}
 
 	return &Config{
 		// Database configuration
@@ -194,10 +214,11 @@ func LoadConfig() *Config {
 		GinMode:    os.Getenv("GIN_MODE"),
 
 		// Email configuration
-		MailFrom: os.Getenv("MAIL_FROM"),
-		MailHost: os.Getenv("MAIL_HOST"),
-		MailPort: os.Getenv("MAIL_PORT"),
-		MailPass: os.Getenv("MAIL_PASS"),
+		EmailNotificationEnabled: emailNotificationEnabled,
+		MailFrom:                 os.Getenv("MAIL_FROM"),
+		MailHost:                 os.Getenv("MAIL_HOST"),
+		MailPort:                 mailPort,
+		MailPass:                 os.Getenv("MAIL_PASS"),
 
 		// AWS S3 configuration
 		AWSRegion:           os.Getenv("AWS_REGION"),
@@ -241,6 +262,12 @@ func LoadConfig() *Config {
 
 		// Job queue configuration
 		JobMaxRetries: GetDefaultMaxRetries(),
+
+		// Firebase configuration
+		FirebaseProjectID:       os.Getenv("FIREBASE_PROJECT_ID"),
+		FirebaseCredentialsPath: os.Getenv("FIREBASE_CREDENTIALS_PATH"),
+		FirebaseCredentialsJSON: os.Getenv("FIREBASE_CREDENTIALS_JSON"),
+		FirebaseWebAPIKey:       os.Getenv("FIREBASE_WEB_API_KEY"),
 	}
 }
 
@@ -282,7 +309,19 @@ func InitDB() (*gorm.DB, error) {
 		host, port, user, password, dbname, sslmode,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Configure GORM logger based on GIN_MODE
+	var gormLogger logger.Interface
+	if os.Getenv("GIN_MODE") == "debug" {
+		// In debug mode: show all SQL queries with colors
+		gormLogger = logger.Default.LogMode(logger.Info)
+	} else {
+		// In production: only log warnings and errors (no SQL queries)
+		gormLogger = logger.Default.LogMode(logger.Warn)
+	}
+
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: gormLogger,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}

@@ -5,6 +5,10 @@ import (
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"github.com/Kisanlink/agriskill-academy/internal/studentprofile"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -39,6 +43,24 @@ func VerifyPassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
+// generateSecureToken generates a cryptographically secure random token
+// Used for password reset tokens
+func generateSecureToken() (string, error) {
+	b := make([]byte, 32) // 32 bytes = 256 bits of entropy
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("failed to generate secure token: %w", err)
+	}
+	// Use URL-safe base64 encoding (no padding) for clean URLs
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// hashToken hashes a token using SHA-256
+// Tokens are hashed before storing in database to prevent token theft from DB dumps
+func hashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
+}
+
 type AuthService interface {
 	Login(username, password string) (*User, string, error)
 	Signup(req *SignupRequest) (*User, string, error)
@@ -53,17 +75,36 @@ type AuthService interface {
 	ListAllUsers() ([]User, error)
 }
 
+// FirebaseEmailService interface for sending emails (to allow mocking)
+type FirebaseEmailService interface {
+	SendVerificationEmail(ctx context.Context, email, token string) error
+	SendPasswordResetEmail(ctx context.Context, email, token string) error
+	UpdateFirebasePassword(ctx context.Context, email, newPassword string) error
+	DeleteFirebaseUser(ctx context.Context, email string) error
+}
+
+// FirebaseAuthClient interface for Firebase authentication operations
+type FirebaseAuthClient interface {
+	SignUpWithPassword(email, password string) (firebaseUID string, err error)
+	SignInWithPassword(email, password string) (firebaseUID string, emailVerified bool, err error)
+	UpdatePassword(email, newPassword string) error
+}
+
 type authService struct {
 	repo               UserRepository
 	employerRepo       employerprofile.EmployerProfileRepository
 	studentProfileRepo studentprofile.StudentProfileRepository
+	firebaseEmail      FirebaseEmailService   // Optional: for sending verification/reset emails
+	firebaseAuth       FirebaseAuthClient     // Optional: for Firebase authentication
 }
 
-func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository) AuthService {
+func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository, firebaseEmail FirebaseEmailService, firebaseAuth FirebaseAuthClient) AuthService {
 	return &authService{
 		repo:               repo,
 		employerRepo:       employerRepo,
 		studentProfileRepo: studentProfileRepo,
+		firebaseEmail:      firebaseEmail,
+		firebaseAuth:       firebaseAuth,
 	}
 }
 
@@ -135,8 +176,10 @@ func (s *authService) ListAllUsers() ([]User, error) {
 	return s.repo.ListAllUsers()
 }
 
-// Login - now validates password locally
+// Login - authenticates via Firebase, returns our JWT
 func (s *authService) Login(username, password string) (*User, string, error) {
+	middleware.DebugLog("🔍 Login called for username: %s\n", username)
+
 	// Try to find user by username first, then by email
 	var user *User
 	var err error
@@ -147,19 +190,73 @@ func (s *authService) Login(username, password string) (*User, string, error) {
 		// If not found by username, try by email
 		user, err = s.repo.FindByEmail(username)
 		if err != nil {
+			middleware.DebugLog("❌ User not found\n")
 			return nil, "", errors.New("invalid credentials")
 		}
 	}
 
-	// Validate password locally
-	if err := VerifyPassword(user.Password, password); err != nil {
-		return nil, "", errors.New("invalid credentials")
+	// Authenticate via Firebase (if configured)
+	if s.firebaseAuth != nil {
+		middleware.DebugLog("🔥 Authenticating via Firebase\n")
+		firebaseUID, emailVerified, err := s.firebaseAuth.SignInWithPassword(user.Email, password)
+		if err != nil {
+			middleware.DebugLog("❌ Firebase authentication failed: %v\n", err)
+			return nil, "", errors.New("invalid credentials")
+		}
+		middleware.DebugLog("✅ Firebase authentication successful (UID: %s, Verified: %v)\n", firebaseUID, emailVerified)
+
+		// Verify firebase_uid matches (security check)
+		if user.FirebaseUID != "" && user.FirebaseUID != firebaseUID {
+			middleware.DebugLog("⚠️ Firebase UID mismatch - security alert!\n")
+			return nil, "", errors.New("account security error")
+		}
+
+		// If firebase_uid not set, link it now
+		if user.FirebaseUID == "" {
+			middleware.DebugLog("🔗 Linking Firebase UID to existing user\n")
+			user.FirebaseUID = firebaseUID
+			if err := s.repo.Update(context.Background(), user); err != nil {
+				middleware.DebugLog("⚠️ Failed to link Firebase UID: %v\n", err)
+			}
+		}
+
+		// Email verification is handled by Firebase - emailVerified is available in response
+		middleware.DebugLog("📧 Firebase email verification status: %v\n", emailVerified)
+
+		// Sync PostgreSQL password with Firebase (in case password was reset via Firebase UI)
+		// Check if current stored hash matches the password
+		if err := VerifyPassword(user.Password, password); err != nil {
+			// Password doesn't match - likely changed via Firebase reset
+			middleware.DebugLog("🔄 Password mismatch detected, syncing PostgreSQL with Firebase\n")
+			hashedPassword, hashErr := HashPassword(password)
+			if hashErr == nil {
+				user.Password = hashedPassword
+				if updateErr := s.repo.Update(context.Background(), user); updateErr != nil {
+					middleware.DebugLog("⚠️ Failed to sync password (non-critical): %v\n", updateErr)
+					// Don't fail login - user authenticated successfully via Firebase
+				} else {
+					middleware.DebugLog("✅ Password synced successfully with Firebase\n")
+				}
+			}
+		}
+	} else {
+		// Fallback to local bcrypt authentication (if Firebase not configured)
+		middleware.DebugLog("⚠️ Firebase not configured, using local bcrypt authentication\n")
+		if err := VerifyPassword(user.Password, password); err != nil {
+			middleware.DebugLog("❌ Local password verification failed\n")
+			return nil, "", errors.New("invalid credentials")
+		}
+		middleware.DebugLog("✅ Local authentication successful\n")
 	}
 
+	// Generate our JWT token for API access
 	token, err := generateToken(user)
 	if err != nil {
+		middleware.DebugLog("❌ Failed to generate JWT: %v\n", err)
 		return nil, "", err
 	}
+
+	middleware.DebugLog("✅ Login successful, returning JWT token\n")
 	return user, token, nil
 }
 
@@ -183,17 +280,31 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		return nil, "", errors.New("email already registered")
 	}
 
-	// 3. Create user (store hashed password and role locally)
-	middleware.DebugLog("🔍 Creating user with name: %s, username: %s, email: %s\n", req.Name, req.Username, req.Email)
-
-	// Hash the password
+	// 3. Hash password for PostgreSQL storage
+	middleware.DebugLog("🔍 Hashing password for PostgreSQL storage\n")
 	hashedPassword, err := HashPassword(req.Password)
 	if err != nil {
 		middleware.DebugLog("❌ Failed to hash password: %v\n", err)
 		return nil, "", fmt.Errorf("failed to hash password: %w", err)
 	}
-	middleware.DebugLog("🔍 Password hashed successfully using bcrypt.DefaultCost\n")
+	middleware.DebugLog("✅ Password hashed successfully using bcrypt.DefaultCost\n")
 
+	// 4. Create user in Firebase FIRST (validates password, returns UID)
+	var firebaseUID string
+	if s.firebaseAuth != nil {
+		middleware.DebugLog("🔥 Creating user in Firebase (validates password first)\n")
+		firebaseUID, err = s.firebaseAuth.SignUpWithPassword(req.Email, req.Password)
+		if err != nil {
+			middleware.DebugLog("❌ Failed to create user in Firebase: %v\n", err)
+			return nil, "", fmt.Errorf("failed to create Firebase account: %w", err)
+		}
+		middleware.DebugLog("✅ User created in Firebase with UID: %s\n", firebaseUID)
+	} else {
+		middleware.DebugLog("⚠️ Firebase auth not configured, using local authentication only\n")
+	}
+
+	// 5. Create user object for PostgreSQL with Firebase UID
+	middleware.DebugLog("🔍 Creating user in PostgreSQL with name: %s, username: %s, email: %s\n", req.Name, req.Username, req.Email)
 	user := NewUser()
 	user.Name = req.Name
 	user.Username = req.Username
@@ -201,32 +312,34 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 	user.Password = hashedPassword     // Store hashed password locally
 	user.Role = req.Role               // Store role locally
 	user.PhoneNumber = req.PhoneNumber // Store phone number
+	user.FirebaseUID = firebaseUID     // Store Firebase UID (empty if Firebase not configured)
+
+	// 6. Create user in PostgreSQL
 	err = s.repo.Create(context.Background(), user)
 	if err != nil {
-		middleware.DebugLog("❌ Failed to create user in DB: %v\n", err)
+		middleware.DebugLog("❌ Failed to create user in PostgreSQL: %v\n", err)
+		// Cleanup: Delete Firebase user if PostgreSQL creation fails
+		if s.firebaseAuth != nil && firebaseUID != "" {
+			middleware.DebugLog("🔄 Cleaning up: deleting Firebase user\n")
+			if s.firebaseEmail != nil {
+				if deleteErr := s.firebaseEmail.DeleteFirebaseUser(context.Background(), req.Email); deleteErr != nil {
+					middleware.DebugLog("⚠️ Failed to delete Firebase user during cleanup: %v\n", deleteErr)
+				} else {
+					middleware.DebugLog("✅ Firebase user deleted successfully\n")
+				}
+			}
+		}
 		return nil, "", err
 	}
-	middleware.DebugLog("✅ User created successfully with hashed password: %+v\n", user)
+	middleware.DebugLog("✅ User created in PostgreSQL with Firebase UID linked\n")
 
-	// Refresh user to get the generated ID
-	if user.ID == "" {
-		middleware.DebugLog("⚠️ User ID is empty after creation, trying to fetch user by email\n")
-		fetchedUser, err := s.repo.FindByEmail(user.Email)
-		if err != nil {
-			middleware.DebugLog("❌ Failed to fetch user after creation: %v\n", err)
-			return nil, "", fmt.Errorf("failed to fetch user after creation: %w", err)
-		}
-		user = fetchedUser
-		middleware.DebugLog("✅ User refreshed with ID: %s\n", user.ID)
-	}
-
-	// 4. Generate token
+	// 7. Generate token
 	token, err := generateToken(user)
 	if err != nil {
 		return nil, "", err
 	}
 
-	// 5. Create corresponding profile based on role from request
+	// 8. Create corresponding profile based on role from request
 	middleware.DebugLog("🔍 Creating profile for role: %s\n", req.Role)
 	if req.Role == "employer" {
 		middleware.DebugLog("🔍 Creating employer profile for user: %s\n", user.ID)
@@ -305,24 +418,125 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		middleware.DebugLog("⚠️ Unknown role: %s, no profile created\n", req.Role)
 	}
 
+	// Send verification email via Firebase (if configured)
+	if s.firebaseEmail != nil {
+		middleware.DebugLog("📧 Sending verification email to: %s\n", user.Email)
+		// Note: SendVerificationEmail creates Firebase user and sends email via sendOobCode
+		if err := s.firebaseEmail.SendVerificationEmail(context.Background(), user.Email, ""); err != nil {
+			middleware.DebugLog("⚠️ Failed to send verification email: %v\n", err)
+			// Don't fail signup - Firebase account already created, email just failed to send
+		} else {
+			middleware.DebugLog("✅ Verification email sent successfully\n")
+		}
+	} else {
+		middleware.DebugLog("⚠️ Firebase email service not configured, skipping verification email\n")
+	}
+
 	return user, token, nil
 }
 
-// Send password reset link (mock)
+// SendResetLink sends a password reset email with a secure token
 func (s *authService) SendResetLink(email string) error {
-	// In production: send real email with reset link/token
+	middleware.DebugLog("🔍 SendResetLink called for email: %s\n", email)
+
+	// 1. Check if user exists in LOCAL DB
 	user, err := s.repo.FindByEmail(email)
 	if err != nil {
-		return errors.New("email not found")
+		// Don't reveal if email exists or not (security best practice)
+		// Always return success to prevent email enumeration attacks
+		middleware.DebugLog("⚠️ Email not found, but returning success to prevent enumeration\n")
+		return nil
 	}
-	middleware.DebugLog("Password reset requested for %s (user id: %s)\n", user.Email, user.ID)
+
+	// 2. Generate secure reset token
+	resetToken, err := generateSecureToken()
+	if err != nil {
+		middleware.DebugLog("❌ Failed to generate reset token: %v\n", err)
+		return fmt.Errorf("failed to generate reset token: %w", err)
+	}
+
+	// 3. Store hashed token in LOCAL DB with expiry (1 hour)
+	expiry := time.Now().Add(1 * time.Hour)
+	user.PasswordResetToken = hashToken(resetToken)
+	user.ResetTokenExpiry = &expiry
+
+	if err := s.repo.Update(context.Background(), user); err != nil {
+		middleware.DebugLog("❌ Failed to save reset token: %v\n", err)
+		return fmt.Errorf("failed to save reset token: %w", err)
+	}
+
+	middleware.DebugLog("✅ Reset token generated and saved for user: %s\n", user.Email)
+
+	// 4. Send reset email via Firebase (if configured)
+	if s.firebaseEmail != nil {
+		middleware.DebugLog("📧 Sending password reset email to: %s\n", user.Email)
+		if err := s.firebaseEmail.SendPasswordResetEmail(context.Background(), user.Email, resetToken); err != nil {
+			middleware.DebugLog("❌ Failed to send reset email: %v\n", err)
+			return errors.New("failed to send reset email")
+		}
+		middleware.DebugLog("✅ Password reset email sent successfully\n")
+	} else {
+		middleware.DebugLog("⚠️ Firebase email service not configured\n")
+		return errors.New("email service not configured")
+	}
+
 	return nil
 }
 
-// Reset password using token (mock logic)
+// ResetPassword resets a user's password using a valid reset token
+// Updates password in both PostgreSQL and Firebase to keep systems in sync
 func (s *authService) ResetPassword(token, newPassword string) error {
-	// Password reset is now handled locally
-	// This method is kept for backward compatibility but doesn't modify local DB
+	middleware.DebugLog("🔍 ResetPassword called\n")
+
+	// 1. Hash token to find in database
+	hashedToken := hashToken(token)
+
+	// 2. Find user by reset token
+	user, err := s.repo.FindByPasswordResetToken(hashedToken)
+	if err != nil {
+		middleware.DebugLog("❌ Invalid reset token\n")
+		return errors.New("invalid or expired reset token")
+	}
+
+	// 3. Check token expiry
+	if user.ResetTokenExpiry == nil || time.Now().After(*user.ResetTokenExpiry) {
+		middleware.DebugLog("❌ Reset token has expired\n")
+		return errors.New("reset token has expired")
+	}
+
+	// 4. Hash new password for PostgreSQL storage
+	hashedPassword, err := HashPassword(newPassword)
+	if err != nil {
+		middleware.DebugLog("❌ Failed to hash new password: %v\n", err)
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// 5. Update password in PostgreSQL
+	user.Password = hashedPassword
+	user.PasswordResetToken = "" // Clear token
+	user.ResetTokenExpiry = nil   // Clear expiry
+
+	if err := s.repo.Update(context.Background(), user); err != nil {
+		middleware.DebugLog("❌ Failed to update password in PostgreSQL: %v\n", err)
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+	middleware.DebugLog("✅ Password updated in PostgreSQL\n")
+
+	// 6. Update password in Firebase (if configured and user has Firebase account)
+	if s.firebaseEmail != nil && user.FirebaseUID != "" {
+		middleware.DebugLog("🔥 Updating password in Firebase\n")
+		if err := s.firebaseEmail.UpdateFirebasePassword(context.Background(), user.Email, newPassword); err != nil {
+			middleware.DebugLog("⚠️ Failed to update Firebase password: %v\n", err)
+			// Don't fail the entire operation - PostgreSQL password is already updated
+			// User can still login with bcrypt fallback if Firebase fails
+		} else {
+			middleware.DebugLog("✅ Password updated in Firebase\n")
+		}
+	} else {
+		middleware.DebugLog("⚠️ Skipping Firebase password update (not configured or user has no Firebase account)\n")
+	}
+
+	middleware.DebugLog("✅ Password reset completed successfully for user: %s\n", user.Email)
 	return nil
 }
 

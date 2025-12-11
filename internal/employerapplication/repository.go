@@ -147,19 +147,17 @@ func (r *employerApplicationRepository) GetApplicantProfile(studentID string) (*
 func (r *employerApplicationRepository) AddMessage(msg *Message) error {
 	middleware.DebugLog("DEBUG: Repository AddMessage - Message timestamp: %v\n", msg.SentAt)
 
-	// Create message without the sent_at field to let database set it
-	messageToSave := map[string]interface{}{
-		"application_id": msg.ApplicationID,
-		"sender_id":      msg.SenderID,
-		"message":        msg.Message,
-		// Explicitly omit sent_at to let database use DEFAULT CURRENT_TIMESTAMP
-	}
+	// Create message with generated ID using kisanlink-db pattern
+	newMsg := NewMessage()
+	newMsg.ApplicationID = msg.ApplicationID
+	newMsg.SenderID = msg.SenderID
+	newMsg.Message = msg.Message
 
-	err := r.db.Table("messages").Create(messageToSave).Error
+	err := r.db.Create(newMsg).Error
 	if err != nil {
 		middleware.DebugLog("DEBUG: Repository AddMessage error: %v\n", err)
 	} else {
-		middleware.DebugLog("DEBUG: Repository AddMessage success - Message saved with ID: %s\n", msg.ID)
+		middleware.DebugLog("DEBUG: Repository AddMessage success - Message saved with ID: %s\n", newMsg.ID)
 	}
 	return err
 }

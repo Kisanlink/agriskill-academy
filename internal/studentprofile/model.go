@@ -150,8 +150,8 @@ type StudentProfile struct {
 	PhoneNumber string `json:"phone_number,omitempty"`
 
 	// S3 file keys for profile media
-	ProfilePhotoKey string `json:"profile_photo_key,omitempty"`
-	ResumeKey       string `json:"resume_key,omitempty"`
+	ProfilePhotoKey string `gorm:"column:profile_photo_key" json:"profile_photo_key,omitempty"`
+	ResumeKey       string `gorm:"column:resume_key" json:"resume_key,omitempty"`
 
 	// Optional professional information
 	Certificates []Certificate       `gorm:"foreignKey:StudentProfileID" json:"certificates,omitempty"`
@@ -231,8 +231,8 @@ type UpdateStudentProfileRequest struct {
 	Email           string              `json:"email,omitempty"`
 	Location        string              `json:"location,omitempty"`
 	PhoneNumber     string              `json:"phone_number,omitempty"`
-	ProfilePhotoKey string              `json:"profile_photo_key,omitempty"`
-	ResumeKey       string              `json:"resume_key,omitempty"`
+	ProfilePhotoKey string              `gorm:"column:profile_photo_key" json:"profile_photo_key,omitempty"`
+	ResumeKey       string              `gorm:"column:resume_key" json:"resume_key,omitempty"`
 	Skills          PostgreSQLTextArray `json:"skills,omitempty"`
 	Experience      *float64            `json:"experience,omitempty"`
 	Education       string              `json:"education,omitempty"`

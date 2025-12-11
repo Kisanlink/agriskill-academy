@@ -59,8 +59,26 @@ func (r *studentProfileRepository) Update(ctx context.Context, profile *StudentP
 	}
 
 	middleware.DebugLog("✅ DEBUG: Repository.Update - Profile found, updating...\n")
+	middleware.DebugLog("🔍 DEBUG: Repository.Update - ProfilePhotoKey: %s, ResumeKey: %s\n", profile.ProfilePhotoKey, profile.ResumeKey)
 
-	result := r.db.Save(profile)
+	// Use map to force GORM to update ALL fields including zero values
+	// GORM's struct-based Updates() skips zero-value fields even with Select("*")
+	updateMap := map[string]interface{}{
+		"name":              profile.Name,
+		"email":             profile.Email,
+		"location":          profile.Location,
+		"phone_number":      profile.PhoneNumber,
+		"profile_photo_key": profile.ProfilePhotoKey,
+		"resume_key":        profile.ResumeKey,
+		"skills":            profile.Skills,
+		"experience":        profile.Experience,
+		"education":         profile.Education,
+		"portfolio":         profile.Portfolio,
+		"linkedin":          profile.Linkedin,
+		"github":            profile.Github,
+	}
+
+	result := r.db.Model(&StudentProfile{}).Where("id = ?", profile.ID).Updates(updateMap)
 	if result.Error != nil {
 		middleware.DebugLog("❌ DEBUG: Repository.Update error: %v\n", result.Error)
 		return result.Error

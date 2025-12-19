@@ -503,3 +503,90 @@ func (h *AdminHandler) GetCompanyAnalytics(c *gin.Context) {
 		Data:    analytics,
 	})
 }
+
+// @Summary Get Students List
+// @Description Get paginated list of students with contact details and filters
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number (default: 1)"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param search query string false "Search by name or email"
+// @Param location query string false "Filter by location"
+// @Param education query string false "Filter by education"
+// @Param sort_by query string false "Sort field"
+// @Param sort_order query string false "Sort order (asc/desc)"
+// @Success 200 {object} StudentResponse "Students retrieved successfully"
+// @Failure 400 {object} StudentResponse "Invalid query parameters"
+// @Failure 500 {object} StudentResponse "Failed to fetch students"
+// @Router /api/admin/students [get]
+func (h *AdminHandler) GetStudents(c *gin.Context) {
+	var req StudentListRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, StudentResponse{
+			Success: false,
+			Message: "Invalid query parameters: " + err.Error(),
+		})
+		return
+	}
+
+	students, err := h.service.GetStudents(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, StudentResponse{
+			Success: false,
+			Message: "Failed to fetch students: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, StudentResponse{
+		Success: true,
+		Message: "Students retrieved successfully",
+		Data:    students,
+	})
+}
+
+// @Summary Get Employers List
+// @Description Get paginated list of employers with contact details and filters
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number (default: 1)"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param search query string false "Search by company name or recruiter name"
+// @Param industry query string false "Filter by industry"
+// @Param city query string false "Filter by city"
+// @Param company_size query string false "Filter by company size"
+// @Param sort_by query string false "Sort field"
+// @Param sort_order query string false "Sort order (asc/desc)"
+// @Success 200 {object} EmployerResponse "Employers retrieved successfully"
+// @Failure 400 {object} EmployerResponse "Invalid query parameters"
+// @Failure 500 {object} EmployerResponse "Failed to fetch employers"
+// @Router /api/admin/employers [get]
+func (h *AdminHandler) GetEmployers(c *gin.Context) {
+	var req EmployerListRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, EmployerResponse{
+			Success: false,
+			Message: "Invalid query parameters: " + err.Error(),
+		})
+		return
+	}
+
+	employers, err := h.service.GetEmployers(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, EmployerResponse{
+			Success: false,
+			Message: "Failed to fetch employers: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, EmployerResponse{
+		Success: true,
+		Message: "Employers retrieved successfully",
+		Data:    employers,
+	})
+}

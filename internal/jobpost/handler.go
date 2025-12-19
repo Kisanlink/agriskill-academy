@@ -1,11 +1,12 @@
 package jobpost
 
 import (
-	"github.com/Kisanlink/agriskill-academy/internal/middleware"
-	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 
 	"github.com/gin-gonic/gin"
 )
@@ -33,7 +34,7 @@ func getJWT(c *gin.Context) string {
 // @Produce json
 // @Security BearerAuth
 // @Param request body CreateJobPostRequest true "Job post data"
-// @Success 201 {object} map[string]interface{} "Job created successfully"
+// @Success 201 {object} jobpost.JobPostResponse "Job created successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
@@ -80,7 +81,7 @@ func (h *JobPostHandler) Create(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body CreateDraftRequest true "Draft job post data"
-// @Success 201 {object} map[string]interface{} "Draft saved successfully"
+// @Success 201 {object} jobpost.JobPostResponse "Draft saved successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
@@ -130,7 +131,7 @@ func (h *JobPostHandler) CreateDraft(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body CreateJobPostRequest true "Job post data"
-// @Success 201 {object} map[string]interface{} "Job published successfully"
+// @Success 201 {object} jobpost.JobPostResponse "Job published successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
@@ -179,7 +180,7 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Job ID"
 // @Param request body UpdateJobPostRequest true "Job post update data"
-// @Success 200 {object} map[string]interface{} "Job updated successfully"
+// @Success 200 {object} jobpost.JobPostResponse "Job updated successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
@@ -294,7 +295,7 @@ func (h *JobPostHandler) Delete(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Job ID"
-// @Success 200 {object} map[string]interface{} "Job retrieved successfully"
+// @Success 200 {object} jobpost.JobPostResponse "Job retrieved successfully"
 // @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 404 {object} map[string]interface{} "Job not found"
@@ -327,7 +328,7 @@ func (h *JobPostHandler) GetByID(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{} "Jobs retrieved successfully"
+// @Success 200 {object} jobpost.JobPostResponse "Jobs retrieved successfully"
 // @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch jobs"
@@ -370,7 +371,7 @@ func (h *JobPostHandler) GetByEmployer(c *gin.Context) {
 // @Param jobType query string false "Job type filter"
 // @Param experience query string false "Experience filter"
 // @Param isRemote query bool false "Remote job filter"
-// @Success 200 {object} map[string]interface{} "Jobs retrieved successfully"
+// @Success 200 {object} jobpost.JobPostResponse "Jobs retrieved successfully"
 // @Failure 401 {object} map[string]interface{} "Unauthorized"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch jobs"
@@ -528,7 +529,7 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param limit query int false "Maximum number of featured jobs to return (default 10)"
-// @Success 200 {object} map[string]interface{} "Featured jobs retrieved successfully"
+// @Success 200 {object} jobpost.FeaturedJobsResponse "Featured jobs retrieved successfully"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch featured jobs"
 // @Router /api/jobs/featured [get]
@@ -566,7 +567,7 @@ func (h *JobPostHandler) GetFeaturedJobs(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param limit query int false "Maximum number of recent jobs to return (default 20)"
-// @Success 200 {object} map[string]interface{} "Recent jobs retrieved successfully"
+// @Success 200 {object} jobpost.RecentJobsResponse "Recent jobs retrieved successfully"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch recent jobs"
 // @Router /api/jobs/recent [get]
@@ -604,7 +605,7 @@ func (h *JobPostHandler) GetRecentJobs(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body JobPostFilter true "Search filters"
-// @Success 200 {object} map[string]interface{} "Search completed successfully"
+// @Success 200 {object} jobpost.JobPostResponse "Search completed successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Search failed"
@@ -643,7 +644,7 @@ func (h *JobPostHandler) Search(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body AdvancedJobSearchRequest true "Advanced search filters"
-// @Success 200 {object} map[string]interface{} "Advanced search completed successfully"
+// @Success 200 {object} jobpost.JobSearchResponse "Advanced search completed successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Advanced search failed"
@@ -680,7 +681,7 @@ func (h *JobPostHandler) AdvancedSearch(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{} "Search filters retrieved successfully"
+// @Success 200 {object} jobpost.SearchFilters "Search filters retrieved successfully"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to get search filters"
 // @Router /api/jobs/search-filters [get]
@@ -711,7 +712,7 @@ func (h *JobPostHandler) GetSearchFilters(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param limit query int false "Number of trending jobs to return"
-// @Success 200 {object} map[string]interface{} "Trending jobs retrieved successfully"
+// @Success 200 {object} jobpost.TrendingJobsResponse "Trending jobs retrieved successfully"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch trending jobs"
 // @Router /api/jobs/trending [get]
@@ -749,7 +750,7 @@ func (h *JobPostHandler) GetTrendingJobs(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Job ID"
 // @Param maxResults query int false "Maximum number of similar jobs to return"
-// @Success 200 {object} map[string]interface{} "Similar jobs retrieved successfully"
+// @Success 200 {object} jobpost.SimilarJobsResponse "Similar jobs retrieved successfully"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch similar jobs"
 // @Router /api/jobs/{id}/similar [get]
@@ -788,7 +789,7 @@ func (h *JobPostHandler) GetSimilarJobs(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body JobRecommendationRequest true "Recommendation request"
-// @Success 200 {object} map[string]interface{} "Recommended jobs retrieved successfully"
+// @Success 200 {object} jobpost.JobRecommendationResponse "Recommended jobs retrieved successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to get recommendations"
@@ -833,7 +834,7 @@ func (h *JobPostHandler) GetRecommendedJobs(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body JobAlertRequest true "Job alert data"
-// @Success 201 {object} map[string]interface{} "Job alert created successfully"
+// @Success 201 {object} jobpost.JobAlertResponse "Job alert created successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 401 {object} map[string]interface{} "User not authenticated"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
@@ -880,7 +881,7 @@ func (h *JobPostHandler) CreateJobAlert(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path string true "Job Alert ID"
 // @Param request body JobAlertRequest true "Job alert data"
-// @Success 200 {object} map[string]interface{} "Job alert updated successfully"
+// @Success 200 {object} jobpost.JobAlertResponse "Job alert updated successfully"
 // @Failure 400 {object} map[string]interface{} "Invalid request"
 // @Failure 401 {object} map[string]interface{} "User not authenticated"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
@@ -989,7 +990,7 @@ func (h *JobPostHandler) DeleteJobAlert(c *gin.Context) {
 // @Description Retrieves a job alert by its ID. Only the owner of the alert can view it.
 // @Tags jobs, alerts
 // @Param id path string true "Job Alert ID"
-// @Success 200 {object} map[string]interface{} "Job alert retrieved successfully"
+// @Success 200 {object} jobpost.JobAlertResponse "Job alert retrieved successfully"
 // @Failure 401 {object} map[string]interface{} "User not authenticated"
 // @Failure 403 {object} map[string]interface{} "Permission denied or not authorized to view this alert"
 // @Failure 404 {object} map[string]interface{} "Job alert not found"
@@ -1035,7 +1036,7 @@ func (h *JobPostHandler) GetJobAlertByID(c *gin.Context) {
 // @Tags jobs, alerts
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{} "Job alerts retrieved successfully"
+// @Success 200 {object} jobpost.JobAlertResponse "Job alerts retrieved successfully"
 // @Failure 401 {object} map[string]interface{} "User not authenticated"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch job alerts"
@@ -1073,7 +1074,7 @@ func (h *JobPostHandler) GetJobAlertsByUser(c *gin.Context) {
 // @Tags Job Posts
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{} "Drafts retrieved successfully"
+// @Success 200 {object} jobpost.JobPostResponse "Drafts retrieved successfully"
 // @Failure 401 {object} map[string]interface{} "Missing employer ID"
 // @Failure 403 {object} map[string]interface{} "Permission denied"
 // @Failure 500 {object} map[string]interface{} "Failed to fetch drafts"
@@ -1111,7 +1112,7 @@ func (h *JobPostHandler) GetDrafts(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Job ID"
-// @Success 200 {object} map[string]interface{} "Draft published successfully"
+// @Success 200 {object} jobpost.JobPostResponse "Draft published successfully"
 // @Failure 400 {object} map[string]interface{} "Failed to publish draft"
 // @Failure 401 {object} map[string]interface{} "Missing employer ID"
 // @Failure 403 {object} map[string]interface{} "Permission denied or not authorized to publish this job"

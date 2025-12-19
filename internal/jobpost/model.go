@@ -222,6 +222,7 @@ type AdvancedJobSearchRequest struct {
 	Limit     int    `json:"limit"`      // Default: 20, Max: 100
 }
 
+// @Description Job search response with filters and pagination
 type JobSearchResponse struct {
 	Success    bool            `json:"success"`
 	Message    string          `json:"message"`
@@ -230,6 +231,7 @@ type JobSearchResponse struct {
 	Pagination *PaginationInfo `json:"pagination,omitempty"`
 }
 
+// @Description Available search filters
 type SearchFilters struct {
 	AvailableLocations    []string      `json:"available_locations"`
 	AvailableJobTypes     []string      `json:"available_job_types"`
@@ -267,6 +269,7 @@ type JobRecommendationRequest struct {
 	MaxResults        int      `json:"max_results"` // Default: 10
 }
 
+// @Description Job recommendation response
 type JobRecommendationResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
@@ -292,6 +295,7 @@ type JobAlertRequest struct {
 	IsActive  bool   `json:"is_active"`
 }
 
+// @Description Job alert response
 type JobAlertResponse struct {
 	Success bool       `json:"success"`
 	Message string     `json:"message"`
@@ -358,18 +362,22 @@ func (j *JobAlert) BeforeDeleteGORM(tx *gorm.DB) error {
 }
 
 // Job Discovery Models
+
+// @Description Featured jobs response
 type FeaturedJobsResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
 	Jobs    []JobPost `json:"jobs"`
 }
 
+// @Description Recent jobs response
 type RecentJobsResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
 	Jobs    []JobPost `json:"jobs"`
 }
 
+// @Description Trending jobs response
 type TrendingJobsResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
@@ -381,6 +389,7 @@ type SimilarJobsRequest struct {
 	MaxResults int    `json:"max_results"` // Default: 5
 }
 
+// @Description Similar jobs response
 type SimilarJobsResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`

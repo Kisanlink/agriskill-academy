@@ -1,7 +1,7 @@
 # ASA Backend Makefile
 # A comprehensive build and development tool for the ASA job portal backend
 
-.PHONY: help build run air test clean migrate migrate-reset setup
+.PHONY: help build run air test clean migrate migrate-reset setup docs
 
 # Default target
 help:
@@ -11,6 +11,7 @@ help:
 	@echo "  make run          - Build and run the application"
 	@echo "  make air          - Run with hot reload (requires air)"
 	@echo "  make build        - Build the application"
+	@echo "  make docs         - Generate Swagger API documentation"
 	@echo ""
 	@echo "Database:"
 	@echo "  make migrate      - Apply all database migrations"
@@ -141,4 +142,21 @@ deps:
 build: deps
 	@echo "Building ASA Backend..."
 	go build -o bin/asa cmd/server/main.go
-	@echo "Build complete! Binary: bin/asa" 
+	@echo "Build complete! Binary: bin/asa"
+
+# Generate Swagger API documentation
+docs:
+	@echo "Generating Swagger API documentation..."
+	@if command -v swag > /dev/null; then \
+		swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal; \
+		echo "Swagger documentation generated successfully in docs/"; \
+		echo "View Swagger UI at: http://localhost:8080/swagger/index.html"; \
+		echo "View Scalar docs at: http://localhost:8080/docs"; \
+	else \
+		echo "Swag not found. Installing swag..."; \
+		go install github.com/swaggo/swag/cmd/swag@latest; \
+		swag init -g cmd/server/main.go -o docs --parseDependency --parseInternal; \
+		echo "Swagger documentation generated successfully in docs/"; \
+		echo "View Swagger UI at: http://localhost:8080/swagger/index.html"; \
+		echo "View Scalar docs at: http://localhost:8080/docs"; \
+	fi 

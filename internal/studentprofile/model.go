@@ -3,11 +3,12 @@
 package studentprofile
 
 import (
-	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"github.com/Kisanlink/kisanlink-db/pkg/core/hash"

@@ -1,11 +1,31 @@
 // File: cmd/server/main.go
 
+// @title AgriJobs API
+// @version 1.0
+// @description AgriJobs backend API for agricultural job portal
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.email support@agrijobs.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
 package main
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/Kisanlink/agriskill-academy/config"
 	"github.com/Kisanlink/agriskill-academy/internal/admin"
@@ -30,6 +50,7 @@ import (
 	"github.com/Kisanlink/agriskill-academy/pkg/firebase"
 
 	"github.com/gin-gonic/gin"
+	scalar "github.com/MarceloPetrucio/go-scalar-api-reference"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
@@ -294,6 +315,29 @@ func main() {
 
 	// Swagger docs
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	// Scalar API documentation
+	router.GET("/docs", func(c *gin.Context) {
+		// Read the swagger.json file
+		swaggerJSON, err := os.ReadFile("docs/swagger.json")
+		if err != nil {
+			c.String(500, "Error reading swagger spec: %v", err)
+			return
+		}
+
+		htmlContent, err := scalar.ApiReferenceHTML(&scalar.Options{
+			SpecContent: string(swaggerJSON),
+			CustomOptions: scalar.CustomOptions{
+				PageTitle: "AgriJobs API Documentation",
+			},
+			DarkMode: true,
+		})
+		if err != nil {
+			c.String(500, "Error generating Scalar documentation: %v", err)
+			return
+		}
+		c.Data(200, "text/html; charset=utf-8", []byte(htmlContent))
+	})
 
 	// Public API group
 	api := router.Group("/api")

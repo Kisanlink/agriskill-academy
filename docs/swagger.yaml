@@ -1,3 +1,4 @@
+basePath: /
 definitions:
   internal_admin.AnalyticsResponse:
     properties:
@@ -8,6 +9,59 @@ definitions:
         type: boolean
     type: object
   internal_admin.CompanyResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_admin.CreateAdminRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - name
+    - password
+    - username
+    type: object
+  internal_admin.CreateAdminResponse:
+    properties:
+      message:
+        type: string
+      success:
+        type: boolean
+      user:
+        properties:
+          email:
+            type: string
+          id:
+            type: string
+          name:
+            type: string
+          role:
+            type: string
+          username:
+            type: string
+        type: object
+    type: object
+  internal_admin.EmployerResponse:
+    properties:
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_admin.StudentResponse:
     properties:
       data: {}
       message:
@@ -80,16 +134,6 @@ definitions:
     - password
     - user_name
     type: object
-  internal_auth.ResetPasswordRequest:
-    properties:
-      new_password:
-        type: string
-      token:
-        type: string
-    required:
-    - new_password
-    - token
-    type: object
   internal_auth.SignupRequest:
     properties:
       aadhaar_number:
@@ -126,11 +170,10 @@ definitions:
       pincode:
         type: string
       role:
-        description: '"student" or "employer"'
+        description: '"student" or "employer" only'
         enum:
         - student
         - employer
-        - asa_admin
         type: string
       state:
         type: string
@@ -644,6 +687,18 @@ definitions:
     - role_overview
     - title
     type: object
+  internal_jobpost.FeaturedJobsResponse:
+    description: Featured jobs response
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/internal_jobpost.JobPost'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   internal_jobpost.FlexibleSalary:
     properties:
       currency:
@@ -652,6 +707,55 @@ definitions:
         type: number
       min:
         type: number
+    type: object
+  internal_jobpost.JobAlert:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: string
+      experience:
+        items:
+          type: string
+        type: array
+      frequency:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      is_remote:
+        type: boolean
+      job_type:
+        items:
+          type: string
+        type: array
+      keywords:
+        items:
+          type: string
+        type: array
+      location:
+        type: string
+      salary_currency:
+        type: string
+      salary_max:
+        type: number
+      salary_min:
+        type: number
+      skills:
+        items:
+          type: string
+        type: array
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      user_id:
+        type: string
     type: object
   internal_jobpost.JobAlertRequest:
     properties:
@@ -692,6 +796,122 @@ definitions:
       user_id:
         type: string
     type: object
+  internal_jobpost.JobAlertResponse:
+    description: Job alert response
+    properties:
+      alert:
+        $ref: '#/definitions/internal_jobpost.JobAlert'
+      alerts:
+        items:
+          $ref: '#/definitions/internal_jobpost.JobAlert'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_jobpost.JobPost:
+    properties:
+      application_deadline:
+        type: string
+      applications_count:
+        type: integer
+      benefits:
+        items:
+          type: string
+        type: array
+      city:
+        type: string
+      company_address:
+        type: string
+      company_description:
+        type: string
+      company_name:
+        description: Company details from employer profile (virtual fields)
+        type: string
+      company_size:
+        type: string
+      completed_at:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: string
+      employer_email:
+        type: string
+      employer_id:
+        type: string
+      employer_name:
+        type: string
+      experience:
+        description: entry, mid, senior
+        type: string
+      hired_candidate_name:
+        type: string
+      hiring_locations:
+        items:
+          type: string
+        type: array
+      hiring_types:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      industry:
+        type: string
+      is_remote:
+        type: boolean
+      job_categories:
+        items:
+          type: string
+        type: array
+      job_type:
+        description: full-time, part-time, contract, internship
+        type: string
+      location:
+        type: string
+      pincode:
+        type: string
+      required_skills:
+        items:
+          type: string
+        type: array
+      requirements:
+        type: string
+      role_overview:
+        type: string
+      salary:
+        allOf:
+        - $ref: '#/definitions/internal_jobpost.Salary'
+        description: Virtual field for JSON
+      salary_currency:
+        description: Database column
+        type: string
+      salary_max:
+        description: Database column
+        type: number
+      salary_min:
+        description: Database column
+        type: number
+      state:
+        type: string
+      status:
+        description: draft, published, closed, completed
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      website_url:
+        type: string
+    type: object
   internal_jobpost.JobPostFilter:
     properties:
       experience:
@@ -725,6 +945,19 @@ definitions:
           type: string
         type: array
     type: object
+  internal_jobpost.JobPostResponse:
+    properties:
+      job_post:
+        $ref: '#/definitions/internal_jobpost.JobPost'
+      job_posts:
+        items:
+          $ref: '#/definitions/internal_jobpost.JobPost'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   internal_jobpost.JobRecommendationRequest:
     properties:
       max_results:
@@ -744,6 +977,145 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  internal_jobpost.JobRecommendationResponse:
+    description: Job recommendation response
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/internal_jobpost.JobPost'
+        type: array
+      message:
+        type: string
+      reason:
+        description: Why these jobs were recommended
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_jobpost.JobSearchResponse:
+    description: Job search response with filters and pagination
+    properties:
+      filters:
+        $ref: '#/definitions/internal_jobpost.SearchFilters'
+      jobs:
+        items:
+          $ref: '#/definitions/internal_jobpost.JobPost'
+        type: array
+      message:
+        type: string
+      pagination:
+        $ref: '#/definitions/internal_jobpost.PaginationInfo'
+      success:
+        type: boolean
+    type: object
+  internal_jobpost.PaginationInfo:
+    properties:
+      has_next:
+        type: boolean
+      has_prev:
+        type: boolean
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  internal_jobpost.RecentJobsResponse:
+    description: Recent jobs response
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/internal_jobpost.JobPost'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_jobpost.Salary:
+    properties:
+      currency:
+        type: string
+      max:
+        type: number
+      min:
+        type: number
+    type: object
+  internal_jobpost.SalaryRange:
+    properties:
+      currency:
+        type: string
+      label:
+        description: e.g., "$40k-$60k"
+        type: string
+      max:
+        type: number
+      min:
+        type: number
+    type: object
+  internal_jobpost.SearchFilters:
+    description: Available search filters
+    properties:
+      available_benefits:
+        items:
+          type: string
+        type: array
+      available_company_sizes:
+        items:
+          type: string
+        type: array
+      available_experience:
+        items:
+          type: string
+        type: array
+      available_industries:
+        items:
+          type: string
+        type: array
+      available_job_types:
+        items:
+          type: string
+        type: array
+      available_locations:
+        items:
+          type: string
+        type: array
+      available_skills:
+        items:
+          type: string
+        type: array
+      salary_ranges:
+        items:
+          $ref: '#/definitions/internal_jobpost.SalaryRange'
+        type: array
+    type: object
+  internal_jobpost.SimilarJobsResponse:
+    description: Similar jobs response
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/internal_jobpost.JobPost'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  internal_jobpost.TrendingJobsResponse:
+    description: Trending jobs response
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/internal_jobpost.JobPost'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
     type: object
   internal_jobpost.UpdateJobPostRequest:
     properties:
@@ -983,8 +1355,18 @@ definitions:
     - issue_date
     - name
     type: object
+host: localhost:8080
 info:
-  contact: {}
+  contact:
+    email: support@agrijobs.com
+    name: API Support
+  description: AgriJobs backend API for agricultural job portal
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: AgriJobs API
+  version: "1.0"
 paths:
   /api/admin/analytics/applications:
     get:
@@ -1417,6 +1799,158 @@ paths:
       summary: Get Contact Analytics (Admin)
       tags:
       - Admin - Contact
+  /api/admin/create-admin:
+    post:
+      consumes:
+      - application/json
+      description: Create a new admin user (admin-only endpoint)
+      parameters:
+      - description: Admin creation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_admin.CreateAdminRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Admin created successfully
+          schema:
+            $ref: '#/definitions/internal_admin.CreateAdminResponse'
+        "400":
+          description: Invalid request data
+          schema:
+            $ref: '#/definitions/internal_admin.CreateAdminResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/internal_admin.CreateAdminResponse'
+        "403":
+          description: Forbidden - Admin access required
+          schema:
+            $ref: '#/definitions/internal_admin.CreateAdminResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/internal_admin.CreateAdminResponse'
+      security:
+      - BearerAuth: []
+      summary: Create Admin User
+      tags:
+      - Admin Management
+  /api/admin/employers:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of employers with contact details and filters
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: Search by company name or recruiter name
+        in: query
+        name: search
+        type: string
+      - description: Filter by industry
+        in: query
+        name: industry
+        type: string
+      - description: Filter by city
+        in: query
+        name: city
+        type: string
+      - description: Filter by company size
+        in: query
+        name: company_size
+        type: string
+      - description: Sort field
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Employers retrieved successfully
+          schema:
+            $ref: '#/definitions/internal_admin.EmployerResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/internal_admin.EmployerResponse'
+        "500":
+          description: Failed to fetch employers
+          schema:
+            $ref: '#/definitions/internal_admin.EmployerResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Employers List
+      tags:
+      - Admin
+  /api/admin/students:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of students with contact details and filters
+      parameters:
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Items per page (default: 10, max: 100)'
+        in: query
+        name: limit
+        type: integer
+      - description: Search by name or email
+        in: query
+        name: search
+        type: string
+      - description: Filter by location
+        in: query
+        name: location
+        type: string
+      - description: Filter by education
+        in: query
+        name: education
+        type: string
+      - description: Sort field
+        in: query
+        name: sort_by
+        type: string
+      - description: Sort order (asc/desc)
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Students retrieved successfully
+          schema:
+            $ref: '#/definitions/internal_admin.StudentResponse'
+        "400":
+          description: Invalid query parameters
+          schema:
+            $ref: '#/definitions/internal_admin.StudentResponse'
+        "500":
+          description: Failed to fetch students
+          schema:
+            $ref: '#/definitions/internal_admin.StudentResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Students List
+      tags:
+      - Admin
   /api/admin/users:
     get:
       consumes:
@@ -1660,7 +2194,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send password reset link (mock implementation)
+      description: Send password reset link via email
       parameters:
       - description: Email for password reset
         in: body
@@ -1772,34 +2306,6 @@ paths:
       security:
       - BearerAuth: []
       summary: Update User Profile
-      tags:
-      - Authentication
-  /api/auth/reset-password:
-    post:
-      consumes:
-      - application/json
-      description: Reset password using token (mock implementation)
-      parameters:
-      - description: Password reset data
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/internal_auth.ResetPasswordRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Password reset successful
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Invalid request
-          schema:
-            additionalProperties: true
-            type: object
-      summary: Reset Password
       tags:
       - Authentication
   /api/auth/signup:
@@ -2780,8 +3286,7 @@ paths:
         "200":
           description: Jobs retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "401":
           description: Unauthorized
           schema:
@@ -2820,8 +3325,7 @@ paths:
         "201":
           description: Job created successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "400":
           description: Invalid request
           schema:
@@ -2903,8 +3407,7 @@ paths:
         "200":
           description: Job retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "401":
           description: Unauthorized
           schema:
@@ -2953,8 +3456,7 @@ paths:
         "200":
           description: Job updated successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "400":
           description: Invalid request
           schema:
@@ -3123,8 +3625,7 @@ paths:
         "200":
           description: Draft published successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "400":
           description: Failed to publish draft
           schema:
@@ -3172,8 +3673,7 @@ paths:
         "200":
           description: Similar jobs retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.SimilarJobsResponse'
         "403":
           description: Permission denied
           schema:
@@ -3208,8 +3708,7 @@ paths:
         "200":
           description: Advanced search completed successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobSearchResponse'
         "400":
           description: Invalid request
           schema:
@@ -3240,8 +3739,7 @@ paths:
         "200":
           description: Job alerts retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobAlertResponse'
         "401":
           description: User not authenticated
           schema:
@@ -3281,8 +3779,7 @@ paths:
         "201":
           description: Job alert created successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobAlertResponse'
         "400":
           description: Invalid request
           schema:
@@ -3363,8 +3860,7 @@ paths:
         "200":
           description: Job alert retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobAlertResponse'
         "401":
           description: User not authenticated
           schema:
@@ -3412,8 +3908,7 @@ paths:
         "200":
           description: Job alert updated successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobAlertResponse'
         "400":
           description: Invalid request
           schema:
@@ -3463,8 +3958,7 @@ paths:
         "201":
           description: Draft saved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "400":
           description: Invalid request
           schema:
@@ -3494,8 +3988,7 @@ paths:
         "200":
           description: Drafts retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "401":
           description: Missing employer ID
           schema:
@@ -3533,8 +4026,7 @@ paths:
         "200":
           description: Featured jobs retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.FeaturedJobsResponse'
         "403":
           description: Permission denied
           schema:
@@ -3562,8 +4054,7 @@ paths:
         "200":
           description: Jobs retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "401":
           description: Unauthorized
           schema:
@@ -3603,8 +4094,7 @@ paths:
         "201":
           description: Job published successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "400":
           description: Invalid request
           schema:
@@ -3641,8 +4131,7 @@ paths:
         "200":
           description: Recent jobs retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.RecentJobsResponse'
         "403":
           description: Permission denied
           schema:
@@ -3677,8 +4166,7 @@ paths:
         "200":
           description: Recommended jobs retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobRecommendationResponse'
         "400":
           description: Invalid request
           schema:
@@ -3718,8 +4206,7 @@ paths:
         "200":
           description: Search completed successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.JobPostResponse'
         "400":
           description: Invalid request
           schema:
@@ -3753,8 +4240,7 @@ paths:
         "200":
           description: Search filters retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.SearchFilters'
         "403":
           description: Permission denied
           schema:
@@ -3787,8 +4273,7 @@ paths:
         "200":
           description: Trending jobs retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_jobpost.TrendingJobsResponse'
         "403":
           description: Permission denied
           schema:
@@ -4795,4 +5280,10 @@ paths:
       summary: Enqueue Background Job
       tags:
       - Background Jobs
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

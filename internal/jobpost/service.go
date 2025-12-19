@@ -7,6 +7,7 @@ import (
 
 	"github.com/Kisanlink/agriskill-academy/internal/employerprofile"
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/pkg/utils"
 )
 
 type JobPostService interface {
@@ -146,7 +147,7 @@ func (s *jobPostService) CreateJobPost(ctx context.Context, req *CreateJobPostRe
 	job.Title = req.Title
 	job.RoleOverview = req.RoleOverview
 	job.Requirements = req.Requirements
-	job.Location = req.Location
+	job.Location = utils.NormalizeCity(req.Location)
 	job.RequiredSkills = req.RequiredSkills
 	job.EmployerID = employerID
 	job.EmployerName = employerName
@@ -263,7 +264,7 @@ func (s *jobPostService) CreateJobPostWithStatus(ctx context.Context, req *Creat
 	job.Title = req.Title
 	job.RoleOverview = req.RoleOverview
 	job.Requirements = req.Requirements
-	job.Location = req.Location
+	job.Location = utils.NormalizeCity(req.Location)
 	job.RequiredSkills = req.RequiredSkills
 	job.EmployerID = employerID
 	job.EmployerName = employerName
@@ -314,7 +315,7 @@ func (s *jobPostService) UpdateJobPost(ctx context.Context, id string, req *Upda
 		existingJob.Requirements = *req.Requirements
 	}
 	if req.Location != nil {
-		existingJob.Location = *req.Location
+		existingJob.Location = utils.NormalizeCity(*req.Location)
 	}
 	if req.RequiredSkills != nil {
 		existingJob.RequiredSkills = req.RequiredSkills
@@ -765,7 +766,7 @@ func (s *jobPostService) CreateJobAlert(request *JobAlertRequest) (*JobAlert, er
 	alert := NewJobAlert() // Use constructor to generate ID
 	alert.UserID = request.UserID
 	alert.Keywords = request.Keywords
-	alert.Location = request.Location
+	alert.Location = utils.NormalizeCity(request.Location)
 	alert.JobType = request.JobType
 	alert.Experience = request.Experience
 	alert.Skills = request.Skills
@@ -800,7 +801,7 @@ func (s *jobPostService) UpdateJobAlert(alertID string, request *JobAlertRequest
 		alert.Keywords = request.Keywords
 	}
 	if request.Location != "" {
-		alert.Location = request.Location
+		alert.Location = utils.NormalizeCity(request.Location)
 	}
 	if request.JobType != nil {
 		alert.JobType = request.JobType

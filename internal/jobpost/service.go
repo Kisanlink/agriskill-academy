@@ -83,17 +83,36 @@ func (s *jobPostService) CreateJobPost(ctx context.Context, req *CreateJobPostRe
 	// Note: No maximum length limits - PostgreSQL text type can handle unlimited text
 	// The backend supports unlimited text for role overview and requirements
 
-	// Fetch employer details if not provided
-	if employerName == "" || employerEmail == "" {
-		employerProfile, err := s.employerRepo.GetByUserID(employerID)
-		if err == nil && employerProfile != nil {
-			if employerName == "" {
-				employerName = employerProfile.CompanyName // Use company name from employer profile
-			}
-			if employerEmail == "" {
-				employerEmail = employerProfile.OfficialEmail
-			}
+	// Always fetch employer profile to get correct RecruiterName and OfficialEmail
+	middleware.DebugLog("DEBUG: Fetching employer profile for user ID: %s\n", employerID)
+	employerProfile, err := s.employerRepo.GetByUserID(employerID)
+	if err == nil && employerProfile != nil {
+		middleware.DebugLog("DEBUG: Found employer profile: RecruiterName='%s', CompanyName='%s', OfficialEmail='%s'\n",
+			employerProfile.RecruiterName, employerProfile.CompanyName, employerProfile.OfficialEmail)
+
+		// Always prioritize RecruiterName from profile over JWT username
+		if employerProfile.RecruiterName != "" {
+			employerName = employerProfile.RecruiterName
+			middleware.DebugLog("DEBUG: Set employerName to RecruiterName: '%s'\n", employerName)
+		} else if employerProfile.CompanyName != "" {
+			employerName = employerProfile.CompanyName
+			middleware.DebugLog("DEBUG: Set employerName to CompanyName (fallback): '%s'\n", employerName)
+		} else {
+			middleware.DebugLog("DEBUG: Keeping provided employerName: '%s'\n", employerName)
 		}
+
+		// Always use OfficialEmail from profile if available
+		if employerProfile.OfficialEmail != "" {
+			employerEmail = employerProfile.OfficialEmail
+			middleware.DebugLog("DEBUG: Set employerEmail to OfficialEmail: '%s'\n", employerEmail)
+		} else {
+			middleware.DebugLog("DEBUG: Keeping provided employerEmail: '%s'\n", employerEmail)
+		}
+	} else if err != nil {
+		middleware.DebugLog("DEBUG: Error fetching employer profile: %v\n", err)
+		middleware.DebugLog("DEBUG: Using provided employerName: '%s', employerEmail: '%s'\n", employerName, employerEmail)
+	} else {
+		middleware.DebugLog("DEBUG: No employer profile found, using provided employerName: '%s', employerEmail: '%s'\n", employerName, employerEmail)
 	}
 
 	// Validate salary
@@ -144,7 +163,7 @@ func (s *jobPostService) CreateJobPost(ctx context.Context, req *CreateJobPostRe
 	job.IsRemote = req.IsRemote
 	job.ApplicationsCount = 0
 
-	err := s.repo.Create(ctx, job)
+	err = s.repo.Create(ctx, job)
 	if err != nil {
 		return nil, err
 	}
@@ -181,17 +200,36 @@ func (s *jobPostService) CreateJobPostWithStatus(ctx context.Context, req *Creat
 		return nil, errors.New("requirements should be at least 10 characters long")
 	}
 
-	// Fetch employer details if not provided
-	if employerName == "" || employerEmail == "" {
-		employerProfile, err := s.employerRepo.GetByUserID(employerID)
-		if err == nil && employerProfile != nil {
-			if employerName == "" {
-				employerName = employerProfile.CompanyName // Use company name from employer profile
-			}
-			if employerEmail == "" {
-				employerEmail = employerProfile.OfficialEmail
-			}
+	// Always fetch employer profile to get correct RecruiterName and OfficialEmail
+	middleware.DebugLog("DEBUG: Fetching employer profile for user ID: %s\n", employerID)
+	employerProfile, err := s.employerRepo.GetByUserID(employerID)
+	if err == nil && employerProfile != nil {
+		middleware.DebugLog("DEBUG: Found employer profile: RecruiterName='%s', CompanyName='%s', OfficialEmail='%s'\n",
+			employerProfile.RecruiterName, employerProfile.CompanyName, employerProfile.OfficialEmail)
+
+		// Always prioritize RecruiterName from profile over JWT username
+		if employerProfile.RecruiterName != "" {
+			employerName = employerProfile.RecruiterName
+			middleware.DebugLog("DEBUG: Set employerName to RecruiterName: '%s'\n", employerName)
+		} else if employerProfile.CompanyName != "" {
+			employerName = employerProfile.CompanyName
+			middleware.DebugLog("DEBUG: Set employerName to CompanyName (fallback): '%s'\n", employerName)
+		} else {
+			middleware.DebugLog("DEBUG: Keeping provided employerName: '%s'\n", employerName)
 		}
+
+		// Always use OfficialEmail from profile if available
+		if employerProfile.OfficialEmail != "" {
+			employerEmail = employerProfile.OfficialEmail
+			middleware.DebugLog("DEBUG: Set employerEmail to OfficialEmail: '%s'\n", employerEmail)
+		} else {
+			middleware.DebugLog("DEBUG: Keeping provided employerEmail: '%s'\n", employerEmail)
+		}
+	} else if err != nil {
+		middleware.DebugLog("DEBUG: Error fetching employer profile: %v\n", err)
+		middleware.DebugLog("DEBUG: Using provided employerName: '%s', employerEmail: '%s'\n", employerName, employerEmail)
+	} else {
+		middleware.DebugLog("DEBUG: No employer profile found, using provided employerName: '%s', employerEmail: '%s'\n", employerName, employerEmail)
 	}
 
 	// Validate salary
@@ -242,7 +280,7 @@ func (s *jobPostService) CreateJobPostWithStatus(ctx context.Context, req *Creat
 	job.IsRemote = req.IsRemote
 	job.ApplicationsCount = 0
 
-	err := s.repo.Create(ctx, job)
+	err = s.repo.Create(ctx, job)
 	if err != nil {
 		return nil, err
 	}
@@ -374,14 +412,24 @@ func (s *jobPostService) populateEmployerDetails(job *JobPost) {
 	} else if employerProfile != nil {
 		middleware.DebugLog("DEBUG: Found employer profile: %+v\n", employerProfile)
 
-		// Populate basic employer details if missing
-		if job.EmployerName == "" {
+		// Always update employer name from profile (not just when empty)
+		// This fixes cases where EmployerName was incorrectly set to an email
+		if employerProfile.RecruiterName != "" {
 			job.EmployerName = employerProfile.RecruiterName
-			middleware.DebugLog("DEBUG: Set employerName to: '%s'\n", job.EmployerName)
+			middleware.DebugLog("DEBUG: Set employerName to RecruiterName: '%s'\n", job.EmployerName)
+		} else if employerProfile.CompanyName != "" {
+			job.EmployerName = employerProfile.CompanyName
+			middleware.DebugLog("DEBUG: Set employerName to CompanyName (fallback): '%s'\n", job.EmployerName)
+		} else {
+			middleware.DebugLog("DEBUG: Keeping existing employerName: '%s' (no profile name available)\n", job.EmployerName)
 		}
-		if job.EmployerEmail == "" {
+
+		// Always update email from profile if available
+		if employerProfile.OfficialEmail != "" {
 			job.EmployerEmail = employerProfile.OfficialEmail
-			middleware.DebugLog("DEBUG: Set employerEmail to: '%s'\n", job.EmployerEmail)
+			middleware.DebugLog("DEBUG: Set employerEmail to OfficialEmail: '%s'\n", job.EmployerEmail)
+		} else {
+			middleware.DebugLog("DEBUG: Keeping existing employerEmail: '%s' (no profile email available)\n", job.EmployerEmail)
 		}
 
 		// Populate company details
@@ -831,17 +879,36 @@ func (s *jobPostService) ProcessJobAlerts() error {
 
 // Draft methods
 func (s *jobPostService) CreateDraft(req *CreateDraftRequest, employerID, employerName, employerEmail string) (*JobPost, error) {
-	// Fetch employer details if not provided
-	if employerName == "" || employerEmail == "" {
-		employerProfile, err := s.employerRepo.GetByUserID(employerID)
-		if err == nil && employerProfile != nil {
-			if employerName == "" {
-				employerName = employerProfile.CompanyName // Use company name from employer profile
-			}
-			if employerEmail == "" {
-				employerEmail = employerProfile.OfficialEmail
-			}
+	// Always fetch employer profile to get correct RecruiterName and OfficialEmail
+	middleware.DebugLog("DEBUG: Fetching employer profile for user ID: %s\n", employerID)
+	employerProfile, err := s.employerRepo.GetByUserID(employerID)
+	if err == nil && employerProfile != nil {
+		middleware.DebugLog("DEBUG: Found employer profile: RecruiterName='%s', CompanyName='%s', OfficialEmail='%s'\n",
+			employerProfile.RecruiterName, employerProfile.CompanyName, employerProfile.OfficialEmail)
+
+		// Always prioritize RecruiterName from profile over JWT username
+		if employerProfile.RecruiterName != "" {
+			employerName = employerProfile.RecruiterName
+			middleware.DebugLog("DEBUG: Set employerName to RecruiterName: '%s'\n", employerName)
+		} else if employerProfile.CompanyName != "" {
+			employerName = employerProfile.CompanyName
+			middleware.DebugLog("DEBUG: Set employerName to CompanyName (fallback): '%s'\n", employerName)
+		} else {
+			middleware.DebugLog("DEBUG: Keeping provided employerName: '%s'\n", employerName)
 		}
+
+		// Always use OfficialEmail from profile if available
+		if employerProfile.OfficialEmail != "" {
+			employerEmail = employerProfile.OfficialEmail
+			middleware.DebugLog("DEBUG: Set employerEmail to OfficialEmail: '%s'\n", employerEmail)
+		} else {
+			middleware.DebugLog("DEBUG: Keeping provided employerEmail: '%s'\n", employerEmail)
+		}
+	} else if err != nil {
+		middleware.DebugLog("DEBUG: Error fetching employer profile: %v\n", err)
+		middleware.DebugLog("DEBUG: Using provided employerName: '%s', employerEmail: '%s'\n", employerName, employerEmail)
+	} else {
+		middleware.DebugLog("DEBUG: No employer profile found, using provided employerName: '%s', employerEmail: '%s'\n", employerName, employerEmail)
 	}
 
 	// For drafts, all fields are optional
@@ -920,7 +987,7 @@ func (s *jobPostService) CreateDraft(req *CreateDraftRequest, employerID, employ
 		job.IsRemote = *req.IsRemote
 	}
 
-	err := s.repo.CreateDraft(job)
+	err = s.repo.CreateDraft(job)
 	if err != nil {
 		return nil, err
 	}

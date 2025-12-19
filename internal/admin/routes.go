@@ -40,5 +40,11 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *AdminHandler) {
 			companies.PUT("/:id", handler.UpdateCompany)
 			companies.DELETE("/:id", handler.DeleteCompany)
 		}
+
+		// Student List
+		admin.GET("/students", handler.GetStudents)
+
+		// Employer List
+		admin.GET("/employers", handler.GetEmployers)
 	}
 }

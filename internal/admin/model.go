@@ -252,3 +252,82 @@ type CompanyResponse struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
+
+// Student List Models
+type StudentListRequest struct {
+	Page      int    `form:"page" binding:"min=1"`
+	Limit     int    `form:"limit" binding:"min=1,max=100"`
+	Search    string `form:"search"`
+	Location  string `form:"location"`
+	Education string `form:"education"`
+	SortBy    string `form:"sort_by"`
+	SortOrder string `form:"sort_order"`
+}
+
+type StudentListResponse struct {
+	Students   []StudentListItem `json:"students"`
+	Pagination PaginationInfo    `json:"pagination"`
+}
+
+type StudentListItem struct {
+	ID          string    `json:"id"`
+	UserID      string    `json:"user_id"`
+	Name        string    `json:"name"`
+	Email       string    `json:"email"`
+	PhoneNumber string    `json:"phone_number"`
+	Location    string    `json:"location"`
+	Education   string    `json:"education"`
+	Skills      string    `json:"skills"`
+	Portfolio   string    `json:"portfolio"`
+	Linkedin    string    `json:"linkedin"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+type StudentResponse struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
+// Employer List Models
+type EmployerListRequest struct {
+	Page        int    `form:"page" binding:"min=1"`
+	Limit       int    `form:"limit" binding:"min=1,max=100"`
+	Search      string `form:"search"`
+	Industry    string `form:"industry"`
+	City        string `form:"city"`
+	CompanySize string `form:"company_size"`
+	SortBy      string `form:"sort_by"`
+	SortOrder   string `form:"sort_order"`
+}
+
+type EmployerListResponse struct {
+	Employers  []EmployerListItem `json:"employers"`
+	Pagination PaginationInfo     `json:"pagination"`
+}
+
+type EmployerListItem struct {
+	ID                 string    `json:"id"`
+	UserID             string    `json:"user_id"`
+	CompanyName        string    `json:"company_name"`
+	Industry           string    `json:"industry"`
+	CompanySize        string    `json:"company_size"`
+	City               string    `json:"city"`
+	State              string    `json:"state"`
+	PhoneNumber        string    `json:"phone_number"`
+	OfficialEmail      string    `json:"official_email"`
+	RecruiterName      string    `json:"recruiter_name"`
+	RecruiterEmail     string    `json:"recruiter_email"`
+	CompanyDescription string    `json:"company_description"`
+	WebsiteUrl         string    `json:"website_url"`
+	ActiveJobsCount    int       `json:"active_jobs_count"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type EmployerResponse struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}

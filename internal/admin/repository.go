@@ -37,6 +37,10 @@ type AdminRepository interface {
 	UpdateCompany(companyID string, req *UpdateCompanyRequest) error
 	DeleteCompany(companyID string) error
 	GetCompanyAnalytics() (*CompanyAnalytics, error)
+
+	// Student/Employer Lists
+	GetStudents(req *StudentListRequest) (*StudentListResponse, error)
+	GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error)
 }
 
 type adminRepository struct {
@@ -757,4 +761,165 @@ func (r *adminRepository) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 
 func (r *adminRepository) CreateAdmin(user *auth.User) error {
 	return r.db.Create(user).Error
+}
+
+func (r *adminRepository) GetStudents(req *StudentListRequest) (*StudentListResponse, error) {
+	var students []StudentListItem
+	var total int64
+
+	query := r.db.Table("student_profiles").
+		Select(`
+			student_profiles.id,
+			student_profiles.user_id,
+			student_profiles.name,
+			student_profiles.email,
+			student_profiles.phone_number,
+			student_profiles.location,
+			student_profiles.education,
+			student_profiles.skills,
+			student_profiles.portfolio,
+			student_profiles.linkedin,
+			student_profiles.created_at,
+			student_profiles.updated_at
+		`)
+
+	// Apply filters
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		query = query.Where("student_profiles.name ILIKE ? OR student_profiles.email ILIKE ?", searchTerm, searchTerm)
+	}
+	if req.Location != "" {
+		query = query.Where("student_profiles.location ILIKE ?", "%"+req.Location+"%")
+	}
+	if req.Education != "" {
+		query = query.Where("student_profiles.education ILIKE ?", "%"+req.Education+"%")
+	}
+
+	// Get total count
+	query.Count(&total)
+
+	// Apply sorting
+	if req.SortBy != "" {
+		order := req.SortBy
+		if req.SortOrder == "desc" {
+			order += " DESC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("student_profiles.created_at DESC")
+	}
+
+	// Apply pagination
+	offset := (req.Page - 1) * req.Limit
+	query = query.Offset(offset).Limit(req.Limit)
+
+	// Execute query
+	err := query.Find(&students).Error
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+
+	return &StudentListResponse{
+		Students: students,
+		Pagination: PaginationInfo{
+			Page:       req.Page,
+			Limit:      req.Limit,
+			Total:      int(total),
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+func (r *adminRepository) GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error) {
+	var employers []EmployerListItem
+	var total int64
+
+	query := r.db.Table("employer_profiles").
+		Select(`
+			employer_profiles.id,
+			employer_profiles.user_id,
+			employer_profiles.company_name,
+			employer_profiles.industry,
+			employer_profiles.company_size,
+			employer_profiles.city,
+			employer_profiles.state,
+			employer_profiles.phone_number,
+			employer_profiles.official_email,
+			employer_profiles.recruiter_name,
+			employer_profiles.recruiter_email,
+			employer_profiles.company_description,
+			employer_profiles.website_url,
+			employer_profiles.created_at,
+			employer_profiles.updated_at,
+			COUNT(DISTINCT CASE WHEN job_posts.status = 'published' THEN job_posts.id END) as active_jobs_count
+		`).
+		Joins("LEFT JOIN job_posts ON job_posts.employer_id = employer_profiles.user_id").
+		Group("employer_profiles.id")
+
+	// Apply filters
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		query = query.Where("employer_profiles.company_name ILIKE ? OR employer_profiles.recruiter_name ILIKE ?", searchTerm, searchTerm)
+	}
+	if req.Industry != "" {
+		query = query.Where("employer_profiles.industry = ?", req.Industry)
+	}
+	if req.City != "" {
+		query = query.Where("employer_profiles.city ILIKE ?", "%"+req.City+"%")
+	}
+	if req.CompanySize != "" {
+		query = query.Where("employer_profiles.company_size = ?", req.CompanySize)
+	}
+
+	// Get total count (need to count before group by)
+	countQuery := r.db.Table("employer_profiles")
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		countQuery = countQuery.Where("company_name ILIKE ? OR recruiter_name ILIKE ?", searchTerm, searchTerm)
+	}
+	if req.Industry != "" {
+		countQuery = countQuery.Where("industry = ?", req.Industry)
+	}
+	if req.City != "" {
+		countQuery = countQuery.Where("city ILIKE ?", "%"+req.City+"%")
+	}
+	if req.CompanySize != "" {
+		countQuery = countQuery.Where("company_size = ?", req.CompanySize)
+	}
+	countQuery.Count(&total)
+
+	// Apply sorting
+	if req.SortBy != "" {
+		order := req.SortBy
+		if req.SortOrder == "desc" {
+			order += " DESC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("employer_profiles.created_at DESC")
+	}
+
+	// Apply pagination
+	offset := (req.Page - 1) * req.Limit
+	query = query.Offset(offset).Limit(req.Limit)
+
+	// Execute query
+	err := query.Find(&employers).Error
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+
+	return &EmployerListResponse{
+		Employers: employers,
+		Pagination: PaginationInfo{
+			Page:       req.Page,
+			Limit:      req.Limit,
+			Total:      int(total),
+			TotalPages: totalPages,
+		},
+	}, nil
 }

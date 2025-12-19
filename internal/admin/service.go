@@ -24,6 +24,10 @@ type AdminService interface {
 	UpdateCompany(companyID string, req *UpdateCompanyRequest) error
 	DeleteCompany(companyID string) error
 	GetCompanyAnalytics() (*CompanyAnalytics, error)
+
+	// Student/Employer Lists
+	GetStudents(req *StudentListRequest) (*StudentListResponse, error)
+	GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error)
 }
 
 type adminService struct {
@@ -154,4 +158,35 @@ func (s *adminService) DeleteCompany(companyID string) error {
 
 func (s *adminService) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 	return s.repo.GetCompanyAnalytics()
+}
+
+// Student/Employer List Methods
+func (s *adminService) GetStudents(req *StudentListRequest) (*StudentListResponse, error) {
+	// Set default values
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 10
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
+	return s.repo.GetStudents(req)
+}
+
+func (s *adminService) GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error) {
+	// Set default values
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 10
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
+	return s.repo.GetEmployers(req)
 }

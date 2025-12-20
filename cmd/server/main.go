@@ -265,6 +265,17 @@ func main() {
 		log.Fatalf("AWS S3 configuration is required. Please set AWS_S3_BUCKET and AWS_REGION environment variables.")
 	}
 
+	// Set Gin mode from environment variable or config
+	ginMode := cfg.GinMode
+	if ginMode == "" {
+		ginMode = os.Getenv("GIN_MODE")
+	}
+	if ginMode == "" {
+		ginMode = gin.ReleaseMode // Default to release if not set
+	}
+	gin.SetMode(ginMode)
+	logger.Info("Gin mode set", zap.String("mode", ginMode))
+
 	// Create Gin router with production middleware
 	router := gin.Default()
 
@@ -400,6 +411,7 @@ func main() {
 		employerAppService,
 		emailSenderService,
 		db,
+		storageService,
 	)
 
 	bookmarkRepo := bookmark.NewBookmarkRepository(db)

@@ -249,3 +249,19 @@ func (s *S3Manager) BuildFilter(field string, op FilterOp, value interface{}) Fi
 		Value:    value,
 	}
 }
+
+// GetPresignedURL generates a presigned URL for an S3 object
+// expiration: how long the URL should be valid (e.g., 7*24*time.Hour for 7 days)
+func (s *S3Manager) GetPresignedURL(ctx context.Context, key string, expiration time.Duration) (string, error) {
+	req, _ := s.s3Client.GetObjectRequest(&s3.GetObjectInput{
+		Bucket: aws.String(s.config.S3Bucket),
+		Key:    aws.String(key),
+	})
+
+	url, err := req.Presign(expiration)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate presigned URL: %w", err)
+	}
+
+	return url, nil
+}

@@ -3,12 +3,14 @@ package employerapplication
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"net/http"
 	"strings"
 
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"github.com/Kisanlink/agriskill-academy/internal/notification"
+	"github.com/Kisanlink/agriskill-academy/internal/storage"
 	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 
 	"github.com/gin-gonic/gin"
@@ -19,17 +21,20 @@ type EmployerApplicationHandler struct {
 	service     EmployerApplicationService
 	emailSender *notification.EmailSenderService
 	db          *gorm.DB
+	storage     storage.StorageService
 }
 
 func NewEmployerApplicationHandler(
 	s EmployerApplicationService,
 	emailSender *notification.EmailSenderService,
 	db *gorm.DB,
+	storageService storage.StorageService,
 ) *EmployerApplicationHandler {
 	return &EmployerApplicationHandler{
 		service:     s,
 		emailSender: emailSender,
 		db:          db,
+		storage:     storageService,
 	}
 }
 
@@ -189,19 +194,35 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 
 		// Get application with student and job details using flat struct
 		var app struct {
-			ID           string `gorm:"column:id"`
-			StudentID    string `gorm:"column:student_id"`
-			JobID        string `gorm:"column:job_id"`
-			StudentName  string `gorm:"column:student_name"`
-			StudentEmail string `gorm:"column:student_email"`
-			JobTitle     string `gorm:"column:job_title"`
-			CompanyName  string `gorm:"column:company_name"`
+			ID             string `gorm:"column:id"`
+			StudentID      string `gorm:"column:student_id"`
+			JobID          string `gorm:"column:job_id"`
+			EmployerID     string `gorm:"column:employer_id"`
+			StudentName    string `gorm:"column:student_name"`
+			StudentEmail   string `gorm:"column:student_email"`
+			JobTitle       string `gorm:"column:job_title"`
+			CompanyName    string `gorm:"column:company_name"`
+			CompanyWebsite string `gorm:"column:company_website"`
+			CompanyLogo    string `gorm:"column:company_logo"`
 		}
 
 		err := h.db.Table("applications").
-			Select("applications.id, applications.student_id, applications.job_id, users.name as student_name, users.email as student_email, job_posts.title as job_title, COALESCE(job_posts.employer_name, '') as company_name").
+			Select(`
+				applications.id,
+				applications.student_id,
+				applications.job_id,
+				job_posts.employer_id,
+				COALESCE(student_profiles.name, users.name) as student_name,
+				users.email as student_email,
+				job_posts.title as job_title,
+				COALESCE(employer_profiles.company_name, job_posts.employer_name, '') as company_name,
+				COALESCE(employer_profiles.website_url, '') as company_website,
+				COALESCE(employer_profiles.logo_key, '') as company_logo
+			`).
 			Joins("LEFT JOIN users ON applications.student_id = users.id").
+			Joins("LEFT JOIN student_profiles ON applications.student_id = student_profiles.user_id").
 			Joins("LEFT JOIN job_posts ON applications.job_id = job_posts.id").
+			Joins("LEFT JOIN employer_profiles ON job_posts.employer_id = employer_profiles.user_id").
 			Where("applications.id = ?", applicationID).
 			Scan(&app).Error
 
@@ -215,6 +236,10 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 			middleware.DebugLog("❌ Missing required application data: StudentID=%s, StudentEmail=%s", app.StudentID, app.StudentEmail)
 			return
 		}
+
+		// Log fetched data for debugging
+		middleware.DebugLog("📋 Fetched application data - StudentName: %s, CompanyName: %s, EmployerID: %s, LogoKey: %s",
+			app.StudentName, app.CompanyName, app.EmployerID, app.CompanyLogo)
 
 		// Check if student has email notifications enabled
 		var pref notification.NotificationPreferences
@@ -241,9 +266,24 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 			"withdrawn":   "Your application has been withdrawn.",
 		}
 
+		// Get base URL - ensure it's the backend URL, not frontend
+		// For emails, we need the backend API URL where /api/files/serve/logo endpoint is hosted
 		baseURL := os.Getenv("ASA_BASE_URL")
 		if baseURL == "" {
 			baseURL = "http://localhost:8080"
+		}
+		// Ensure baseURL doesn't have trailing slash and points to backend
+		baseURL = strings.TrimSuffix(baseURL, "/")
+		// If baseURL points to frontend (like localhost:5173), we need backend URL
+		// Check if it's a frontend URL and replace with backend
+		if strings.Contains(baseURL, ":5173") || strings.Contains(baseURL, ":3000") {
+			// Extract host and use backend port
+			parts := strings.Split(baseURL, ":")
+			if len(parts) >= 2 {
+				baseURL = fmt.Sprintf("%s:8080", strings.Join(parts[:len(parts)-1], ":"))
+			} else {
+				baseURL = "http://localhost:8080"
+			}
 		}
 
 		statusMessage := statusMessages[req.Status]
@@ -251,13 +291,42 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 			statusMessage = "Your application status has been updated."
 		}
 
+		// Build company logo URL if logo_key exists
+		// The logo is stored as logo_key (S3 key) in DB (e.g., "employer_logos/1766261179581447700_...jpg")
+		// Email clients cannot access API endpoints, so we need to generate presigned S3 URLs
+		// Unlike EMAIL_LOGO_URL which is a direct URL, company logos need presigned URLs from S3
+		companyLogoURL := ""
+		if app.CompanyLogo != "" {
+			// Generate presigned S3 URL (valid for 7 days)
+			// This creates a direct S3 URL that email clients can access
+			presignedURL, err := h.storage.GetPresignedURL(app.CompanyLogo, 7*24*time.Hour)
+			if err == nil {
+				companyLogoURL = presignedURL
+				middleware.DebugLog("📷 Company logo presigned URL generated - LogoKey: %s, URL: %s",
+					app.CompanyLogo, companyLogoURL)
+			} else {
+				middleware.DebugLog("⚠️  Failed to generate presigned URL for logo: %v, LogoKey: %s", err, app.CompanyLogo)
+				// Fallback: use API endpoint (may not work in email clients, but better than nothing)
+				if app.EmployerID != "" {
+					companyLogoURL = fmt.Sprintf("%s/api/files/serve/logo/%s", baseURL, app.EmployerID)
+					middleware.DebugLog("⚠️  Using API endpoint as fallback: %s", companyLogoURL)
+				}
+			}
+		} else {
+			middleware.DebugLog("⚠️  Company logo missing - LogoKey: '%s'", app.CompanyLogo)
+		}
+
 		appData := map[string]interface{}{
 			"StudentName":     app.StudentName,
 			"JobTitle":        app.JobTitle,
 			"Company":         app.CompanyName,
+			"CompanyName":     app.CompanyName,
+			"CompanyWebsite":  app.CompanyWebsite,
+			"CompanyLogo":     companyLogoURL,
 			"Status":          req.Status,
 			"StatusMessage":   statusMessage,
 			"ApplicationLink": fmt.Sprintf("%s/applications/%s", baseURL, applicationID),
+			"CurrentYear":     time.Now().Year(),
 		}
 
 		if err := h.emailSender.SendStatusUpdateEmail(app.StudentEmail, appData); err != nil {

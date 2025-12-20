@@ -107,6 +107,69 @@ definitions:
       success:
         type: boolean
     type: object
+  internal_application.Application:
+    properties:
+      applied_at:
+        type: string
+      company:
+        type: string
+      cover_letter:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: string
+      experience:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+      job_title:
+        type: string
+      job_type:
+        type: string
+      location:
+        type: string
+      resume_file_name:
+        type: string
+      resume_file_size:
+        type: integer
+      resume_file_type:
+        type: string
+      resume_key:
+        type: string
+      status:
+        type: string
+      student_id:
+        type: string
+      student_phone_number:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+    required:
+    - job_id
+    - student_id
+    type: object
+  internal_application.ApplicationResponse:
+    properties:
+      application:
+        $ref: '#/definitions/internal_application.Application'
+      applications:
+        items:
+          $ref: '#/definitions/internal_application.Application'
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   internal_application.UpdateStatusRequest:
     properties:
       notes:
@@ -133,6 +196,18 @@ definitions:
     required:
     - password
     - user_name
+    type: object
+  internal_auth.ProfileResponse:
+    properties:
+      message:
+        type: string
+      profile: {}
+      success:
+        type: boolean
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/internal_auth.User'
     type: object
   internal_auth.SignupRequest:
     properties:
@@ -267,6 +342,49 @@ definitions:
         type: string
       website:
         type: string
+    type: object
+  internal_auth.User:
+    properties:
+      avatar_key:
+        type: string
+      avatar_name:
+        type: string
+      avatar_size:
+        type: integer
+      avatar_type:
+        type: string
+      created_at:
+        type: string
+      created_by:
+        type: string
+      deleted_at:
+        type: string
+      deleted_by:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      password:
+        type: string
+      phone_number:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      username:
+        description: Separate username field with unique constraint
+        type: string
+    required:
+    - email
+    - password
+    - role
+    - username
     type: object
   internal_contact.ContactListResponse:
     description: Admin list response for contact requests
@@ -2073,18 +2191,15 @@ paths:
         "200":
           description: Application removed successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "403":
           description: Permission denied
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "500":
           description: Could not remove application
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
       security:
       - BearerAuth: []
       summary: Remove Application
@@ -2107,18 +2222,15 @@ paths:
         "200":
           description: Application retrieved successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "403":
           description: Permission denied
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
       security:
       - BearerAuth: []
       summary: Get Application By ID
@@ -2144,18 +2256,15 @@ paths:
         "200":
           description: Application status updated successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "400":
           description: Invalid request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "403":
           description: Permission denied
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
       security:
       - BearerAuth: []
       summary: Update Application Status
@@ -2236,18 +2345,15 @@ paths:
         "200":
           description: Login successful
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
         "400":
           description: Invalid credentials
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
       summary: User Login
       tags:
       - Authentication
@@ -2262,13 +2368,11 @@ paths:
         "200":
           description: User profile retrieved
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
       security:
       - BearerAuth: []
       summary: Get User Profile
@@ -2291,18 +2395,15 @@ paths:
         "200":
           description: Profile updated successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
         "400":
           description: Invalid request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
       security:
       - BearerAuth: []
       summary: Update User Profile
@@ -2326,18 +2427,15 @@ paths:
         "201":
           description: User registered successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
         "400":
           description: Invalid request data
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
         "500":
           description: Internal server error
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_auth.ProfileResponse'
       summary: User Registration
       tags:
       - Authentication
@@ -3499,18 +3597,15 @@ paths:
         "200":
           description: Applications fetched successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "403":
           description: Permission denied
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
       security:
       - BearerAuth: []
       summary: Get Applications By Job
@@ -3585,23 +3680,19 @@ paths:
         "201":
           description: Application submitted successfully
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "400":
           description: Invalid request or file format
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "401":
           description: Unauthorized
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
         "403":
           description: Permission denied
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/internal_application.ApplicationResponse'
       security:
       - BearerAuth: []
       summary: Apply for Job

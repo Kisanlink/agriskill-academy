@@ -5,7 +5,6 @@ package application
 import (
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"github.com/Kisanlink/agriskill-academy/pkg/authz"
-	"fmt"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -40,10 +39,10 @@ func getJWT(c *gin.Context) string {
 // @Param id path string true "Job ID"
 // @Param cover_letter formData string false "Cover letter text"
 // @Param resume_file formData file true "Resume file (PDF, DOC, DOCX, max 10MB)"
-// @Success 201 {object} map[string]interface{} "Application submitted successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request or file format"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
-// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Success 201 {object} ApplicationResponse "Application submitted successfully"
+// @Failure 400 {object} ApplicationResponse "Invalid request or file format"
+// @Failure 401 {object} ApplicationResponse "Unauthorized"
+// @Failure 403 {object} ApplicationResponse "Permission denied"
 // @Router /api/jobs/{id}/apply [post]
 // POST /jobs/:id/apply
 func (h *ApplicationHandler) Apply(c *gin.Context) {
@@ -153,19 +152,10 @@ func (h *ApplicationHandler) Apply(c *gin.Context) {
 	}
 
 	middleware.DebugLog("DEBUG: Application submitted successfully with ID: %s\n", app.ID)
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"message": "Application submitted successfully",
-		"application": gin.H{
-			"id":               app.ID,
-			"job_id":           app.JobID,
-			"student_id":       app.StudentID,
-			"resume_key":       app.ResumeKey,
-			"resume_file_name": app.ResumeFileName,
-			"resume_file_type": app.ResumeFileType,
-			"resume_file_size": app.ResumeFileSize,
-			"file_url":         fmt.Sprintf("/api/files/serve/application-resume/%s", app.ID),
-		},
+	c.JSON(http.StatusCreated, ApplicationResponse{
+		Success:     true,
+		Message:     "Application submitted successfully",
+		Application: app,
 	})
 }
 
@@ -231,9 +221,9 @@ func (h *ApplicationHandler) GetMyApplications(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Job ID"
-// @Success 200 {object} map[string]interface{} "Applications fetched successfully"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
-// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Success 200 {object} ApplicationResponse "Applications fetched successfully"
+// @Failure 401 {object} ApplicationResponse "Unauthorized"
+// @Failure 403 {object} ApplicationResponse "Permission denied"
 // @Router /api/jobs/{id}/applications [get]
 // @x-swagger-ui true
 // GET /jobs/:id/applications
@@ -271,9 +261,9 @@ func (h *ApplicationHandler) GetApplicationsByJob(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param applicationId path string true "Application ID"
-// @Success 200 {object} map[string]interface{} "Application retrieved successfully"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
-// @Failure 403 {object} map[string]interface{} "Permission denied"
+// @Success 200 {object} ApplicationResponse "Application retrieved successfully"
+// @Failure 401 {object} ApplicationResponse "Unauthorized"
+// @Failure 403 {object} ApplicationResponse "Permission denied"
 // @Router /api/applications/{applicationId} [get]
 // @x-swagger-ui true
 func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
@@ -312,9 +302,9 @@ func (h *ApplicationHandler) GetApplicationByID(c *gin.Context) {
 // @Tags Applications
 // @Security BearerAuth
 // @Param applicationId path string true "Application ID"
-// @Success 200 {object} map[string]interface{} "Application removed successfully"
-// @Failure 403 {object} map[string]interface{} "Permission denied"
-// @Failure 500 {object} map[string]interface{} "Could not remove application"
+// @Success 200 {object} ApplicationResponse "Application removed successfully"
+// @Failure 403 {object} ApplicationResponse "Permission denied"
+// @Failure 500 {object} ApplicationResponse "Could not remove application"
 // @Router /api/applications/{applicationId} [delete]
 // @x-swagger-ui true
 func (h *ApplicationHandler) Remove(c *gin.Context) {
@@ -341,9 +331,9 @@ func (h *ApplicationHandler) Remove(c *gin.Context) {
 // @Security BearerAuth
 // @Param applicationId path string true "Application ID"
 // @Param status body UpdateStatusRequest true "Status update request"
-// @Success 200 {object} map[string]interface{} "Application status updated successfully"
-// @Failure 403 {object} map[string]interface{} "Permission denied"
-// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Success 200 {object} ApplicationResponse "Application status updated successfully"
+// @Failure 403 {object} ApplicationResponse "Permission denied"
+// @Failure 400 {object} ApplicationResponse "Invalid request"
 // @Router /api/applications/{applicationId}/status [put]
 // @x-swagger-ui true
 func (h *ApplicationHandler) UpdateStatus(c *gin.Context) {

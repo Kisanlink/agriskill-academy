@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"net/http"
+	"strings"
+
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"github.com/Kisanlink/agriskill-academy/internal/notification"
 	"github.com/Kisanlink/agriskill-academy/pkg/authz"
-	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -177,25 +178,24 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 
 	// Send email notification to student about status update
 	go func() {
+		middleware.DebugLog("📧 Email notification goroutine started for application: %s, status: %s", applicationID, req.Status)
+
 		if h.emailSender == nil {
+			middleware.DebugLog("⚠️  emailSender is nil, cannot send email notification")
 			return
 		}
 
 		middleware.DebugLog("📧 Checking if status update email should be sent for application: %s", applicationID)
 
-		// Get application with student and job details
+		// Get application with student and job details using flat struct
 		var app struct {
-			ID        string
-			StudentID string
-			JobID     string
-			Student   struct {
-				Name  string `gorm:"column:student_name"`
-				Email string `gorm:"column:student_email"`
-			}
-			Job struct {
-				Title       string `gorm:"column:job_title"`
-				CompanyName string `gorm:"column:company_name"`
-			}
+			ID           string `gorm:"column:id"`
+			StudentID    string `gorm:"column:student_id"`
+			JobID        string `gorm:"column:job_id"`
+			StudentName  string `gorm:"column:student_name"`
+			StudentEmail string `gorm:"column:student_email"`
+			JobTitle     string `gorm:"column:job_title"`
+			CompanyName  string `gorm:"column:company_name"`
 		}
 
 		err := h.db.Table("applications").
@@ -207,6 +207,12 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 
 		if err != nil {
 			middleware.DebugLog("❌ Failed to fetch application details for email: %v", err)
+			return
+		}
+
+		// Validate that we got the required data
+		if app.StudentID == "" || app.StudentEmail == "" {
+			middleware.DebugLog("❌ Missing required application data: StudentID=%s, StudentEmail=%s", app.StudentID, app.StudentEmail)
 			return
 		}
 
@@ -224,14 +230,15 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 
 		// Status messages for each status type (matching application/service.go)
 		statusMessages := map[string]string{
-			"applied":      "Your application has been received and is under review.",
-			"reviewing":    "Your application is being reviewed by the employer.",
-			"shortlisted":  "Congratulations! You've been shortlisted for this position.",
-			"interview":    "You've been invited for an interview. The employer will contact you soon.",
-			"rejected":     "Thank you for your application. Unfortunately, we've decided to move forward with other candidates.",
-			"accepted":     "Congratulations! You've been selected for this position!",
-			"hired":        "Congratulations! You've been selected for this position!",
-			"withdrawn":    "Your application has been withdrawn.",
+			"applied":     "Your application has been received and is under review.",
+			"viewed":      "Your application has been viewed by the employer.",
+			"reviewing":   "Your application is being reviewed by the employer.",
+			"shortlisted": "Congratulations! You've been shortlisted for this position.",
+			"interview":   "You've been invited for an interview. The employer will contact you soon.",
+			"rejected":    "Thank you for your application. Unfortunately, we've decided to move forward with other candidates.",
+			"accepted":    "Congratulations! You've been selected for this position!",
+			"hired":       "Congratulations! You've been selected for this position!",
+			"withdrawn":   "Your application has been withdrawn.",
 		}
 
 		baseURL := os.Getenv("ASA_BASE_URL")
@@ -245,18 +252,18 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 		}
 
 		appData := map[string]interface{}{
-			"StudentName":     app.Student.Name,
-			"JobTitle":        app.Job.Title,
-			"Company":         app.Job.CompanyName,
+			"StudentName":     app.StudentName,
+			"JobTitle":        app.JobTitle,
+			"Company":         app.CompanyName,
 			"Status":          req.Status,
 			"StatusMessage":   statusMessage,
 			"ApplicationLink": fmt.Sprintf("%s/applications/%s", baseURL, applicationID),
 		}
 
-		if err := h.emailSender.SendStatusUpdateEmail(app.Student.Email, appData); err != nil {
+		if err := h.emailSender.SendStatusUpdateEmail(app.StudentEmail, appData); err != nil {
 			middleware.DebugLog("❌ Failed to queue status update email: %v", err)
 		} else {
-			middleware.DebugLog("✅ Successfully queued status update email to: %s", app.Student.Email)
+			middleware.DebugLog("✅ Successfully queued status update email to: %s", app.StudentEmail)
 		}
 	}()
 }

@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"reflect"
+	"time"
 
 	"github.com/Kisanlink/agriskill-academy/config"
 	"github.com/Kisanlink/agriskill-academy/internal/admin"
@@ -100,6 +102,73 @@ func runAutoMigrate(db *gorm.DB) error {
 	studentprofile.InitializeCounterFromDatabase(db)
 
 	return nil
+}
+
+// startWorker starts a background worker that processes jobs from the queue
+func startWorker(jobService worker.JobService, notificationService notification.NotificationService, logger *zap.Logger) {
+	go func() {
+		ticker := time.NewTicker(2 * time.Second) // Check every 2 seconds
+		defer ticker.Stop()
+
+		logger.Info("Background worker started - processing jobs every 2 seconds")
+
+		for range ticker.C {
+			// Dequeue a job
+			job, err := jobService.Dequeue()
+			if err != nil {
+				logger.Warn("Error dequeuing job", zap.Error(err))
+				continue
+			}
+
+			if job == nil {
+				continue // No jobs available
+			}
+
+			logger.Info("Processing job",
+				zap.String("job_id", job.ID),
+				zap.String("job_type", job.Type),
+			)
+
+			// Process the job based on type
+			switch job.Type {
+			case "send_email":
+				err := notification.HandleSendEmail(job.Payload, notificationService)
+				if err != nil {
+					logger.Error("Failed to process email job",
+						zap.String("job_id", job.ID),
+						zap.Error(err),
+					)
+					if failErr := jobService.Fail(job.ID, err.Error()); failErr != nil {
+						logger.Error("Failed to mark job as failed",
+							zap.String("job_id", job.ID),
+							zap.Error(failErr),
+						)
+					}
+				} else {
+					logger.Info("Successfully processed email job",
+						zap.String("job_id", job.ID),
+					)
+					if completeErr := jobService.Complete(job.ID, "Email sent successfully"); completeErr != nil {
+						logger.Error("Failed to mark job as completed",
+							zap.String("job_id", job.ID),
+							zap.Error(completeErr),
+						)
+					}
+				}
+			default:
+				logger.Warn("Unknown job type",
+					zap.String("job_id", job.ID),
+					zap.String("job_type", job.Type),
+				)
+				if failErr := jobService.Fail(job.ID, fmt.Sprintf("Unknown job type: %s", job.Type)); failErr != nil {
+					logger.Error("Failed to mark job as failed",
+						zap.String("job_id", job.ID),
+						zap.Error(failErr),
+					)
+				}
+			}
+		}
+	}()
 }
 
 func main() {
@@ -265,29 +334,7 @@ func main() {
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
 	employerProfileHandler := employerprofile.NewEmployerProfileHandler(employerProfileService, storageService)
 
-	jobPostRepo := jobpost.NewJobPostRepository(db)
-	jobPostService := jobpost.NewJobPostService(jobPostRepo, employerProfileRepo)
-	jobPostHandler := jobpost.NewJobPostHandler(jobPostService)
-
-	applicationRepo := application.NewApplicationRepository(db)
-	applicationService := application.NewApplicationService(applicationRepo, jobPostRepo, s3Manager)
-	applicationHandler := application.NewApplicationHandler(applicationService)
-
-	employerAppRepo := employerapplication.NewEmployerApplicationRepository(db)
-	employerAppService := employerapplication.NewEmployerApplicationService(employerAppRepo)
-	employerAppHandler := employerapplication.NewEmployerApplicationHandler(employerAppService)
-
-	bookmarkRepo := bookmark.NewBookmarkRepository(db)
-	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo, jobPostRepo)
-	bookmarkHandler := bookmark.NewBookmarkHandler(bookmarkService)
-
-	studentProfileService := studentprofile.NewStudentProfileService(studentProfileRepo)
-	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService, storageService)
-
-	// File serving and storage handlers
-	fileServeHandler := storage.NewFileServeHandler(s3Manager, db)
-	storageHandler := storage.NewStorageHandler(storageService)
-
+	// Initialize notification and worker services first (needed for job post and application handlers)
 	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
 	notificationService := notification.NewNotificationService(notificationPrefsRepo)
 	notificationHandler := notification.NewNotificationHandler(notificationService)
@@ -300,6 +347,71 @@ func main() {
 	defer jobService.Close()
 
 	workerHandler := worker.NewWorkerHandler(jobService)
+
+	// Initialize Email Sender Service for email notifications
+	// Create an adapter to bridge JobService interface with JobEnqueuer interface
+	enqueuer := notification.JobEnqueuerFunc(func(job interface{}) error {
+		// Try to convert to BackgroundJob structure directly
+		if bgJob, ok := job.(*worker.BackgroundJob); ok {
+			return jobService.Enqueue(bgJob)
+		}
+		// Try map conversion
+		jobMap, ok := job.(map[string]interface{})
+		if ok {
+			typeStr, _ := jobMap["type"].(string)
+			payload, _ := jobMap["payload"].(map[string]interface{})
+			bgJob := &worker.BackgroundJob{
+				Type:    typeStr,
+				Payload: payload,
+			}
+			return jobService.Enqueue(bgJob)
+		}
+		// Try struct with Type and Payload fields using reflection
+		jobVal := reflect.ValueOf(job)
+		if jobVal.Kind() == reflect.Ptr {
+			jobVal = jobVal.Elem()
+		}
+		if jobVal.Kind() == reflect.Struct {
+			typeField := jobVal.FieldByName("Type")
+			payloadField := jobVal.FieldByName("Payload")
+			if typeField.IsValid() && payloadField.IsValid() {
+				bgJob := &worker.BackgroundJob{
+					Type:    typeField.String(),
+					Payload: payloadField.Interface().(map[string]interface{}),
+				}
+				return jobService.Enqueue(bgJob)
+			}
+		}
+		return fmt.Errorf("invalid job type: %T", job)
+	})
+	emailSenderService := notification.NewEmailSenderService(notificationService, enqueuer)
+
+	jobPostRepo := jobpost.NewJobPostRepository(db)
+	jobPostService := jobpost.NewJobPostService(jobPostRepo, employerProfileRepo)
+	jobPostHandler := jobpost.NewJobPostHandler(jobPostService, emailSenderService, db, notificationService)
+
+	applicationRepo := application.NewApplicationRepository(db)
+	applicationService := application.NewApplicationService(applicationRepo, jobPostRepo, s3Manager, emailSenderService, db, notificationService)
+	applicationHandler := application.NewApplicationHandler(applicationService)
+
+	employerAppRepo := employerapplication.NewEmployerApplicationRepository(db)
+	employerAppService := employerapplication.NewEmployerApplicationService(employerAppRepo)
+	employerAppHandler := employerapplication.NewEmployerApplicationHandler(
+		employerAppService,
+		emailSenderService,
+		db,
+	)
+
+	bookmarkRepo := bookmark.NewBookmarkRepository(db)
+	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo, jobPostRepo)
+	bookmarkHandler := bookmark.NewBookmarkHandler(bookmarkService)
+
+	studentProfileService := studentprofile.NewStudentProfileService(studentProfileRepo)
+	studentProfileHandler := studentprofile.NewStudentProfileHandler(studentProfileService, storageService)
+
+	// File serving and storage handlers
+	fileServeHandler := storage.NewFileServeHandler(s3Manager, db)
+	storageHandler := storage.NewStorageHandler(storageService)
 
 	adminRepo := admin.NewAdminRepository(db)
 	adminService := admin.NewAdminService(adminRepo)
@@ -362,6 +474,10 @@ func main() {
 	notification.RegisterRoutes(authGroup, notificationHandler)
 	worker.RegisterRoutes(authGroup, workerHandler)
 	contact.RegisterAdminRoutes(authGroup, contactHandler)
+
+	// Start background worker to process jobs
+	startWorker(jobService, notificationService, logger)
+	logger.Info("Background worker initialized")
 
 	// Start server
 	port := cfg.ServerPort

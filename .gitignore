@@ -360,6 +360,7 @@ FRONTEND_API_REFERENCE.md
 test-agriskill-api.ps1
 docker-compose.yml
 CLAUDE.md
+GEMINI.md
 
 # =============================================================================
 # Backup and Recovery

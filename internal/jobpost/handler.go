@@ -1,22 +1,35 @@
 package jobpost
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
+	"github.com/Kisanlink/agriskill-academy/internal/auth"
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/notification"
 	"github.com/Kisanlink/agriskill-academy/pkg/authz"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 )
 
 type JobPostHandler struct {
-	service JobPostService
+	service         JobPostService
+	emailSender     *notification.EmailSenderService
+	db              *gorm.DB
+	notificationSvc notification.NotificationService
 }
 
-func NewJobPostHandler(s JobPostService) *JobPostHandler {
-	return &JobPostHandler{s}
+func NewJobPostHandler(s JobPostService, emailSender *notification.EmailSenderService, db *gorm.DB, notificationSvc notification.NotificationService) *JobPostHandler {
+	return &JobPostHandler{
+		service:         s,
+		emailSender:     emailSender,
+		db:              db,
+		notificationSvc: notificationSvc,
+	}
 }
 
 func getJWT(c *gin.Context) string {
@@ -168,6 +181,78 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to publish job: " + err.Error()})
 		return
 	}
+
+	// Send email notifications to all students with email notifications enabled
+	go func() {
+		if h.emailSender != nil {
+			middleware.DebugLog("📧 Starting new job email notifications for job: %s", job.ID)
+
+			// Get all students with email notifications enabled
+			var students []auth.User
+			err := h.db.Joins("LEFT JOIN notification_preferences ON users.id = notification_preferences.user_id").
+				Where("users.role = ? AND (notification_preferences.email_notifications = ? OR notification_preferences.email_notifications IS NULL)", "student", true).
+				Find(&students).Error
+
+			if err != nil {
+				middleware.DebugLog("❌ Failed to fetch students for email notifications: %v", err)
+				return
+			}
+
+			middleware.DebugLog("📧 Found %d students with email notifications enabled", len(students))
+
+			// Get base URL from environment
+			baseURL := os.Getenv("ASA_BASE_URL")
+			if baseURL == "" {
+				baseURL = "http://localhost:8080"
+			}
+
+			// Format salary for display
+			salaryStr := ""
+			if job.SalaryMin > 0 || job.SalaryMax > 0 {
+				if job.SalaryMin == job.SalaryMax {
+					salaryStr = fmt.Sprintf("%.0f %s", job.SalaryMin, job.SalaryCurrency)
+				} else {
+					salaryStr = fmt.Sprintf("%.0f - %.0f %s", job.SalaryMin, job.SalaryMax, job.SalaryCurrency)
+				}
+			}
+
+			// Truncate description for email
+			description := job.RoleOverview
+			if len(description) > 200 {
+				description = description[:200] + "..."
+			}
+
+			// Send email to each student
+			emailCount := 0
+			for _, student := range students {
+				// Check if student has job alerts enabled
+				var pref notification.NotificationPreferences
+				if err := h.db.Where("user_id = ?", student.ID).First(&pref).Error; err == nil {
+					if !pref.JobAlerts {
+						continue // Skip if job alerts disabled
+					}
+				}
+
+				jobData := map[string]interface{}{
+					"StudentName": student.Name,
+					"JobTitle":    job.Title,
+					"Company":     job.EmployerName,
+					"Location":    job.Location,
+					"JobType":     job.JobType,
+					"Experience":  job.Experience,
+					"Salary":      salaryStr,
+					"Description": description,
+					"JobLink":     fmt.Sprintf("%s/jobs/%s", baseURL, job.ID),
+				}
+
+				if err := h.emailSender.SendNewJobEmail(student.Email, jobData); err == nil {
+					emailCount++
+				}
+			}
+
+			middleware.DebugLog("✅ Queued %d new job emails for job: %s", emailCount, job.ID)
+		}
+	}()
 
 	c.JSON(http.StatusCreated, gin.H{"success": true, "message": "Job published successfully", "jobPost": job})
 }
@@ -1154,6 +1239,78 @@ func (h *JobPostHandler) PublishDraft(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Failed to publish draft: " + err.Error()})
 		return
 	}
+
+	// Send email notifications to all students with email notifications enabled
+	go func() {
+		if h.emailSender != nil {
+			middleware.DebugLog("📧 Starting new job email notifications for job: %s", job.ID)
+
+			// Get all students with email notifications enabled
+			var students []auth.User
+			err := h.db.Joins("LEFT JOIN notification_preferences ON users.id = notification_preferences.user_id").
+				Where("users.role = ? AND (notification_preferences.email_notifications = ? OR notification_preferences.email_notifications IS NULL)", "student", true).
+				Find(&students).Error
+
+			if err != nil {
+				middleware.DebugLog("❌ Failed to fetch students for email notifications: %v", err)
+				return
+			}
+
+			middleware.DebugLog("📧 Found %d students with email notifications enabled", len(students))
+
+			// Get base URL from environment
+			baseURL := os.Getenv("ASA_BASE_URL")
+			if baseURL == "" {
+				baseURL = "http://localhost:8080"
+			}
+
+			// Format salary for display
+			salaryStr := ""
+			if job.SalaryMin > 0 || job.SalaryMax > 0 {
+				if job.SalaryMin == job.SalaryMax {
+					salaryStr = fmt.Sprintf("%.0f %s", job.SalaryMin, job.SalaryCurrency)
+				} else {
+					salaryStr = fmt.Sprintf("%.0f - %.0f %s", job.SalaryMin, job.SalaryMax, job.SalaryCurrency)
+				}
+			}
+
+			// Truncate description for email
+			description := job.RoleOverview
+			if len(description) > 200 {
+				description = description[:200] + "..."
+			}
+
+			// Send email to each student
+			emailCount := 0
+			for _, student := range students {
+				// Check if student has job alerts enabled
+				var pref notification.NotificationPreferences
+				if err := h.db.Where("user_id = ?", student.ID).First(&pref).Error; err == nil {
+					if !pref.JobAlerts {
+						continue // Skip if job alerts disabled
+					}
+				}
+
+				jobData := map[string]interface{}{
+					"StudentName": student.Name,
+					"JobTitle":    job.Title,
+					"Company":     job.EmployerName,
+					"Location":    job.Location,
+					"JobType":     job.JobType,
+					"Experience":  job.Experience,
+					"Salary":      salaryStr,
+					"Description": description,
+					"JobLink":     fmt.Sprintf("%s/jobs/%s", baseURL, job.ID),
+				}
+
+				if err := h.emailSender.SendNewJobEmail(student.Email, jobData); err == nil {
+					emailCount++
+				}
+			}
+
+			middleware.DebugLog("✅ Queued %d new job emails for job: %s", emailCount, job.ID)
+		}
+	}()
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Draft published successfully", "jobPost": job})
 }

@@ -1,20 +1,35 @@
 package employerapplication
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/notification"
 	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type EmployerApplicationHandler struct {
-	service EmployerApplicationService
+	service     EmployerApplicationService
+	emailSender *notification.EmailSenderService
+	db          *gorm.DB
 }
 
-func NewEmployerApplicationHandler(s EmployerApplicationService) *EmployerApplicationHandler {
-	return &EmployerApplicationHandler{s}
+func NewEmployerApplicationHandler(
+	s EmployerApplicationService,
+	emailSender *notification.EmailSenderService,
+	db *gorm.DB,
+) *EmployerApplicationHandler {
+	return &EmployerApplicationHandler{
+		service:     s,
+		emailSender: emailSender,
+		db:          db,
+	}
 }
 
 func getJWT(c *gin.Context) string {
@@ -159,6 +174,91 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Status updated"})
+
+	// Send email notification to student about status update
+	go func() {
+		if h.emailSender == nil {
+			return
+		}
+
+		middleware.DebugLog("📧 Checking if status update email should be sent for application: %s", applicationID)
+
+		// Get application with student and job details
+		var app struct {
+			ID        string
+			StudentID string
+			JobID     string
+			Student   struct {
+				Name  string `gorm:"column:student_name"`
+				Email string `gorm:"column:student_email"`
+			}
+			Job struct {
+				Title       string `gorm:"column:job_title"`
+				CompanyName string `gorm:"column:company_name"`
+			}
+		}
+
+		err := h.db.Table("applications").
+			Select("applications.id, applications.student_id, applications.job_id, users.name as student_name, users.email as student_email, job_posts.title as job_title, COALESCE(job_posts.employer_name, '') as company_name").
+			Joins("LEFT JOIN users ON applications.student_id = users.id").
+			Joins("LEFT JOIN job_posts ON applications.job_id = job_posts.id").
+			Where("applications.id = ?", applicationID).
+			Scan(&app).Error
+
+		if err != nil {
+			middleware.DebugLog("❌ Failed to fetch application details for email: %v", err)
+			return
+		}
+
+		// Check if student has email notifications enabled
+		var pref notification.NotificationPreferences
+		err = h.db.Where("user_id = ?", app.StudentID).First(&pref).Error
+		if err == nil {
+			if !pref.ApplicationUpdates {
+				middleware.DebugLog("ℹ️  Student has application updates disabled, skipping email")
+				return
+			}
+		}
+
+		middleware.DebugLog("📧 Student has email notifications enabled, sending status update email")
+
+		// Status messages for each status type (matching application/service.go)
+		statusMessages := map[string]string{
+			"applied":      "Your application has been received and is under review.",
+			"reviewing":    "Your application is being reviewed by the employer.",
+			"shortlisted":  "Congratulations! You've been shortlisted for this position.",
+			"interview":    "You've been invited for an interview. The employer will contact you soon.",
+			"rejected":     "Thank you for your application. Unfortunately, we've decided to move forward with other candidates.",
+			"accepted":     "Congratulations! You've been selected for this position!",
+			"hired":        "Congratulations! You've been selected for this position!",
+			"withdrawn":    "Your application has been withdrawn.",
+		}
+
+		baseURL := os.Getenv("ASA_BASE_URL")
+		if baseURL == "" {
+			baseURL = "http://localhost:8080"
+		}
+
+		statusMessage := statusMessages[req.Status]
+		if statusMessage == "" {
+			statusMessage = "Your application status has been updated."
+		}
+
+		appData := map[string]interface{}{
+			"StudentName":     app.Student.Name,
+			"JobTitle":        app.Job.Title,
+			"Company":         app.Job.CompanyName,
+			"Status":          req.Status,
+			"StatusMessage":   statusMessage,
+			"ApplicationLink": fmt.Sprintf("%s/applications/%s", baseURL, applicationID),
+		}
+
+		if err := h.emailSender.SendStatusUpdateEmail(app.Student.Email, appData); err != nil {
+			middleware.DebugLog("❌ Failed to queue status update email: %v", err)
+		} else {
+			middleware.DebugLog("✅ Successfully queued status update email to: %s", app.Student.Email)
+		}
+	}()
 }
 
 // GetApplicantProfile godoc

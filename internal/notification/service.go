@@ -23,7 +23,10 @@ type NotificationService interface {
 	SendNotificationIfEnabled(userID, notificationType, to, subject, body string) error
 	GenerateUnsubscribeToken(userID, notificationType string) (string, error)
 	ProcessUnsubscribe(token string) (string, error)
-	GetUnsubscribeURL(userID, notificationType string) (string, error)
+	GetUnsubscribeURL(userID, notificationType string) (string, string, error)
+	GetPreferencesByToken(token string) (*NotificationPreferences, error)
+	UpdatePreferencesByToken(token string, emailNotifications, pushNotifications, jobAlerts, applicationUpdates bool) error
+	GetManagePreferencesURL(userID, notificationType, token string) (string, error)
 }
 
 type mailService struct {
@@ -273,11 +276,12 @@ func (s *mailService) ProcessUnsubscribe(token string) (string, error) {
 }
 
 // GetUnsubscribeURL generates an unsubscribe URL for a user
-func (s *mailService) GetUnsubscribeURL(userID, notificationType string) (string, error) {
+// Returns both the URL and the token so it can be reused for manage preferences
+func (s *mailService) GetUnsubscribeURL(userID, notificationType string) (string, string, error) {
 	// Generate type-specific token
 	token, err := s.GenerateUnsubscribeToken(userID, notificationType)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	baseURL := os.Getenv("ASA_BASE_URL")
@@ -289,5 +293,71 @@ func (s *mailService) GetUnsubscribeURL(userID, notificationType string) (string
 	unsubscribeURL := fmt.Sprintf("%s/api/notifications/unsubscribe/%s?type=%s",
 		baseURL, token, notificationType)
 
-	return unsubscribeURL, nil
+	return unsubscribeURL, token, nil
+}
+
+// GetPreferencesByToken retrieves preferences by token without disabling anything
+func (s *mailService) GetPreferencesByToken(token string) (*NotificationPreferences, error) {
+	tokenHash := HashToken(token)
+	
+	// Get preferences and determine type (we don't need the type, just the preferences)
+	preferences, _, err := s.prefsRepo.GetByUnsubscribeToken(tokenHash)
+	if err != nil {
+		return nil, fmt.Errorf("invalid or expired token")
+	}
+	
+	return preferences, nil
+}
+
+// UpdatePreferencesByToken updates preferences using a token
+func (s *mailService) UpdatePreferencesByToken(token string, emailNotifications, pushNotifications, jobAlerts, applicationUpdates bool) error {
+	tokenHash := HashToken(token)
+	
+	// Get preferences by token to find user ID
+	preferences, _, err := s.prefsRepo.GetByUnsubscribeToken(tokenHash)
+	if err != nil {
+		return fmt.Errorf("invalid or expired token")
+	}
+	
+	// Update all preferences
+	updates := map[string]interface{}{
+		"email_notifications": emailNotifications,
+		"push_notifications":  pushNotifications,
+		"job_alerts":          jobAlerts,
+		"application_updates": applicationUpdates,
+	}
+	
+	err = s.prefsRepo.UpdatePreferencesByUserID(preferences.UserID, updates)
+	
+	if err != nil {
+		return fmt.Errorf("failed to update preferences: %w", err)
+	}
+	
+	middleware.DebugLog("✅ Preferences updated via token for user: %s", preferences.UserID)
+	return nil
+}
+
+// GetManagePreferencesURL generates a manage preferences URL using an existing token
+// If token is empty, it will generate a new one
+func (s *mailService) GetManagePreferencesURL(userID, notificationType, token string) (string, error) {
+	var err error
+	
+	// If no token provided, generate one
+	if token == "" {
+		token, err = s.GenerateUnsubscribeToken(userID, notificationType)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	baseURL := os.Getenv("ASA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	baseURL = strings.TrimSuffix(baseURL, "/")
+
+	manageURL := fmt.Sprintf("%s/api/notifications/manage/%s?type=%s",
+		baseURL, token, notificationType)
+
+	return manageURL, nil
 }

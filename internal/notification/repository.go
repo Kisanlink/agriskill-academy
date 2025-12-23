@@ -21,6 +21,8 @@ type NotificationPreferencesRepository interface {
 	UpdateUnsubscribeToken(userID, notificationType, tokenHash string, expiry time.Time) error
 	// DisableNotification disables a specific notification type for a user
 	DisableNotification(userID, notificationType string) error
+	// UpdatePreferences updates preferences by user ID
+	UpdatePreferencesByUserID(userID string, updates map[string]interface{}) error
 }
 
 type notificationPreferencesRepository struct {
@@ -146,5 +148,10 @@ func (r *notificationPreferencesRepository) DisableNotification(userID, notifica
 		return fmt.Errorf("invalid notification type: %s", notificationType)
 	}
 
+	return r.db.Model(&NotificationPreferences{}).Where("user_id = ?", userID).Updates(updates).Error
+}
+
+// UpdatePreferencesByUserID updates preferences by user ID
+func (r *notificationPreferencesRepository) UpdatePreferencesByUserID(userID string, updates map[string]interface{}) error {
 	return r.db.Model(&NotificationPreferences{}).Where("user_id = ?", userID).Updates(updates).Error
 }

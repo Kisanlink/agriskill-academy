@@ -272,7 +272,27 @@ func CORSValidationMiddleware(allowedOrigins []string) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
+		path := c.Request.URL.Path
 		origin := c.GetHeader("Origin")
+
+		// For public notification routes, only skip CORS if they have a token in the path
+		// This provides token-based security instead of origin-based security
+		if strings.HasPrefix(path, "/api/notifications/unsubscribe/") ||
+			strings.HasPrefix(path, "/api/notifications/manage/") {
+			// Extract token from path to verify it exists (basic validation)
+			// The actual token validation happens in the handler
+			pathParts := strings.Split(strings.Trim(path, "/"), "/")
+			// Path structure: ["api", "notifications", "unsubscribe"|"manage", "token"]
+			// So we need at least 4 parts and pathParts[1] should be "notifications"
+			if len(pathParts) >= 4 && pathParts[1] == "notifications" && len(pathParts[3]) > 0 {
+				// Has a token-like segment in path, allow through
+				// Token validation will happen in the handler
+				DebugLog("🔓 CORS validation skipped for public notification route: %s (Origin: %s)", path, origin)
+				c.Next()
+				return
+			}
+			DebugLog("⚠️  Public notification route but invalid path structure: %s, pathParts: %v", path, pathParts)
+		}
 
 		// Allow requests without Origin header (same-origin requests)
 		if origin == "" {

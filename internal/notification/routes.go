@@ -14,6 +14,9 @@ func RegisterPublicRoutes(rg *gin.RouterGroup, handler *NotificationHandler) {
 	{
 		// Public unsubscribe endpoint (no auth required)
 		notifications.GET("/unsubscribe/:token", handler.Unsubscribe)
+		// Public manage preferences endpoints (no auth required)
+		notifications.GET("/manage/:token", handler.ManageByToken)
+		notifications.POST("/manage/:token", handler.ManageByTokenPost)
 	}
 }
 

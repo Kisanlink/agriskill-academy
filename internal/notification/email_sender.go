@@ -3,7 +3,6 @@ package notification
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"gorm.io/gorm"
@@ -70,9 +69,9 @@ type EmailSenderService struct {
 func NewEmailSenderService(notifSvc NotificationService, jobSvc JobEnqueuer, db *gorm.DB) *EmailSenderService {
 	return &EmailSenderService{
 		notificationSvc: notifSvc,
-		jobService:     jobSvc,
-		templateSvc:    NewEmailTemplateService(),
-		db:             db,
+		jobService:      jobSvc,
+		templateSvc:     NewEmailTemplateService(),
+		db:              db,
 	}
 }
 
@@ -102,22 +101,25 @@ func (s *EmailSenderService) SendNewJobEmail(studentEmail string, jobData map[st
 		jobData["LogoURL"] = logoURL
 	}
 
-	// Get user ID and generate type-specific unsubscribe URL
+	// Get user ID and generate type-specific unsubscribe URL and manage preferences URL
 	userID, err := s.getUserIDByEmail(studentEmail)
 	if err == nil {
-		unsubscribeURL, err := s.notificationSvc.GetUnsubscribeURL(userID, NotificationTypeJobAlert)
+		unsubscribeURL, token, err := s.notificationSvc.GetUnsubscribeURL(userID, NotificationTypeJobAlert)
 		if err == nil {
 			jobData["UnsubscribeURL"] = unsubscribeURL
+			middleware.DebugLog("🔗 Generated unsubscribe URL: %s", unsubscribeURL)
+			middleware.DebugLog("🔑 Got token: %s", token)
+
+			// Use the same token for manage preferences URL
+			manageURL, err := s.notificationSvc.GetManagePreferencesURL(userID, NotificationTypeJobAlert, token)
+			if err == nil {
+				jobData["ManagePreferencesURL"] = manageURL
+				middleware.DebugLog("🔗 Generated manage preferences URL: %s", manageURL)
+			} else {
+				middleware.DebugLog("❌ Failed to generate manage preferences URL: %v", err)
+			}
 		}
 	}
-
-	// Get base URL for manage preferences
-	baseURL := os.Getenv("ASA_BASE_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8080"
-	}
-	baseURL = strings.TrimSuffix(baseURL, "/")
-	jobData["ManagePreferencesURL"] = fmt.Sprintf("%s/notifications/preferences", baseURL)
 
 	// Render email HTML
 	htmlContent, err := s.templateSvc.RenderNewJobEmail(jobData)
@@ -170,22 +172,25 @@ func (s *EmailSenderService) SendStatusUpdateEmail(studentEmail string, appData 
 		appData["LogoURL"] = logoURL
 	}
 
-	// Get user ID and generate type-specific unsubscribe URL
+	// Get user ID and generate type-specific unsubscribe URL and manage preferences URL
 	userID, err := s.getUserIDByEmail(studentEmail)
 	if err == nil {
-		unsubscribeURL, err := s.notificationSvc.GetUnsubscribeURL(userID, NotificationTypeApplicationUpdate)
+		unsubscribeURL, token, err := s.notificationSvc.GetUnsubscribeURL(userID, NotificationTypeApplicationUpdate)
 		if err == nil {
 			appData["UnsubscribeURL"] = unsubscribeURL
+			middleware.DebugLog("🔗 Generated unsubscribe URL: %s", unsubscribeURL)
+			middleware.DebugLog("🔑 Got token: %s", token)
+
+			// Use the same token for manage preferences URL
+			manageURL, err := s.notificationSvc.GetManagePreferencesURL(userID, NotificationTypeApplicationUpdate, token)
+			if err == nil {
+				appData["ManagePreferencesURL"] = manageURL
+				middleware.DebugLog("🔗 Generated manage preferences URL: %s", manageURL)
+			} else {
+				middleware.DebugLog("❌ Failed to generate manage preferences URL: %v", err)
+			}
 		}
 	}
-
-	// Get base URL for manage preferences
-	baseURL := os.Getenv("ASA_BASE_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8080"
-	}
-	baseURL = strings.TrimSuffix(baseURL, "/")
-	appData["ManagePreferencesURL"] = fmt.Sprintf("%s/notifications/preferences", baseURL)
 
 	// Render email HTML
 	htmlContent, err := s.templateSvc.RenderStatusUpdateEmail(appData)
@@ -223,4 +228,3 @@ func (s *EmailSenderService) SendStatusUpdateEmail(studentEmail string, appData 
 	middleware.DebugLog("✅ Queued status update email for: %s", studentEmail)
 	return nil
 }
-

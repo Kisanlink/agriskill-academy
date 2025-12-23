@@ -140,7 +140,7 @@ func (s *EmailTemplateService) RenderNewJobEmail(jobData map[string]interface{})
                                 </p>
                                 <p style="margin: 0; font-size: 12px; color: #888888;">
                                     You received this email because you subscribed to job alerts.<br>
-                                    <a href="#" style="color: #2e7d32; text-decoration: underline;">Unsubscribe</a> | <a href="#" style="color: #2e7d32; text-decoration: underline;">Manage Preferences</a>
+                                    <a href="{{.UnsubscribeURL}}" style="color: #2e7d32; text-decoration: underline;">Unsubscribe</a> | <a href="{{.ManagePreferencesURL}}" style="color: #2e7d32; text-decoration: underline;">Manage Preferences</a>
                                 </p>
                             </td>
                         </tr>
@@ -267,6 +267,10 @@ func (s *EmailTemplateService) RenderStatusUpdateEmail(appData map[string]interf
                     <tr>
                         <td style="background-color: #37474f; padding: 30px; text-align: center; color: #cfd8dc; font-size: 13px;">
                             <p style="margin: 0 0 10px 0;">&copy; {{.CurrentYear}} AgriSkill Academy</p>
+                            <p style="margin: 0 0 10px 0; font-size: 12px;">
+                                <a href="{{.UnsubscribeURL}}" style="color: #eceff1; text-decoration: underline;">Unsubscribe</a> | 
+                                <a href="{{.ManagePreferencesURL}}" style="color: #eceff1; text-decoration: underline;">Manage Preferences</a>
+                            </p>
                             <div style="margin-top: 10px;">
                                 <a href="#" style="color: #eceff1; text-decoration: none; margin: 0 10px;">Help Center</a>
                                 <a href="#" style="color: #eceff1; text-decoration: none; margin: 0 10px;">Privacy Policy</a>

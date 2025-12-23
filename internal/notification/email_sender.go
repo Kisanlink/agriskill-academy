@@ -3,8 +3,10 @@ package notification
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"gorm.io/gorm"
 )
 
 // JobEnqueuer is a minimal interface to avoid import cycles
@@ -62,14 +64,28 @@ type EmailSenderService struct {
 	notificationSvc NotificationService
 	jobService      JobEnqueuer
 	templateSvc     *EmailTemplateService
+	db              *gorm.DB
 }
 
-func NewEmailSenderService(notifSvc NotificationService, jobSvc JobEnqueuer) *EmailSenderService {
+func NewEmailSenderService(notifSvc NotificationService, jobSvc JobEnqueuer, db *gorm.DB) *EmailSenderService {
 	return &EmailSenderService{
 		notificationSvc: notifSvc,
 		jobService:     jobSvc,
 		templateSvc:    NewEmailTemplateService(),
+		db:             db,
 	}
+}
+
+// getUserIDByEmail looks up user ID by email address
+func (s *EmailSenderService) getUserIDByEmail(email string) (string, error) {
+	var user struct {
+		ID string
+	}
+	err := s.db.Table("users").Where("email = ?", email).Select("id").First(&user).Error
+	if err != nil {
+		return "", err
+	}
+	return user.ID, nil
 }
 
 func (s *EmailSenderService) SendNewJobEmail(studentEmail string, jobData map[string]interface{}) error {
@@ -85,6 +101,23 @@ func (s *EmailSenderService) SendNewJobEmail(studentEmail string, jobData map[st
 	if logoURL != "" {
 		jobData["LogoURL"] = logoURL
 	}
+
+	// Get user ID and generate type-specific unsubscribe URL
+	userID, err := s.getUserIDByEmail(studentEmail)
+	if err == nil {
+		unsubscribeURL, err := s.notificationSvc.GetUnsubscribeURL(userID, NotificationTypeJobAlert)
+		if err == nil {
+			jobData["UnsubscribeURL"] = unsubscribeURL
+		}
+	}
+
+	// Get base URL for manage preferences
+	baseURL := os.Getenv("ASA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	baseURL = strings.TrimSuffix(baseURL, "/")
+	jobData["ManagePreferencesURL"] = fmt.Sprintf("%s/notifications/preferences", baseURL)
 
 	// Render email HTML
 	htmlContent, err := s.templateSvc.RenderNewJobEmail(jobData)
@@ -136,6 +169,23 @@ func (s *EmailSenderService) SendStatusUpdateEmail(studentEmail string, appData 
 	if logoURL != "" {
 		appData["LogoURL"] = logoURL
 	}
+
+	// Get user ID and generate type-specific unsubscribe URL
+	userID, err := s.getUserIDByEmail(studentEmail)
+	if err == nil {
+		unsubscribeURL, err := s.notificationSvc.GetUnsubscribeURL(userID, NotificationTypeApplicationUpdate)
+		if err == nil {
+			appData["UnsubscribeURL"] = unsubscribeURL
+		}
+	}
+
+	// Get base URL for manage preferences
+	baseURL := os.Getenv("ASA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	baseURL = strings.TrimSuffix(baseURL, "/")
+	appData["ManagePreferencesURL"] = fmt.Sprintf("%s/notifications/preferences", baseURL)
 
 	// Render email HTML
 	htmlContent, err := s.templateSvc.RenderStatusUpdateEmail(appData)

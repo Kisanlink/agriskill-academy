@@ -18,10 +18,11 @@ import (
 )
 
 type EmployerApplicationHandler struct {
-	service     EmployerApplicationService
-	emailSender *notification.EmailSenderService
-	db          *gorm.DB
-	storage     storage.StorageService
+	service             EmployerApplicationService
+	emailSender         *notification.EmailSenderService
+	db                  *gorm.DB
+	storage             storage.StorageService
+	notificationService notification.NotificationService
 }
 
 func NewEmployerApplicationHandler(
@@ -29,12 +30,14 @@ func NewEmployerApplicationHandler(
 	emailSender *notification.EmailSenderService,
 	db *gorm.DB,
 	storageService storage.StorageService,
+	notificationService notification.NotificationService,
 ) *EmployerApplicationHandler {
 	return &EmployerApplicationHandler{
-		service:     s,
-		emailSender: emailSender,
-		db:          db,
-		storage:     storageService,
+		service:             s,
+		emailSender:         emailSender,
+		db:                  db,
+		storage:             storageService,
+		notificationService: notificationService,
 	}
 }
 
@@ -241,14 +244,16 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 		middleware.DebugLog("📋 Fetched application data - StudentName: %s, CompanyName: %s, EmployerID: %s, LogoKey: %s",
 			app.StudentName, app.CompanyName, app.EmployerID, app.CompanyLogo)
 
-		// Check if student has email notifications enabled
-		var pref notification.NotificationPreferences
-		err = h.db.Where("user_id = ?", app.StudentID).First(&pref).Error
-		if err == nil {
-			if !pref.ApplicationUpdates {
-				middleware.DebugLog("ℹ️  Student has application updates disabled, skipping email")
-				return
-			}
+		// Check if student has email notifications enabled using notification service
+		// This ensures preferences exist and are properly checked
+		shouldSend, err := h.notificationService.ShouldSendNotification(app.StudentID, notification.NotificationTypeApplicationUpdate)
+		if err != nil {
+			middleware.DebugLog("⚠️  Failed to check notification preferences: %v, skipping email", err)
+			return
+		}
+		if !shouldSend {
+			middleware.DebugLog("ℹ️  Student has application updates disabled, skipping email")
+			return
 		}
 
 		middleware.DebugLog("📧 Student has email notifications enabled, sending status update email")

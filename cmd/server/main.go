@@ -336,15 +336,17 @@ func main() {
 		logger.Info("Firebase not configured - using local authentication only")
 	}
 
+	// Initialize notification preferences repository first (needed for auth service)
+	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
+
 	// Services and handlers
-	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo, firebaseEmail, firebaseAuth)
+	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo, firebaseEmail, firebaseAuth, notificationPrefsRepo)
 	authHandler := auth.NewAuthHandler(authService)
 
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
 	employerProfileHandler := employerprofile.NewEmployerProfileHandler(employerProfileService, storageService)
 
-	// Initialize notification and worker services first (needed for job post and application handlers)
-	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
+	// Initialize notification and worker services (needed for job post and application handlers)
 	notificationService := notification.NewNotificationService(notificationPrefsRepo)
 	notificationHandler := notification.NewNotificationHandler(notificationService)
 
@@ -384,16 +386,23 @@ func main() {
 			typeField := jobVal.FieldByName("Type")
 			payloadField := jobVal.FieldByName("Payload")
 			if typeField.IsValid() && payloadField.IsValid() {
+				// Safely convert payload with type checking
+				payloadInterface := payloadField.Interface()
+				payloadMap, ok := payloadInterface.(map[string]interface{})
+				if !ok {
+					return fmt.Errorf("invalid payload type: expected map[string]interface{}, got %T", payloadInterface)
+				}
+				
 				bgJob := &worker.BackgroundJob{
 					Type:    typeField.String(),
-					Payload: payloadField.Interface().(map[string]interface{}),
+					Payload: payloadMap,
 				}
 				return jobService.Enqueue(bgJob)
 			}
 		}
 		return fmt.Errorf("invalid job type: %T", job)
 	})
-	emailSenderService := notification.NewEmailSenderService(notificationService, enqueuer)
+	emailSenderService := notification.NewEmailSenderService(notificationService, enqueuer, db)
 
 	jobPostRepo := jobpost.NewJobPostRepository(db)
 	jobPostService := jobpost.NewJobPostService(jobPostRepo, employerProfileRepo)
@@ -410,6 +419,7 @@ func main() {
 		emailSenderService,
 		db,
 		storageService,
+		notificationService,
 	)
 
 	bookmarkRepo := bookmark.NewBookmarkRepository(db)
@@ -467,6 +477,7 @@ func main() {
 	jobpost.RegisterPublicRoutes(api, jobPostHandler)
 	storage.RegisterPublicRoutes(api, storageHandler, fileServeHandler)
 	contact.RegisterPublicRoutes(api, contactHandler)
+	notification.RegisterPublicRoutes(api, notificationHandler)
 
 	// Protected routes
 	authGroup := api.Group("/")

@@ -1,6 +1,8 @@
 package notification
 
 import (
+	"time"
+
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
@@ -11,15 +13,16 @@ import (
 // Notification Preferences Models
 type NotificationPreferences struct {
 	base.BaseModel
-	UserID             string `gorm:"type:varchar(255);not null;uniqueIndex" json:"user_id"`
-	EmailNotifications bool   `json:"email_notifications" gorm:"default:true"`
-	PushNotifications  bool   `json:"push_notifications" gorm:"default:true"`
-	JobAlerts          bool   `json:"job_alerts" gorm:"default:true"`
-	ApplicationUpdates bool   `json:"application_updates" gorm:"default:true"`
-	CompanyNews        bool   `json:"company_news" gorm:"default:false"`
-	MarketingEmails    bool   `json:"marketing_emails" gorm:"default:false"`
-	WeeklyDigest       bool   `json:"weekly_digest" gorm:"default:true"`
-	DailyJobMatches    bool   `json:"daily_job_matches" gorm:"default:false"`
+	UserID             string     `gorm:"type:varchar(255);not null;uniqueIndex" json:"user_id"`
+	EmailNotifications bool       `json:"email_notifications" gorm:"default:true"`
+	PushNotifications  bool       `json:"push_notifications" gorm:"default:true"`
+	JobAlerts          bool       `json:"job_alerts" gorm:"default:true"`
+	ApplicationUpdates bool       `json:"application_updates" gorm:"default:true"`
+	// Type-specific unsubscribe tokens
+	JobAlertsUnsubscribeTokenHash          string     `json:"-" gorm:"type:varchar(255);index"`
+	JobAlertsUnsubscribeTokenExpiry        *time.Time `json:"-"`
+	ApplicationUpdatesUnsubscribeTokenHash  string     `json:"-" gorm:"type:varchar(255);index"`
+	ApplicationUpdatesUnsubscribeTokenExpiry *time.Time `json:"-"`
 }
 
 // TableName specifies the database table name for NotificationPreferences
@@ -63,10 +66,6 @@ type UpdateNotificationPreferencesRequest struct {
 	PushNotifications  *bool `json:"push_notifications"`
 	JobAlerts          *bool `json:"job_alerts"`
 	ApplicationUpdates *bool `json:"application_updates"`
-	CompanyNews        *bool `json:"company_news"`
-	MarketingEmails    *bool `json:"marketing_emails"`
-	WeeklyDigest       *bool `json:"weekly_digest"`
-	DailyJobMatches    *bool `json:"daily_job_matches"`
 }
 
 type NotificationPreferencesResponse struct {
@@ -85,8 +84,4 @@ type EmailNotification struct {
 const (
 	NotificationTypeJobAlert          = "job_alert"
 	NotificationTypeApplicationUpdate = "application_update"
-	NotificationTypeCompanyNews       = "company_news"
-	NotificationTypeMarketing         = "marketing"
-	NotificationTypeWeeklyDigest      = "weekly_digest"
-	NotificationTypeDailyMatches      = "daily_matches"
 )

@@ -84,9 +84,6 @@ func CheckLocalPermission(username, resource, action, resourceID, jwtToken strin
 	case "db_asa_certificates":
 		middleware.DebugLog("🔍 Checking certificate permissions...")
 		result, err2 = checkCertificatePermissions(role, action, resourceID, username, claims)
-	case "db_asa_messages":
-		middleware.DebugLog("🔍 Checking message permissions...")
-		result, err2 = checkMessagePermissions(role, action, resourceID, username, claims)
 	case "db_asa_job_alerts":
 		middleware.DebugLog("🔍 Checking job alert permissions...")
 		result, err2 = checkJobAlertPermissions(role, action, resourceID, username, claims)
@@ -361,32 +358,6 @@ func checkCertificatePermissions(role, action, resourceID, username string, clai
 		// Students can delete their own certificates
 		result := role == "student"
 		middleware.DebugLog("🔍 Delete permission - Student: %v, Result: %v", role == "student", result)
-		return result, nil
-	default:
-		middleware.DebugLog("🔍 Unknown action: %s", action)
-		return false, nil
-	}
-}
-
-// Message Permissions
-func checkMessagePermissions(role, action, resourceID, username string, claims map[string]interface{}) (bool, error) {
-	middleware.DebugLog("🔍 === MESSAGE PERMISSIONS ===")
-	middleware.DebugLog("🔍 Role: %s", role)
-	middleware.DebugLog("🔍 Action: %s", action)
-	middleware.DebugLog("🔍 ResourceID: %s", resourceID)
-
-	switch action {
-	case "read":
-		// Students and employers can read messages for applications they're involved in
-		result := role == "student" || role == "employer"
-		middleware.DebugLog("🔍 Read permission - Student: %v, Employer: %v, Result: %v",
-			role == "student", role == "employer", result)
-		return result, nil
-	case "create":
-		// Students and employers can create messages for applications they're involved in
-		result := role == "student" || role == "employer"
-		middleware.DebugLog("🔍 Create permission - Student: %v, Employer: %v, Result: %v",
-			role == "student", role == "employer", result)
 		return result, nil
 	default:
 		middleware.DebugLog("🔍 Unknown action: %s", action)

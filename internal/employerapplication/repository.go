@@ -13,9 +13,6 @@ type EmployerApplicationRepository interface {
 	GetApplicationsByStudent(studentID string) ([]JobApplicationWithApplicant, error)
 	UpdateStatus(applicationID, status string) error
 	GetApplicantProfile(studentID string) (*ApplicantProfile, error)
-	AddMessage(msg *Message) error
-	GetMessages(applicationID string) ([]Message, error)
-	GetMessagesWithSenderInfo(applicationID string) ([]MessageWithSender, error)
 	IsUserAuthorizedForApplication(applicationID, userID string) (bool, error)
 	GetJobEmployerID(jobID string) (string, error)
 	GetJobIDAndCandidateName(applicationID string) (string, string, error)
@@ -144,24 +141,6 @@ func (r *employerApplicationRepository) GetApplicantProfile(studentID string) (*
 	return &profile, nil
 }
 
-func (r *employerApplicationRepository) AddMessage(msg *Message) error {
-	middleware.DebugLog("DEBUG: Repository AddMessage - Message timestamp: %v\n", msg.SentAt)
-
-	// Create message with generated ID using kisanlink-db pattern
-	newMsg := NewMessage()
-	newMsg.ApplicationID = msg.ApplicationID
-	newMsg.SenderID = msg.SenderID
-	newMsg.Message = msg.Message
-
-	err := r.db.Create(newMsg).Error
-	if err != nil {
-		middleware.DebugLog("DEBUG: Repository AddMessage error: %v\n", err)
-	} else {
-		middleware.DebugLog("DEBUG: Repository AddMessage success - Message saved with ID: %s\n", newMsg.ID)
-	}
-	return err
-}
-
 // repository/employer_application_repository.go
 func (r *employerApplicationRepository) GetApplicationsByStudent(
 	studentID string,
@@ -186,38 +165,6 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(
 		return nil, err
 	}
 	return results, nil
-}
-
-func (r *employerApplicationRepository) GetMessages(applicationID string) ([]Message, error) {
-	var messages []Message
-	err := r.db.Where("application_id = ?", applicationID).
-		Order("sent_at asc").
-		Find(&messages).Error
-	return messages, err
-}
-
-func (r *employerApplicationRepository) GetMessagesWithSenderInfo(applicationID string) ([]MessageWithSender, error) {
-	var messages []MessageWithSender
-
-	// Query messages with sender information
-	err := r.db.Raw(`
-		SELECT 
-			m.id, m.application_id, m.sender_id, m.message, m.sent_at,
-			u.name as sender_name,
-			CASE 
-				WHEN a.student_id = m.sender_id THEN 'student'
-				WHEN jp.employer_id = m.sender_id THEN 'employer'
-				ELSE 'unknown'
-			END as sender_type
-		FROM messages m
-		JOIN users u ON u.id = m.sender_id
-		JOIN applications a ON a.id = m.application_id
-		JOIN job_posts jp ON jp.id = a.job_id
-		WHERE m.application_id = ?
-		ORDER BY m.sent_at ASC
-	`, applicationID).Scan(&messages).Error
-
-	return messages, err
 }
 
 func (r *employerApplicationRepository) IsUserAuthorizedForApplication(applicationID, userID string) (bool, error) {

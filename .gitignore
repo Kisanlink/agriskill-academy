@@ -357,6 +357,7 @@ FIREBASE_API_KEY_SETUP.md
 API_CHANGES_EMAIL_VERIFICATION.md
 API_CHANGES.md
 FRONTEND_API_REFERENCE.md
+FRONTEND_MESSAGING_REMOVAL_GUIDE.md
 test-agriskill-api.ps1
 docker-compose.yml
 CLAUDE.md
@@ -406,6 +407,7 @@ uploads/*
 # Keep migrations directory
 !migrations/
 !scripts/
+migrations/
 
 # Keep documentation
 !docs/

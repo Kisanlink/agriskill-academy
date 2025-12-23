@@ -11,9 +11,6 @@ type EmployerApplicationService interface {
 	GetApplicationsByStudent(studentID string) ([]JobApplicationResponse, error)
 	UpdateStatus(applicationID, status string) error
 	GetApplicantProfile(studentID string) (*ApplicantProfile, error)
-	SendMessage(msg *Message) error
-	GetMessages(applicationID string) ([]Message, error)
-	GetMessagesWithSenderInfo(applicationID string) ([]MessageWithSender, error)
 	IsUserAuthorizedForApplication(applicationID, userID string) (bool, error)
 	GetJobEmployerID(jobID string) (string, error)
 }
@@ -175,18 +172,6 @@ func (s *employerApplicationService) UpdateStatus(applicationID, status string) 
 
 func (s *employerApplicationService) GetApplicantProfile(studentID string) (*ApplicantProfile, error) {
 	return s.repo.GetApplicantProfile(studentID)
-}
-
-func (s *employerApplicationService) SendMessage(msg *Message) error {
-	return s.repo.AddMessage(msg)
-}
-
-func (s *employerApplicationService) GetMessages(applicationID string) ([]Message, error) {
-	return s.repo.GetMessages(applicationID)
-}
-
-func (s *employerApplicationService) GetMessagesWithSenderInfo(applicationID string) ([]MessageWithSender, error) {
-	return s.repo.GetMessagesWithSenderInfo(applicationID)
 }
 
 func (s *employerApplicationService) IsUserAuthorizedForApplication(applicationID, userID string) (bool, error) {

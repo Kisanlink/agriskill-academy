@@ -78,7 +78,6 @@ func runAutoMigrate(db *gorm.DB) error {
 		&application.Application{},
 		&bookmark.Bookmark{},
 		&notification.NotificationPreferences{},
-		&employerapplication.Message{},
 		&contact.ContactRequest{},
 	}
 
@@ -95,7 +94,6 @@ func runAutoMigrate(db *gorm.DB) error {
 	auth.InitializeCounterFromDatabase(db)
 	bookmark.InitializeCounterFromDatabase(db)
 	contact.InitializeCounterFromDatabase(db)
-	employerapplication.InitializeCounterFromDatabase(db)
 	employerprofile.InitializeCounterFromDatabase(db)
 	jobpost.InitializeCounterFromDatabase(db)
 	notification.InitializeCounterFromDatabase(db)

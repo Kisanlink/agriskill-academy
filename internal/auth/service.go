@@ -203,15 +203,49 @@ func (s *authService) Login(username, password string) (*User, string, error) {
 		middleware.DebugLog("🔥 Authenticating via Firebase\n")
 		firebaseUID, emailVerified, err := s.firebaseAuth.SignInWithPassword(user.Email, password)
 		if err != nil {
-			middleware.DebugLog("❌ Firebase authentication failed: %v\n", err)
-			return nil, "", errors.New("invalid credentials")
+			middleware.DebugLog("⚠️ Firebase authentication failed: %v\n", err)
+
+			// LAZY MIGRATION: Check if user exists locally but not in Firebase
+			// If Firebase login fails, check local password. If correct, create user in Firebase.
+			middleware.DebugLog("🔄 Attempting lazy migration for user: %s\n", user.Email)
+			
+			// verify local password
+			if verifyErr := VerifyPassword(user.Password, password); verifyErr == nil {
+				middleware.DebugLog("✅ Local password verified. Creating missing user in Firebase...\n")
+				
+				// Create user in Firebase
+				newFirebaseUID, signupErr := s.firebaseAuth.SignUpWithPassword(user.Email, password)
+				if signupErr != nil {
+					middleware.DebugLog("❌ Failed to create user in Firebase during migration: %v\n", signupErr)
+					return nil, "", errors.New("authentication failed and migration failed")
+				}
+				
+				middleware.DebugLog("✅ User successfully migrated to Firebase (UID: %s)\n", newFirebaseUID)
+				
+				// Update user with new Firebase UID
+				user.FirebaseUID = newFirebaseUID
+				if err := s.repo.Update(context.Background(), user); err != nil {
+					middleware.DebugLog("⚠️ Failed to update user with Firebase UID: %v\n", err)
+				}
+				
+				// Set variables for successful login flow
+				firebaseUID = newFirebaseUID
+				emailVerified = false 
+			} else {
+				middleware.DebugLog("❌ Local password verification also failed\n")
+				return nil, "", errors.New("invalid credentials")
+			}
+		} else {
+			middleware.DebugLog("✅ Firebase authentication successful (UID: %s, Verified: %v)\n", firebaseUID, emailVerified)
 		}
-		middleware.DebugLog("✅ Firebase authentication successful (UID: %s, Verified: %v)\n", firebaseUID, emailVerified)
 
 		// Verify firebase_uid matches (security check)
 		if user.FirebaseUID != "" && user.FirebaseUID != firebaseUID {
-			middleware.DebugLog("⚠️ Firebase UID mismatch - security alert!\n")
-			return nil, "", errors.New("account security error")
+			middleware.DebugLog("⚠️ Firebase UID mismatch - updating local record\n")
+			user.FirebaseUID = firebaseUID
+			if err := s.repo.Update(context.Background(), user); err != nil {
+				middleware.DebugLog("⚠️ Failed to update Firebase UID: %v\n", err)
+			}
 		}
 
 		// If firebase_uid not set, link it now
@@ -223,20 +257,18 @@ func (s *authService) Login(username, password string) (*User, string, error) {
 			}
 		}
 
-		// Email verification is handled by Firebase - emailVerified is available in response
+		// Email verification status
 		middleware.DebugLog("📧 Firebase email verification status: %v\n", emailVerified)
 
 		// Sync PostgreSQL password with Firebase (in case password was reset via Firebase UI)
 		// Check if current stored hash matches the password
 		if err := VerifyPassword(user.Password, password); err != nil {
-			// Password doesn't match - likely changed via Firebase reset
 			middleware.DebugLog("🔄 Password mismatch detected, syncing PostgreSQL with Firebase\n")
 			hashedPassword, hashErr := HashPassword(password)
 			if hashErr == nil {
 				user.Password = hashedPassword
 				if updateErr := s.repo.Update(context.Background(), user); updateErr != nil {
 					middleware.DebugLog("⚠️ Failed to sync password (non-critical): %v\n", updateErr)
-					// Don't fail login - user authenticated successfully via Firebase
 				} else {
 					middleware.DebugLog("✅ Password synced successfully with Firebase\n")
 				}

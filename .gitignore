@@ -351,6 +351,8 @@ NOTES.md
 CHANGELOG.md
 *.todo
 *.note
+CLAUDE.md
+GEMINI.md
 API_DOCUMENTATION.md
 FIREBASE_EMAIL_SETUP.md
 FIREBASE_API_KEY_SETUP.md
@@ -405,6 +407,7 @@ uploads/*
 !uploads/.gitkeep
 
 # Keep migrations directory
+migrations/*
 !migrations/
 !scripts/
 migrations/

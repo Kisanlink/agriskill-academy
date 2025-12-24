@@ -80,8 +80,19 @@ func (s *EmailTemplateService) RenderNewJobEmail(jobData map[string]interface{})
                                 <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fcf8; border: 1px solid #c8e6c9; border-radius: 8px;">
                                     <tr>
                                         <td style="padding: 25px;">
-                                            <h3 style="margin: 0 0 5px 0; color: #1b5e20; font-size: 20px;">{{.JobTitle}}</h3>
-                                            <p style="margin: 0 0 20px 0; color: #455a64; font-size: 16px; font-weight: 600;">{{.Company}}</p>
+                                            <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+                                                <tr>
+                                                    {{if .CompanyLogo}}
+                                                    <td width="60" style="padding-right: 20px; vertical-align: top;">
+                                                        <img src="{{.CompanyLogo}}" alt="{{.Company}}" width="60" height="60" style="width: 60px; height: 60px; border-radius: 8px; object-fit: cover; border: 1px solid #e0e0e0;">
+                                                    </td>
+                                                    {{end}}
+                                                    <td style="vertical-align: top;">
+                                                        <h3 style="margin: 0 0 5px 0; color: #1b5e20; font-size: 20px;">{{.JobTitle}}</h3>
+                                                        <p style="margin: 0 0 20px 0; color: #455a64; font-size: 16px; font-weight: 600;">{{.Company}}</p>
+                                                    </td>
+                                                </tr>
+                                            </table>
                                             
                                             <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
                                                 <tr>

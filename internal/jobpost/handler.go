@@ -6,10 +6,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Kisanlink/agriskill-academy/internal/auth"
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"github.com/Kisanlink/agriskill-academy/internal/notification"
+	"github.com/Kisanlink/agriskill-academy/internal/storage"
 	"github.com/Kisanlink/agriskill-academy/pkg/authz"
 	"gorm.io/gorm"
 
@@ -21,14 +23,16 @@ type JobPostHandler struct {
 	emailSender     *notification.EmailSenderService
 	db              *gorm.DB
 	notificationSvc notification.NotificationService
+	storageSvc      storage.StorageService
 }
 
-func NewJobPostHandler(s JobPostService, emailSender *notification.EmailSenderService, db *gorm.DB, notificationSvc notification.NotificationService) *JobPostHandler {
+func NewJobPostHandler(s JobPostService, emailSender *notification.EmailSenderService, db *gorm.DB, notificationSvc notification.NotificationService, storageSvc storage.StorageService) *JobPostHandler {
 	return &JobPostHandler{
 		service:         s,
 		emailSender:     emailSender,
 		db:              db,
 		notificationSvc: notificationSvc,
+		storageSvc:      storageSvc,
 	}
 }
 
@@ -222,6 +226,17 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 				description = description[:200] + "..."
 			}
 
+			// Generate company logo URL if available
+			var companyLogoURL string
+			if job.CompanyLogoKey != "" && h.storageSvc != nil {
+				// Generate a presigned URL valid for 7 days
+				if url, err := h.storageSvc.GetPresignedURL(job.CompanyLogoKey, 7*24*time.Hour); err == nil {
+					companyLogoURL = url
+				} else {
+					middleware.DebugLog("⚠️ Failed to generate presigned URL for logo: %v", err)
+				}
+			}
+
 			// Send email to each student
 			emailCount := 0
 			for _, student := range students {
@@ -243,6 +258,7 @@ func (h *JobPostHandler) Publish(c *gin.Context) {
 					"Salary":      salaryStr,
 					"Description": description,
 					"JobLink":     fmt.Sprintf("%s/jobs/%s", baseURL, job.ID),
+					"CompanyLogo": companyLogoURL,
 				}
 
 				if err := h.emailSender.SendNewJobEmail(student.Email, jobData); err == nil {

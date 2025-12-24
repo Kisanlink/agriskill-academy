@@ -90,6 +90,7 @@ type JobPost struct {
 	City               string   `json:"city,omitempty" gorm:"-"`
 	State              string   `json:"state,omitempty" gorm:"-"`
 	Pincode            string   `json:"pincode,omitempty" gorm:"-"`
+	CompanyLogoKey     string   `json:"company_logo_key,omitempty" gorm:"-"`
 }
 
 // TableName specifies the database table name for JobPost

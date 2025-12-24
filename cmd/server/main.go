@@ -406,7 +406,7 @@ func main() {
 
 	jobPostRepo := jobpost.NewJobPostRepository(db)
 	jobPostService := jobpost.NewJobPostService(jobPostRepo, employerProfileRepo)
-	jobPostHandler := jobpost.NewJobPostHandler(jobPostService, emailSenderService, db, notificationService)
+	jobPostHandler := jobpost.NewJobPostHandler(jobPostService, emailSenderService, db, notificationService, storageService)
 
 	applicationRepo := application.NewApplicationRepository(db)
 	applicationService := application.NewApplicationService(applicationRepo, jobPostRepo, s3Manager, emailSenderService, db, notificationService)

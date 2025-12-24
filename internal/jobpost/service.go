@@ -443,6 +443,7 @@ func (s *jobPostService) populateEmployerDetails(job *JobPost) {
 		job.City = employerProfile.City
 		job.State = employerProfile.State
 		job.Pincode = employerProfile.Pincode
+		job.CompanyLogoKey = employerProfile.LogoKey
 
 		// Convert arrays from employer profile
 		if employerProfile.JobCategories != nil {

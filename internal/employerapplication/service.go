@@ -1,9 +1,11 @@
 package employerapplication
 
 import (
-	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"encoding/json"
 	"strings"
+
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/studentprofile"
 )
 
 type EmployerApplicationService interface {
@@ -48,6 +50,14 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 				}
 			}
 		}
+
+		// Fetch certificates for this student
+		certificates, err := s.repo.GetCertificatesByStudentID(app.StudentID)
+		if err != nil {
+			middleware.DebugLog("DEBUG: Failed to fetch certificates for student %s: %v\n", app.StudentID, err)
+			certificates = []studentprofile.Certificate{} // Set empty slice on error
+		}
+
 		middleware.DebugLog("DEBUG: Processing application - ApplicationID: %s, JobID: %s, StudentID: %s\n", app.ApplicationID, app.JobID, app.StudentID)
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
@@ -62,18 +72,20 @@ func (s *employerApplicationService) GetApplicationsForJob(jobID, status string)
 			UserID:        app.UserID,
 			ID:            app.ApplicationID, // For consistency
 			Applicant: ApplicantInfo{
-				Name:        app.Name,
-				Email:       app.Email,
-				Skills:      skills,
-				Experience:  app.Experience,
-				Education:   app.Education,
-				Portfolio:   app.Portfolio,
-				LinkedIn:    app.LinkedIn,
-				Github:      app.Github,
-				ProfileName: app.ProfileName,
-				Location:    app.Location,
-				Summary:     "",        // Not available in current data
-				Phone:       app.Phone, // Use phone number from database
+				Name:            app.Name,
+				Email:           app.Email,
+				ProfilePhotoKey: app.AvatarKey,
+				Skills:          skills,
+				Experience:      app.Experience,
+				Education:       app.Education,
+				Portfolio:       app.Portfolio,
+				LinkedIn:        app.LinkedIn,
+				Github:          app.Github,
+				ProfileName:     app.ProfileName,
+				Location:        app.Location,
+				Summary:         "",        // Not available in current data
+				Phone:           app.Phone, // Use phone number from database
+				Certificates:    certificates,
 			},
 		}
 
@@ -111,7 +123,7 @@ func (s *employerApplicationService) GetApplicationsByStudent(studentID string) 
 				}
 			}
 		}
-    
+
 		response := JobApplicationResponse{
 			ApplicationID: app.ApplicationID,
 			JobID:         app.JobID,

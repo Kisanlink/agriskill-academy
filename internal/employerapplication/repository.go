@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/studentprofile"
 
 	"gorm.io/gorm"
 )
@@ -17,6 +18,7 @@ type EmployerApplicationRepository interface {
 	GetJobEmployerID(jobID string) (string, error)
 	GetJobIDAndCandidateName(applicationID string) (string, string, error)
 	UpdateJobAsCompleted(jobID, candidateName string) error
+	GetCertificatesByStudentID(studentID string) ([]studentprofile.Certificate, error)
 }
 
 type employerApplicationRepository struct {
@@ -43,7 +45,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				a.cover_letter, a.resume_key AS student_resume_key,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
-				up.profile_photo_key AS avatar, 
+				up.profile_photo_key AS profile_photo_key, 
 				up.skills::text AS skills, 
 				COALESCE(up.location, '') AS user_location, 
 				COALESCE(CAST(up.experience AS TEXT), '') AS user_experience, 
@@ -66,7 +68,7 @@ func (r *employerApplicationRepository) GetApplicationsForJob(jobID, status stri
 				a.cover_letter, a.resume_key AS student_resume_key,
 				a.job_title, a.company, a.location AS job_location, a.job_type AS job_type,
 				u.id AS user_id, u.name AS user_name, u.email AS user_email,
-				up.profile_photo_key AS avatar, 
+				up.profile_photo_key AS profile_photo_key, 
 				up.skills::text AS skills, 
 				COALESCE(up.location, '') AS user_location, 
 				COALESCE(CAST(up.experience AS TEXT), '') AS user_experience, 
@@ -153,7 +155,7 @@ func (r *employerApplicationRepository) GetApplicationsByStudent(
 			a.id AS application_id, a.job_id, a.student_id, a.applied_at, a.status AS application_status, a.cover_letter, a.resume_key,
 			a.job_title, a.company, a.location AS job_location, a.job_type,
 			u.id AS user_id, u.name AS user_name, u.email AS user_email,
-			up.profile_photo_key AS avatar_key, up.skills::text AS skills, up.location AS user_location, 
+			up.profile_photo_key AS profile_photo_key, up.skills::text AS skills, up.location AS user_location, 
 			up.experience AS user_experience, up.education, up.portfolio, up.linkedin, up.github, up.name AS profile_name,
 			up.phone_number AS phone
 		FROM applications a
@@ -214,4 +216,17 @@ func (r *employerApplicationRepository) UpdateJobAsCompleted(jobID, candidateNam
 			"status":               "completed",
 			"completed_at":         &now,
 		}).Error
+}
+
+// GetCertificatesByStudentID fetches all certificates for a student
+func (r *employerApplicationRepository) GetCertificatesByStudentID(studentID string) ([]studentprofile.Certificate, error) {
+	var certificates []studentprofile.Certificate
+	err := r.db.Raw(`
+		SELECT c.*
+		FROM certificates c
+		JOIN student_profiles sp ON sp.id = c.student_profile_id
+		WHERE sp.user_id = ?
+		ORDER BY c.issue_date DESC
+	`, studentID).Scan(&certificates).Error
+	return certificates, err
 }

@@ -2,6 +2,8 @@ package employerapplication
 
 import (
 	"time"
+
+	"github.com/Kisanlink/agriskill-academy/internal/studentprofile"
 )
 
 type JobApplicationWithApplicant struct {
@@ -23,8 +25,8 @@ type JobApplicationWithApplicant struct {
 	UserID string `json:"user_id" gorm:"column:user_id"`
 	Name   string `json:"name" gorm:"column:user_name"`
 	Email  string `json:"email" gorm:"column:user_email"`
-	// S3 key for avatar
-	AvatarKey   string `json:"avatar_key" gorm:"column:avatar_key"`
+	// S3 key for profile photo
+	AvatarKey   string `json:"avatar_key" gorm:"column:profile_photo_key"`
 	Skills      string `json:"skills" gorm:"column:skills"`
 	Location    string `json:"user_location" gorm:"column:user_location"`
 	Experience  string `json:"experience" gorm:"column:user_experience"`
@@ -58,19 +60,20 @@ type JobApplicationResponse struct {
 }
 
 type ApplicantInfo struct {
-	Name            string   `json:"name"`
-	Email           string   `json:"email"`
-	ProfilePhotoKey string   `json:"profile_photo_key"`
-	Skills          []string `json:"skills"`
-	Experience      string   `json:"experience"`
-	Education       string   `json:"education"`
-	Portfolio       string   `json:"portfolio"`
-	LinkedIn        string   `json:"linkedin"`
-	Github          string   `json:"github"`
-	ProfileName     string   `json:"profile_name"`
-	Location        string   `json:"location"`
-	Summary         string   `json:"summary"`
-	Phone           string   `json:"phone"`
+	Name            string                       `json:"name"`
+	Email           string                       `json:"email"`
+	ProfilePhotoKey string                       `json:"profile_photo_key"`
+	Skills          []string                     `json:"skills"`
+	Experience      string                       `json:"experience"`
+	Education       string                       `json:"education"`
+	Portfolio       string                       `json:"portfolio"`
+	LinkedIn        string                       `json:"linkedin"`
+	Github          string                       `json:"github"`
+	ProfileName     string                       `json:"profile_name"`
+	Location        string                       `json:"location"`
+	Summary         string                       `json:"summary"`
+	Phone           string                       `json:"phone"`
+	Certificates    []studentprofile.Certificate `json:"certificates"`
 }
 
 type ApplicantProfile struct {
@@ -89,4 +92,3 @@ type ApplicantProfile struct {
 	Github     string `json:"github"`
 	Summary    string `json:"summary"`
 }
-

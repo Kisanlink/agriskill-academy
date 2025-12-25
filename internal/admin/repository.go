@@ -1,9 +1,10 @@
 package admin
 
 import (
-	"github.com/Kisanlink/agriskill-academy/internal/auth"
 	"errors"
 	"time"
+
+	"github.com/Kisanlink/agriskill-academy/internal/auth"
 
 	"gorm.io/gorm"
 )
@@ -848,7 +849,7 @@ func (r *adminRepository) GetEmployers(req *EmployerListRequest) (*EmployerListR
 			employer_profiles.phone_number,
 			employer_profiles.official_email,
 			employer_profiles.recruiter_name,
-			employer_profiles.recruiter_email,
+			employer_profiles.official_email AS recruiter_email,
 			employer_profiles.company_description,
 			employer_profiles.website_url,
 			employer_profiles.created_at,

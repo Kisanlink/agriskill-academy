@@ -45,7 +45,7 @@ func (h *NotificationHandler) GetPreferences(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckLocalPermission(username, "db_asa_notifications", "read", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_notification_preferences", "read", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -82,7 +82,7 @@ func (h *NotificationHandler) UpdatePreferences(c *gin.Context) {
 	username := c.GetString("email")
 	userID := c.GetString("user_id")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckLocalPermission(username, "db_asa_notifications", "update", userID, jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_notification_preferences", "update", userID, jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return
@@ -124,7 +124,7 @@ func (h *NotificationHandler) UpdatePreferences(c *gin.Context) {
 func (h *NotificationHandler) SendEmail(c *gin.Context) {
 	username := c.GetString("email")
 	jwtToken := getJWT(c)
-	allowed, err := authz.CheckLocalPermission(username, "db_asa_notifications", "create", "", jwtToken)
+	allowed, err := authz.CheckLocalPermission(username, "db_asa_notification_preferences", "create", "", jwtToken)
 	if err != nil || !allowed {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
 		return

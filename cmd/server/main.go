@@ -51,8 +51,8 @@ import (
 	kdb "github.com/Kisanlink/agriskill-academy/pkg/db"
 	"github.com/Kisanlink/agriskill-academy/pkg/firebase"
 
-	"github.com/gin-gonic/gin"
 	scalar "github.com/MarceloPetrucio/go-scalar-api-reference"
+	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
@@ -350,10 +350,28 @@ func main() {
 	notificationService := notification.NewNotificationService(notificationPrefsRepo)
 	notificationHandler := notification.NewNotificationHandler(notificationService)
 
-	// Initialize Redis job service
-	jobService, err := worker.NewRedisJobService(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
-	if err != nil {
-		logger.Fatal("Failed to initialize Redis job service", zap.Error(err))
+	// Initialize job service with Redis fallback to in-memory
+	var jobService worker.JobService
+	if cfg.RedisAddr != "" {
+		// Try to use Redis if configured (for AWS/production)
+		redisJobService, err := worker.NewRedisJobService(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+		if err != nil {
+			logger.Warn("Failed to initialize Redis job service, falling back to in-memory service",
+				zap.Error(err),
+				zap.String("redis_addr", cfg.RedisAddr),
+			)
+			jobService = worker.NewInMemoryJobService()
+			logger.Info("Using in-memory job service (Redis connection failed)")
+		} else {
+			jobService = redisJobService
+			logger.Info("Using Redis job service for background jobs",
+				zap.String("redis_addr", cfg.RedisAddr),
+			)
+		}
+	} else {
+		// Use in-memory service if Redis is not configured (for alpha testing/Koyeb)
+		jobService = worker.NewInMemoryJobService()
+		logger.Info("Using in-memory job service (Redis not configured - suitable for alpha testing)")
 	}
 	defer jobService.Close()
 
@@ -392,7 +410,7 @@ func main() {
 				if !ok {
 					return fmt.Errorf("invalid payload type: expected map[string]interface{}, got %T", payloadInterface)
 				}
-				
+
 				bgJob := &worker.BackgroundJob{
 					Type:    typeField.String(),
 					Payload: payloadMap,

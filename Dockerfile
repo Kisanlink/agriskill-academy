@@ -9,7 +9,7 @@ RUN apk add --no-cache git ca-certificates tzdata
 # Set working directory
 WORKDIR /app
 
-# Copy go mod files
+# Copy go mod files first (for better caching)
 COPY go.mod go.sum ./
 
 # Download dependencies
@@ -20,8 +20,8 @@ COPY . .
 
 # Build the application with optimizations
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags="-w -s -X main.Version=${VERSION:-1.0.0}" \
-    -o /app/server ./cmd/server
+    -ldflags="-w -s" \
+    -o /app/bin/asa ./cmd/server
 
 # Stage 2: Production Runtime
 FROM alpine:latest
@@ -38,9 +38,9 @@ RUN addgroup -g 1000 appuser && \
 WORKDIR /app
 
 # Copy binary from builder
-COPY --from=builder --chown=appuser:appuser /app/server .
+COPY --from=builder --chown=appuser:appuser /app/bin/asa ./bin/asa
 
-# Copy migrations for database setup
+# Copy migrations for database setup (if needed)
 COPY --from=builder --chown=appuser:appuser /app/migrations ./migrations
 
 # Copy docs for Swagger API documentation
@@ -49,15 +49,13 @@ COPY --from=builder --chown=appuser:appuser /app/docs ./docs
 # Switch to non-root user
 USER appuser
 
-# Expose application port (configurable via build arg or defaults to 8080)
-ARG SERVER_PORT=8080
-ENV SERVER_PORT=${SERVER_PORT}
-EXPOSE ${SERVER_PORT}
+# Expose application port (default 8080, can be overridden via SERVER_PORT env var)
+EXPOSE 8080
 
-# Health check for container orchestration
-# Uses ASA_BASE_URL from environment for health monitoring
+# Health check - use localhost instead of external URL
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD sh -c 'curl -f ${ASA_BASE_URL}/health || exit 1'
+  CMD sh -c 'PORT=${SERVER_PORT:-8080} && curl -f http://localhost:${PORT}/health || exit 1'
 
 # Run the application
-ENTRYPOINT ["./server"]
+# SERVER_PORT can be set via environment variable, defaults to 8080
+ENTRYPOINT ["./bin/asa"]

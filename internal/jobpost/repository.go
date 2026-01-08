@@ -271,14 +271,11 @@ func (r *jobPostRepository) GetByEmployer(employerID string) ([]JobPost, error) 
 }
 
 func (r *jobPostRepository) UpdateHiredCandidate(jobID string, candidateName string) error {
-	now := time.Now()
+	// Only update hired_candidate_name for backward compatibility
+	// Do NOT auto-close the job - employers must manually close via CloseJob endpoint
 	return r.db.Model(&JobPost{}).
 		Where("id = ?", jobID).
-		Updates(map[string]interface{}{
-			"hired_candidate_name": candidateName,
-			"status":               "completed",
-			"completed_at":         &now,
-		}).Error
+		Update("hired_candidate_name", candidateName).Error
 }
 
 func (r *jobPostRepository) Search(filter *JobPostFilter) ([]JobPost, error) {

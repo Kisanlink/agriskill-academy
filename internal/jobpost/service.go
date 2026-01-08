@@ -41,6 +41,9 @@ type JobPostService interface {
 	CreateDraft(req *CreateDraftRequest, employerID, employerName, employerEmail string) (*JobPost, error)
 	GetDraftsByEmployer(employerID string) ([]JobPost, error)
 	PublishDraft(jobID string) (*JobPost, error)
+
+	// Manual job lifecycle methods
+	CloseJob(jobID string) error
 }
 
 type jobPostService struct {

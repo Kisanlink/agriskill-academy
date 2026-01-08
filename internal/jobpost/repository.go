@@ -43,6 +43,7 @@ type JobPostRepository interface {
 
 	// Manual job lifecycle methods
 	CloseJob(jobID string) error
+	ReopenJob(jobID string) error
 }
 
 type jobPostRepository struct {
@@ -928,4 +929,11 @@ func (r *jobPostRepository) CloseJob(jobID string) error {
 			"status":       "completed",
 			"completed_at": &now,
 		}).Error
+}
+
+// ReopenJob sets a job status back to open (published)
+func (r *jobPostRepository) ReopenJob(jobID string) error {
+	return r.db.Model(&JobPost{}).
+		Where("id = ?", jobID).
+		Update("status", "published").Error
 }

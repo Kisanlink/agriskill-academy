@@ -1059,3 +1059,8 @@ func (s *jobPostService) PublishDraft(jobID string) (*JobPost, error) {
 func (s *jobPostService) CloseJob(jobID string) error {
 	return s.repo.CloseJob(jobID)
 }
+
+// ReopenJob reopens a closed job by setting its status back to published
+func (s *jobPostService) ReopenJob(jobID string) error {
+	return s.repo.ReopenJob(jobID)
+}

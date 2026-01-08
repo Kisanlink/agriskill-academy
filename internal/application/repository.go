@@ -20,7 +20,11 @@ type ApplicationRepository interface {
 	UpdateStatusByEmployer(appID, jobID, employerID, status string) error
 	GetJobEmployerID(jobID string) (string, error)
 	GetApplicationsCountByJob(jobID string) (int, error)
+	// GetCandidateName retrieves the name of the candidate from their application
 	GetCandidateName(applicationID string) (string, error)
+	// GetCandidateDetails retrieves complete candidate information for hire tracking
+	// Returns: candidateName, candidateEmail, studentID, error
+	GetCandidateDetails(applicationID string) (string, string, string, error)
 }
 
 type applicationRepository struct {
@@ -246,10 +250,25 @@ func (r *applicationRepository) GetApplicationsCountByJob(jobID string) (int, er
 func (r *applicationRepository) GetCandidateName(applicationID string) (string, error) {
 	var candidateName string
 	err := r.db.Raw(`
-		SELECT u.name 
+		SELECT u.name
 		FROM applications a
 		JOIN users u ON u.id = a.student_id
 		WHERE a.id = ?
 	`, applicationID).Scan(&candidateName).Error
 	return candidateName, err
+}
+
+func (r *applicationRepository) GetCandidateDetails(applicationID string) (string, string, string, error) {
+	var result struct {
+		Name      string
+		Email     string
+		StudentID string
+	}
+	err := r.db.Raw(`
+		SELECT u.name, u.email, a.student_id
+		FROM applications a
+		JOIN users u ON u.id = a.student_id
+		WHERE a.id = ?
+	`, applicationID).Scan(&result).Error
+	return result.Name, result.Email, result.StudentID, err
 }

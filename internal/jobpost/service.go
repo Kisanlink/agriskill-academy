@@ -42,6 +42,9 @@ type JobPostService interface {
 	GetDraftsByEmployer(employerID string) ([]JobPost, error)
 	PublishDraft(jobID string) (*JobPost, error)
 
+	// Job hire tracking methods
+	GetHiredCandidates(jobID string) ([]JobHire, error)
+
 	// Manual job lifecycle methods
 	CloseJob(jobID string) error
 	ReopenJob(jobID string) error
@@ -1053,6 +1056,11 @@ func (s *jobPostService) PublishDraft(jobID string) (*JobPost, error) {
 
 	// Return the updated job
 	return s.repo.GetByID(context.Background(), jobID, &JobPost{})
+}
+
+// GetHiredCandidates retrieves all hired candidates for a job
+func (s *jobPostService) GetHiredCandidates(jobID string) ([]JobHire, error) {
+	return s.repo.GetHiredCandidates(jobID)
 }
 
 // CloseJob manually closes a job by setting its status to completed

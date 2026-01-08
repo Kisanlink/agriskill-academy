@@ -1432,3 +1432,38 @@ func (h *JobPostHandler) ReopenJob(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Job reopened successfully", "job_id": jobID})
 }
+
+// GET /jobs/:id/hires
+// @Summary Get Hired Candidates
+// @Description Get all hired candidates for a specific job (public endpoint)
+// @Tags Job Posts
+// @Produce json
+// @Param id path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Hired candidates retrieved successfully"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Failure 500 {object} map[string]interface{} "Failed to fetch hired candidates"
+// @Router /api/jobs/{id}/hires [get]
+func (h *JobPostHandler) GetHiredCandidates(c *gin.Context) {
+	jobID := c.Param("id")
+
+	// Verify the job exists
+	_, err := h.service.GetByID(c.Request.Context(), jobID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Job not found"})
+		return
+	}
+
+	// Get all hired candidates for this job
+	hires, err := h.service.GetHiredCandidates(jobID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to fetch hired candidates"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Hired candidates retrieved successfully",
+		"hires":   hires,
+		"count":   len(hires),
+	})
+}

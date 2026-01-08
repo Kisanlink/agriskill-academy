@@ -183,23 +183,33 @@ func (s *applicationService) UpdateStatusByEmployer(appID, jobID, employerID, st
 		return err
 	}
 
-	// If the application is accepted, update the job post with the hired candidate
+	// If the application is accepted, track the hire in job_hires table
+	// Note: Job does NOT auto-close after hiring, allowing multiple hires per job
 	if status == StatusAccepted {
-		// Get the candidate name
-		candidateName, err := s.repo.GetCandidateName(appID)
+		// Get the candidate details (name, email, studentID)
+		candidateName, candidateEmail, studentID, err := s.repo.GetCandidateDetails(appID)
 		if err != nil {
-			middleware.DebugLog("DEBUG: Error getting candidate name: %v\n", err)
-			return fmt.Errorf("failed to get candidate name: %w", err)
+			middleware.DebugLog("DEBUG: Error getting candidate details: %v\n", err)
+			return fmt.Errorf("failed to get candidate details: %w", err)
 		}
 
-		// Update the job post with the hired candidate
+		// Add to job_hires table for tracking multiple hires
+		// This creates a new record for each hired candidate, supporting multiple hires per job
+		err = s.jobRepo.AddHiredCandidate(jobID, appID, candidateName, candidateEmail, studentID)
+		if err != nil {
+			middleware.DebugLog("DEBUG: Error adding hired candidate to job_hires: %v\n", err)
+			return fmt.Errorf("failed to add hired candidate: %w", err)
+		}
+
+		// Update the job post with hired candidate name for backward compatibility
+		// This maintains the hired_candidate_name field which is still populated
 		err = s.jobRepo.UpdateHiredCandidate(jobID, candidateName)
 		if err != nil {
 			middleware.DebugLog("DEBUG: Error updating job with hired candidate: %v\n", err)
 			return fmt.Errorf("failed to update job with hired candidate: %w", err)
 		}
 
-		middleware.DebugLog("DEBUG: Successfully updated job %s with hired candidate: %s\n", jobID, candidateName)
+		middleware.DebugLog("DEBUG: Successfully tracked hire for job %s: %s (%s)\n", jobID, candidateName, candidateEmail)
 	}
 
 	// Send email notification to student if they have email notifications enabled

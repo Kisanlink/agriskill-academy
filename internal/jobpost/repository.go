@@ -41,6 +41,10 @@ type JobPostRepository interface {
 	GetDraftsByEmployer(employerID string) ([]JobPost, error)
 	PublishDraft(jobID string) error
 
+	// Job hire tracking methods
+	AddHiredCandidate(jobID, appID, candidateName, candidateEmail, studentID string) error
+	GetHiredCandidates(jobID string) ([]JobHire, error)
+
 	// Manual job lifecycle methods
 	CloseJob(jobID string) error
 	ReopenJob(jobID string) error
@@ -918,6 +922,29 @@ func (r *jobPostRepository) GetDraftsByEmployer(employerID string) ([]JobPost, e
 
 func (r *jobPostRepository) PublishDraft(jobID string) error {
 	return r.db.Model(&JobPost{}).Where("id = ?", jobID).Update("status", "published").Error
+}
+
+// AddHiredCandidate creates a new job hire record for a hired candidate
+func (r *jobPostRepository) AddHiredCandidate(jobID, appID, candidateName, candidateEmail, studentID string) error {
+	hire := NewJobHire()
+	hire.JobID = jobID
+	hire.ApplicationID = appID
+	hire.CandidateName = candidateName
+	hire.CandidateEmail = candidateEmail
+	hire.StudentID = studentID
+	hire.HiredAt = time.Now()
+
+	return r.db.Create(hire).Error
+}
+
+// GetHiredCandidates retrieves all hired candidates for a specific job
+func (r *jobPostRepository) GetHiredCandidates(jobID string) ([]JobHire, error) {
+	var hires []JobHire
+	err := r.db.Where("job_id = ?", jobID).Order("hired_at DESC").Find(&hires).Error
+	if err != nil {
+		return nil, err
+	}
+	return hires, nil
 }
 
 // CloseJob sets a job status to completed (manual close)

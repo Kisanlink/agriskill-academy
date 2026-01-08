@@ -75,6 +75,7 @@ func runAutoMigrate(db *gorm.DB) error {
 		&studentprofile.Certificate{},
 		&jobpost.JobPost{},
 		&jobpost.JobAlert{},
+		&jobpost.JobHire{},
 		&application.Application{},
 		&bookmark.Bookmark{},
 		&notification.NotificationPreferences{},

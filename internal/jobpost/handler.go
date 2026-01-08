@@ -1344,6 +1344,19 @@ func (h *JobPostHandler) PublishDraft(c *gin.Context) {
 // @Failure 404 {object} map[string]interface{} "Job not found"
 // @Failure 500 {object} map[string]interface{} "Failed to close job"
 // @Router /api/jobs/{id}/close [post]
+//
+// Expected behavior validation:
+// 1. Verify employer authentication and extract user_id from context
+// 2. Retrieve job by ID and verify it exists
+// 3. Check that the job belongs to the authenticated employer (job.EmployerID == employerID)
+// 4. Set job status to "completed" and record completed_at timestamp
+// 5. Return success response with job_id
+//
+// Test scenarios:
+// - Success: Employer closes their own job
+// - Failure: Non-owner employer tries to close job (403 Forbidden)
+// - Failure: Job ID not found (404 Not Found)
+// - Failure: Unauthenticated request (401 Unauthorized)
 func (h *JobPostHandler) CloseJob(c *gin.Context) {
 	employerID := c.GetString("user_id")
 	jobID := c.Param("id")
@@ -1382,6 +1395,19 @@ func (h *JobPostHandler) CloseJob(c *gin.Context) {
 // @Failure 404 {object} map[string]interface{} "Job not found"
 // @Failure 500 {object} map[string]interface{} "Failed to reopen job"
 // @Router /api/jobs/{id}/reopen [post]
+//
+// Expected behavior validation:
+// 1. Verify employer authentication and extract user_id from context
+// 2. Retrieve job by ID and verify it exists
+// 3. Check that the job belongs to the authenticated employer (job.EmployerID == employerID)
+// 4. Set job status back to "published" (no vacancy_count validation needed)
+// 5. Return success response with job_id
+//
+// Test scenarios:
+// - Success: Employer reopens their previously closed job
+// - Failure: Non-owner employer tries to reopen job (403 Forbidden)
+// - Failure: Job ID not found (404 Not Found)
+// - Failure: Unauthenticated request (401 Unauthorized)
 func (h *JobPostHandler) ReopenJob(c *gin.Context) {
 	employerID := c.GetString("user_id")
 	jobID := c.Param("id")

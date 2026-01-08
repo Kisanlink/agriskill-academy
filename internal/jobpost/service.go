@@ -44,6 +44,7 @@ type JobPostService interface {
 
 	// Manual job lifecycle methods
 	CloseJob(jobID string) error
+	ReopenJob(jobID string) error
 }
 
 type jobPostService struct {

@@ -1330,3 +1330,41 @@ func (h *JobPostHandler) PublishDraft(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Draft published successfully", "jobPost": job})
 }
+
+// POST /jobs/:id/close
+// @Summary Close Job Post
+// @Description Manually close a job post by setting status to completed (employer only)
+// @Tags Job Posts
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Success 200 {object} map[string]interface{} "Job closed successfully"
+// @Failure 403 {object} map[string]interface{} "Not authorized"
+// @Failure 404 {object} map[string]interface{} "Job not found"
+// @Failure 500 {object} map[string]interface{} "Failed to close job"
+// @Router /api/jobs/{id}/close [post]
+func (h *JobPostHandler) CloseJob(c *gin.Context) {
+	employerID := c.GetString("user_id")
+	jobID := c.Param("id")
+
+	// Verify job exists and check ownership
+	job, err := h.service.GetByID(c.Request.Context(), jobID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "message": "Job not found"})
+		return
+	}
+
+	if job.EmployerID != employerID {
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Not authorized"})
+		return
+	}
+
+	// Close the job
+	if err := h.service.CloseJob(jobID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Job closed successfully", "job_id": jobID})
+}

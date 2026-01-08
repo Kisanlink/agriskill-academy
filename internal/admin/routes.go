@@ -46,5 +46,13 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *AdminHandler) {
 
 		// Employer List
 		admin.GET("/employers", handler.GetEmployers)
+
+		// Job Management (View-Only)
+		jobs := admin.Group("/jobs")
+		{
+			jobs.GET("", handler.GetJobs)                    // List all jobs
+			jobs.GET("/statistics", handler.GetJobStatistics) // Job statistics (must come before /:id)
+			jobs.GET("/:id", handler.GetJobByID)             // Get job details
+		}
 	}
 }

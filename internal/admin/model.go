@@ -331,3 +331,67 @@ type EmployerResponse struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
+
+// Job Viewing Models (Admin-only)
+type JobListRequest struct {
+	Page       int    `form:"page" binding:"min=1"`
+	Limit      int    `form:"limit" binding:"min=1,max=100"`
+	Status     string `form:"status"`
+	EmployerID string `form:"employer_id"`
+	SortBy     string `form:"sort_by"`
+	SortOrder  string `form:"sort_order"`
+}
+
+type JobListResponse struct {
+	Jobs       []JobListItem  `json:"jobs"`
+	Pagination PaginationInfo `json:"pagination"`
+}
+
+type JobListItem struct {
+	ID                string    `json:"id"`
+	Title             string    `json:"title"`
+	Status            string    `json:"status"`
+	EmployerID        string    `json:"employer_id"`
+	EmployerName      string    `json:"employer_name"`
+	Location          string    `json:"location"`
+	JobType           string    `json:"job_type"`
+	ApplicationsCount int       `json:"applications_count"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type JobDetailResponse struct {
+	ID                   string     `json:"id"`
+	Title                string     `json:"title"`
+	Description          string     `json:"description"`
+	Status               string     `json:"status"`
+	EmployerID           string     `json:"employer_id"`
+	EmployerName         string     `json:"employer_name"`
+	EmployerEmail        string     `json:"employer_email"`
+	Location             string     `json:"location"`
+	JobType              string     `json:"job_type"`
+	Salary               string     `json:"salary"`
+	Requirements         string     `json:"requirements"`
+	Responsibilities     string     `json:"responsibilities"`
+	Benefits             string     `json:"benefits"`
+	ApplicationsCount    int        `json:"applications_count"`
+	HiredCandidateName   string     `json:"hired_candidate_name"`
+	CompletedAt          *time.Time `json:"completed_at"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
+type JobStatistics struct {
+	TotalJobs          int `json:"total_jobs"`
+	DraftJobs          int `json:"draft_jobs"`
+	PublishedJobs      int `json:"published_jobs"`
+	CompletedJobs      int `json:"completed_jobs"`
+	TotalApplications  int `json:"total_applications"`
+	TotalHires         int `json:"total_hires"`
+}
+
+type JobResponse struct {
+	Success bool        `json:"success"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}

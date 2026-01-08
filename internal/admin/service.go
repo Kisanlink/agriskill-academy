@@ -28,6 +28,11 @@ type AdminService interface {
 	// Student/Employer Lists
 	GetStudents(req *StudentListRequest) (*StudentListResponse, error)
 	GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error)
+
+	// Job Viewing (Admin-only)
+	GetAllJobs(req *JobListRequest) (*JobListResponse, error)
+	GetJobByID(jobID string) (*JobDetailResponse, error)
+	GetJobStatistics() (*JobStatistics, error)
 }
 
 type adminService struct {
@@ -189,4 +194,28 @@ func (s *adminService) GetEmployers(req *EmployerListRequest) (*EmployerListResp
 	}
 
 	return s.repo.GetEmployers(req)
+}
+
+// Job Viewing Methods (Admin-only)
+func (s *adminService) GetAllJobs(req *JobListRequest) (*JobListResponse, error) {
+	// Set default values
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 50
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
+	return s.repo.GetAllJobs(req)
+}
+
+func (s *adminService) GetJobByID(jobID string) (*JobDetailResponse, error) {
+	return s.repo.GetJobByID(jobID)
+}
+
+func (s *adminService) GetJobStatistics() (*JobStatistics, error) {
+	return s.repo.GetJobStatistics()
 }

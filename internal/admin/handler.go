@@ -2,6 +2,7 @@ package admin
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -588,5 +589,122 @@ func (h *AdminHandler) GetEmployers(c *gin.Context) {
 		Success: true,
 		Message: "Employers retrieved successfully",
 		Data:    employers,
+	})
+}
+
+// Job Viewing Handlers (Admin-only)
+
+// @Summary Get All Jobs (Admin)
+// @Description Retrieve all jobs in the system regardless of status (admin-only)
+// @Tags Admin Jobs
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param status query string false "Filter by status (draft, published, completed, closed)"
+// @Param employer_id query string false "Filter by employer ID"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Results per page" default(50)
+// @Param sort_by query string false "Sort by field"
+// @Param sort_order query string false "Sort order (asc, desc)"
+// @Success 200 {object} JobResponse "Jobs retrieved successfully"
+// @Failure 500 {object} JobResponse "Internal server error"
+// @Router /api/admin/jobs [get]
+// GET /admin/jobs
+func (h *AdminHandler) GetJobs(c *gin.Context) {
+	var req JobListRequest
+
+	// Parse query parameters
+	req.Status = c.Query("status")
+	req.EmployerID = c.Query("employer_id")
+	req.SortBy = c.Query("sort_by")
+	req.SortOrder = c.Query("sort_order")
+
+	// Parse pagination
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+	req.Page = page
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if err != nil || limit < 1 {
+		limit = 50
+	}
+	req.Limit = limit
+
+	// Fetch jobs from service
+	jobs, err := h.service.GetAllJobs(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, JobResponse{
+			Success: false,
+			Message: "Failed to fetch jobs: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, JobResponse{
+		Success: true,
+		Message: "Jobs retrieved successfully",
+		Data:    jobs,
+	})
+}
+
+// @Summary Get Job By ID (Admin)
+// @Description Retrieve complete details for a specific job (admin-only)
+// @Tags Admin Jobs
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Success 200 {object} JobResponse "Job details retrieved successfully"
+// @Failure 404 {object} JobResponse "Job not found"
+// @Failure 500 {object} JobResponse "Internal server error"
+// @Router /api/admin/jobs/{id} [get]
+// GET /admin/jobs/:id
+func (h *AdminHandler) GetJobByID(c *gin.Context) {
+	jobID := c.Param("id")
+
+	// Fetch job from service
+	job, err := h.service.GetJobByID(jobID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, JobResponse{
+			Success: false,
+			Message: "Job not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, JobResponse{
+		Success: true,
+		Message: "Job details retrieved successfully",
+		Data:    job,
+	})
+}
+
+// @Summary Get Job Statistics (Admin)
+// @Description Retrieve aggregated statistics about jobs across the platform (admin-only)
+// @Tags Admin Jobs
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} JobResponse "Job statistics retrieved successfully"
+// @Failure 500 {object} JobResponse "Internal server error"
+// @Router /api/admin/jobs/statistics [get]
+// GET /admin/jobs/statistics
+func (h *AdminHandler) GetJobStatistics(c *gin.Context) {
+	// Fetch statistics from service
+	stats, err := h.service.GetJobStatistics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, JobResponse{
+			Success: false,
+			Message: "Failed to fetch job statistics: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, JobResponse{
+		Success: true,
+		Message: "Job statistics retrieved successfully",
+		Data:    stats,
 	})
 }

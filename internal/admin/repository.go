@@ -42,6 +42,11 @@ type AdminRepository interface {
 	// Student/Employer Lists
 	GetStudents(req *StudentListRequest) (*StudentListResponse, error)
 	GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error)
+
+	// Job Viewing (Admin-only)
+	GetAllJobs(req *JobListRequest) (*JobListResponse, error)
+	GetJobByID(jobID string) (*JobDetailResponse, error)
+	GetJobStatistics() (*JobStatistics, error)
 }
 
 type adminRepository struct {
@@ -923,4 +928,135 @@ func (r *adminRepository) GetEmployers(req *EmployerListRequest) (*EmployerListR
 			TotalPages: totalPages,
 		},
 	}, nil
+}
+
+func (r *adminRepository) GetAllJobs(req *JobListRequest) (*JobListResponse, error) {
+	var jobs []JobListItem
+	var total int64
+
+	query := r.db.Table("job_posts").
+		Select(`
+			job_posts.id,
+			job_posts.title,
+			job_posts.status,
+			job_posts.employer_id,
+			COALESCE(employer_profiles.company_name, users.name) as employer_name,
+			job_posts.location,
+			job_posts.job_type,
+			job_posts.applications_count,
+			job_posts.created_at,
+			job_posts.updated_at
+		`).
+		Joins("LEFT JOIN employer_profiles ON employer_profiles.user_id = job_posts.employer_id").
+		Joins("LEFT JOIN users ON users.id = job_posts.employer_id")
+
+	// Apply filters
+	if req.Status != "" {
+		query = query.Where("job_posts.status = ?", req.Status)
+	}
+	if req.EmployerID != "" {
+		query = query.Where("job_posts.employer_id = ?", req.EmployerID)
+	}
+
+	// Get total count
+	query.Count(&total)
+
+	// Apply sorting
+	if req.SortBy != "" {
+		order := "job_posts." + req.SortBy
+		if req.SortOrder == "desc" {
+			order += " DESC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("job_posts.created_at DESC")
+	}
+
+	// Apply pagination
+	offset := (req.Page - 1) * req.Limit
+	query = query.Offset(offset).Limit(req.Limit)
+
+	// Execute query
+	err := query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+
+	return &JobListResponse{
+		Jobs: jobs,
+		Pagination: PaginationInfo{
+			Page:       req.Page,
+			Limit:      req.Limit,
+			Total:      int(total),
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+func (r *adminRepository) GetJobByID(jobID string) (*JobDetailResponse, error) {
+	var job JobDetailResponse
+
+	err := r.db.Table("job_posts").
+		Select(`
+			job_posts.id,
+			job_posts.title,
+			job_posts.description,
+			job_posts.status,
+			job_posts.employer_id,
+			COALESCE(employer_profiles.company_name, users.name) as employer_name,
+			users.email as employer_email,
+			job_posts.location,
+			job_posts.job_type,
+			job_posts.salary,
+			job_posts.requirements,
+			job_posts.responsibilities,
+			job_posts.benefits,
+			job_posts.applications_count,
+			job_posts.hired_candidate_name,
+			job_posts.completed_at,
+			job_posts.created_at,
+			job_posts.updated_at
+		`).
+		Joins("LEFT JOIN employer_profiles ON employer_profiles.user_id = job_posts.employer_id").
+		Joins("LEFT JOIN users ON users.id = job_posts.employer_id").
+		Where("job_posts.id = ?", jobID).
+		First(&job).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &job, nil
+}
+
+func (r *adminRepository) GetJobStatistics() (*JobStatistics, error) {
+	var stats JobStatistics
+
+	// Get total jobs
+	var totalJobs int64
+	r.db.Model(&JobPost{}).Count(&totalJobs)
+	stats.TotalJobs = int(totalJobs)
+
+	// Get jobs by status
+	var draftJobs, publishedJobs, completedJobs int64
+	r.db.Model(&JobPost{}).Where("status = ?", "draft").Count(&draftJobs)
+	r.db.Model(&JobPost{}).Where("status = ?", "published").Count(&publishedJobs)
+	r.db.Model(&JobPost{}).Where("status = ?", "completed").Count(&completedJobs)
+	stats.DraftJobs = int(draftJobs)
+	stats.PublishedJobs = int(publishedJobs)
+	stats.CompletedJobs = int(completedJobs)
+
+	// Get total applications
+	var totalApplications int64
+	r.db.Model(&Application{}).Count(&totalApplications)
+	stats.TotalApplications = int(totalApplications)
+
+	// Get total hires from job_hires table
+	var totalHires int64
+	r.db.Table("job_hires").Count(&totalHires)
+	stats.TotalHires = int(totalHires)
+
+	return &stats, nil
 }

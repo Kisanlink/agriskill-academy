@@ -921,6 +921,12 @@ func (r *jobPostRepository) PublishDraft(jobID string) error {
 }
 
 // CloseJob sets a job status to completed (manual close)
+// Database operations:
+// - Updates job_posts.status to "completed"
+// - Sets job_posts.completed_at to current timestamp
+// - No cascade updates to related tables
+//
+// Note: This is different from UpdateHiredCandidate which closes with a selected candidate
 func (r *jobPostRepository) CloseJob(jobID string) error {
 	now := time.Now()
 	return r.db.Model(&JobPost{}).
@@ -932,6 +938,12 @@ func (r *jobPostRepository) CloseJob(jobID string) error {
 }
 
 // ReopenJob sets a job status back to open (published)
+// Database operations:
+// - Updates job_posts.status to "published"
+// - Does NOT modify completed_at or hired_candidate_name fields
+// - Does NOT reset applications_count
+//
+// Note: Previous job data (applications, hired candidates) is preserved
 func (r *jobPostRepository) ReopenJob(jobID string) error {
 	return r.db.Model(&JobPost{}).
 		Where("id = ?", jobID).

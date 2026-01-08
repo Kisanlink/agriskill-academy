@@ -1056,11 +1056,30 @@ func (s *jobPostService) PublishDraft(jobID string) (*JobPost, error) {
 }
 
 // CloseJob manually closes a job by setting its status to completed
+// This endpoint allows employers to manually close job postings without selecting a candidate.
+// Use case: When employer decides to stop accepting applications for any reason
+// (budget constraints, role put on hold, internal hire, etc.)
+//
+// Behavior:
+// - Sets job status to "completed"
+// - Records completed_at timestamp
+// - Does NOT require hiring a candidate
+// - Job will no longer appear in active job listings
 func (s *jobPostService) CloseJob(jobID string) error {
 	return s.repo.CloseJob(jobID)
 }
 
 // ReopenJob reopens a closed job by setting its status back to published
+// This endpoint allows employers to reactivate previously closed job postings.
+// Use case: When circumstances change and employer wants to reopen applications
+// (budget approved, previous candidate declined, position still needed, etc.)
+//
+// Behavior:
+// - Sets job status back to "published"
+// - Does NOT validate vacancy_count (no limit enforcement)
+// - Job becomes visible in active job listings again
+// - Previous applications remain unchanged
+// - No automated notifications sent on reopen
 func (s *jobPostService) ReopenJob(jobID string) error {
 	return s.repo.ReopenJob(jobID)
 }

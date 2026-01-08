@@ -40,6 +40,8 @@ func RegisterAuthenticatedRoutes(rg *gin.RouterGroup, handler *JobPostHandler) {
 			employerJobs.PUT("/:id", handler.Update)
 			employerJobs.DELETE("/:id", handler.Delete)
 			employerJobs.POST("/:id/publish", handler.PublishDraft)
+			employerJobs.POST("/:id/close", handler.CloseJob)
+			employerJobs.POST("/:id/reopen", handler.ReopenJob)
 		}
 
 		// Job alerts endpoints (auth required for any role)
@@ -85,5 +87,7 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *JobPostHandler) {
 		jobs.PUT("/:id", handler.Update)
 		jobs.DELETE("/:id", handler.Delete)
 		jobs.POST("/:id/publish", handler.PublishDraft)
+		jobs.POST("/:id/close", handler.CloseJob)
+		jobs.POST("/:id/reopen", handler.ReopenJob)
 	}
 }

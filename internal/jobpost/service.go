@@ -1053,3 +1053,8 @@ func (s *jobPostService) PublishDraft(jobID string) (*JobPost, error) {
 	// Return the updated job
 	return s.repo.GetByID(context.Background(), jobID, &JobPost{})
 }
+
+// CloseJob manually closes a job by setting its status to completed
+func (s *jobPostService) CloseJob(jobID string) error {
+	return s.repo.CloseJob(jobID)
+}

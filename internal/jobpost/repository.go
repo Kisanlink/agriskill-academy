@@ -40,6 +40,9 @@ type JobPostRepository interface {
 	CreateDraft(job *JobPost) error
 	GetDraftsByEmployer(employerID string) ([]JobPost, error)
 	PublishDraft(jobID string) error
+
+	// Manual job lifecycle methods
+	CloseJob(jobID string) error
 }
 
 type jobPostRepository struct {
@@ -914,4 +917,15 @@ func (r *jobPostRepository) GetDraftsByEmployer(employerID string) ([]JobPost, e
 
 func (r *jobPostRepository) PublishDraft(jobID string) error {
 	return r.db.Model(&JobPost{}).Where("id = ?", jobID).Update("status", "published").Error
+}
+
+// CloseJob sets a job status to completed (manual close)
+func (r *jobPostRepository) CloseJob(jobID string) error {
+	now := time.Now()
+	return r.db.Model(&JobPost{}).
+		Where("id = ?", jobID).
+		Updates(map[string]interface{}{
+			"status":       "completed",
+			"completed_at": &now,
+		}).Error
 }

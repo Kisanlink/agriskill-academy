@@ -47,7 +47,7 @@ type JobPostService interface {
 
 	// Manual job lifecycle methods
 	CloseJob(jobID string) error
-	ReopenJob(jobID string) error
+	ReopenJob(jobID string, newDeadline time.Time) error
 }
 
 type jobPostService struct {
@@ -1077,17 +1077,18 @@ func (s *jobPostService) CloseJob(jobID string) error {
 	return s.repo.CloseJob(jobID)
 }
 
-// ReopenJob reopens a closed job by setting its status back to published
+// ReopenJob reopens a closed job by setting its status back to published with a new deadline
 // This endpoint allows employers to reactivate previously closed job postings.
 // Use case: When circumstances change and employer wants to reopen applications
 // (budget approved, previous candidate declined, position still needed, etc.)
 //
 // Behavior:
 // - Sets job status back to "published"
+// - Updates application deadline to the new deadline provided
 // - Does NOT validate vacancy_count (no limit enforcement)
 // - Job becomes visible in active job listings again
 // - Previous applications remain unchanged
 // - No automated notifications sent on reopen
-func (s *jobPostService) ReopenJob(jobID string) error {
-	return s.repo.ReopenJob(jobID)
+func (s *jobPostService) ReopenJob(jobID string, newDeadline time.Time) error {
+	return s.repo.ReopenJob(jobID, newDeadline)
 }

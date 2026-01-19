@@ -47,7 +47,7 @@ type JobPostRepository interface {
 
 	// Manual job lifecycle methods
 	CloseJob(jobID string) error
-	ReopenJob(jobID string) error
+	ReopenJob(jobID string, newDeadline time.Time) error
 }
 
 type jobPostRepository struct {
@@ -961,15 +961,19 @@ func (r *jobPostRepository) CloseJob(jobID string) error {
 		}).Error
 }
 
-// ReopenJob sets a job status back to open (published)
+// ReopenJob sets a job status back to open (published) with a new application deadline
 // Database operations:
 // - Updates job_posts.status to "published"
+// - Updates job_posts.application_deadline to the new deadline
 // - Does NOT modify completed_at or hired_candidate_name fields
 // - Does NOT reset applications_count
 //
 // Note: Previous job data (applications, hired candidates) is preserved
-func (r *jobPostRepository) ReopenJob(jobID string) error {
+func (r *jobPostRepository) ReopenJob(jobID string, newDeadline time.Time) error {
 	return r.db.Model(&JobPost{}).
 		Where("id = ?", jobID).
-		Update("status", "published").Error
+		Updates(map[string]interface{}{
+			"status":               "published",
+			"application_deadline": newDeadline,
+		}).Error
 }

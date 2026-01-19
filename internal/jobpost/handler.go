@@ -610,6 +610,7 @@ func (h *JobPostHandler) GetAllJobs(c *gin.Context) {
 				"isRemote":          job.IsRemote,
 				"applicationsCount": job.ApplicationsCount,
 				"status":            "active", // All published jobs are considered active
+				"employerId":        job.EmployerID,
 			}
 			transformedJobs = append(transformedJobs, transformedJob)
 		}
@@ -1382,15 +1383,22 @@ func (h *JobPostHandler) CloseJob(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Job closed successfully", "job_id": jobID})
 }
 
+// ReopenJobRequest represents the request body for reopening a job
+type ReopenJobRequest struct {
+	ApplicationDeadline time.Time `json:"application_deadline" binding:"required"`
+}
+
 // POST /jobs/:id/reopen
 // @Summary Reopen Job Post
-// @Description Reopen a closed job post by setting status back to published (employer only)
+// @Description Reopen a closed job post by setting status back to published with a new deadline (employer only)
 // @Tags Job Posts
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "Job ID"
+// @Param request body ReopenJobRequest true "New application deadline"
 // @Success 200 {object} map[string]interface{} "Job reopened successfully"
+// @Failure 400 {object} map[string]interface{} "New application deadline is required"
 // @Failure 403 {object} map[string]interface{} "Not authorized"
 // @Failure 404 {object} map[string]interface{} "Job not found"
 // @Failure 500 {object} map[string]interface{} "Failed to reopen job"
@@ -1398,19 +1406,28 @@ func (h *JobPostHandler) CloseJob(c *gin.Context) {
 //
 // Expected behavior validation:
 // 1. Verify employer authentication and extract user_id from context
-// 2. Retrieve job by ID and verify it exists
-// 3. Check that the job belongs to the authenticated employer (job.EmployerID == employerID)
-// 4. Set job status back to "published" (no vacancy_count validation needed)
-// 5. Return success response with job_id
+// 2. Parse request body for new application deadline
+// 3. Retrieve job by ID and verify it exists
+// 4. Check that the job belongs to the authenticated employer (job.EmployerID == employerID)
+// 5. Set job status back to "published" and update application deadline
+// 6. Return success response with job_id
 //
 // Test scenarios:
-// - Success: Employer reopens their previously closed job
+// - Success: Employer reopens their previously closed job with new deadline
+// - Failure: Missing application deadline (400 Bad Request)
 // - Failure: Non-owner employer tries to reopen job (403 Forbidden)
 // - Failure: Job ID not found (404 Not Found)
 // - Failure: Unauthenticated request (401 Unauthorized)
 func (h *JobPostHandler) ReopenJob(c *gin.Context) {
 	employerID := c.GetString("user_id")
 	jobID := c.Param("id")
+
+	// Parse request body for new deadline
+	var req ReopenJobRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "New application deadline is required"})
+		return
+	}
 
 	// Verify job exists and check ownership
 	job, err := h.service.GetByID(c.Request.Context(), jobID)
@@ -1424,8 +1441,8 @@ func (h *JobPostHandler) ReopenJob(c *gin.Context) {
 		return
 	}
 
-	// Reopen the job
-	if err := h.service.ReopenJob(jobID); err != nil {
+	// Reopen the job with new deadline
+	if err := h.service.ReopenJob(jobID, req.ApplicationDeadline); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": err.Error()})
 		return
 	}

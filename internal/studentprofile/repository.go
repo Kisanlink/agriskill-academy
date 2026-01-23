@@ -3,8 +3,9 @@
 package studentprofile
 
 import (
-	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"context"
+
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 
 	"github.com/Kisanlink/kisanlink-db/pkg/base"
 	"gorm.io/gorm"
@@ -189,7 +190,6 @@ func (r *studentProfileRepository) AddCertificate(cert *Certificate) error {
 	middleware.DebugLog("🔍 DEBUG: Repository.AddCertificate called - Name: %s, FileSize: %d bytes, FileType: %s\n", cert.Name, cert.FileSize, cert.FileType)
 
 	// Ensure ID is empty so database generates proper ID
-	cert.ID = ""
 	err := r.db.Create(cert).Error
 	if err != nil {
 		middleware.DebugLog("❌ DEBUG: Repository.AddCertificate error: %v\n", err)

@@ -5,6 +5,7 @@ package studentprofile
 import (
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"github.com/Kisanlink/agriskill-academy/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/pkg/utils"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -469,7 +470,7 @@ func (h *StudentProfileHandler) UpdateMyProfile(c *gin.Context) {
 		middleware.DebugLog("🔍 DEBUG: Updated email: %s\n", req.Email)
 	}
 	if req.Location != "" {
-		profile.Location = req.Location
+		profile.Location = utils.NormalizeCity(req.Location)
 		middleware.DebugLog("🔍 DEBUG: Updated location: %s\n", req.Location)
 	}
 	if req.PhoneNumber != "" {

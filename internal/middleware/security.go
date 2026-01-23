@@ -272,7 +272,27 @@ func CORSValidationMiddleware(allowedOrigins []string) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
+		path := c.Request.URL.Path
 		origin := c.GetHeader("Origin")
+
+		// For public notification routes, only skip CORS if they have a token in the path
+		// This provides token-based security instead of origin-based security
+		if strings.HasPrefix(path, "/api/notifications/unsubscribe/") ||
+			strings.HasPrefix(path, "/api/notifications/manage/") {
+			// Extract token from path to verify it exists (basic validation)
+			// The actual token validation happens in the handler
+			pathParts := strings.Split(strings.Trim(path, "/"), "/")
+			// Path structure: ["api", "notifications", "unsubscribe"|"manage", "token"]
+			// So we need at least 4 parts and pathParts[1] should be "notifications"
+			if len(pathParts) >= 4 && pathParts[1] == "notifications" && len(pathParts[3]) > 0 {
+				// Has a token-like segment in path, allow through
+				// Token validation will happen in the handler
+				DebugLog("🔓 CORS validation skipped for public notification route: %s (Origin: %s)", path, origin)
+				c.Next()
+				return
+			}
+			DebugLog("⚠️  Public notification route but invalid path structure: %s, pathParts: %v", path, pathParts)
+		}
 
 		// Allow requests without Origin header (same-origin requests)
 		if origin == "" {
@@ -309,8 +329,8 @@ func SecurityHeadersMiddleware() gin.HandlerFunc {
 		// Strict transport security (HTTPS only)
 		c.Header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 
-		// Content security policy
-		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:;")
+		// Content security policy - Allow Scalar API documentation CDN
+		c.Header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https: https://fonts.gstatic.com; connect-src 'self' https:;")
 
 		// Referrer policy
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")

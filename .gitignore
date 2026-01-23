@@ -362,6 +362,8 @@ FRONTEND_API_REFERENCE.md
 FRONTEND_MESSAGING_REMOVAL_GUIDE.md
 test-agriskill-api.ps1
 docker-compose.yml
+CLAUDE.md
+GEMINI.md
 
 # =============================================================================
 # Backup and Recovery
@@ -408,6 +410,7 @@ uploads/*
 migrations/*
 !migrations/
 !scripts/
+migrations/
 
 # Keep documentation
 !docs/

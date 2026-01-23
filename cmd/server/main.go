@@ -1,11 +1,33 @@
 // File: cmd/server/main.go
 
+// @title AgriJobs API
+// @version 1.0
+// @description AgriJobs backend API for agricultural job portal
+// @termsOfService http://swagger.io/terms/
+
+// @contact.name API Support
+// @contact.email support@agrijobs.com
+
+// @license.name Apache 2.0
+// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host localhost:8080
+// @BasePath /
+
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Type "Bearer" followed by a space and JWT token.
+
 package main
 
 import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"reflect"
+	"time"
 
 	"github.com/Kisanlink/agriskill-academy/config"
 	"github.com/Kisanlink/agriskill-academy/internal/admin"
@@ -29,6 +51,7 @@ import (
 	kdb "github.com/Kisanlink/agriskill-academy/pkg/db"
 	"github.com/Kisanlink/agriskill-academy/pkg/firebase"
 
+	scalar "github.com/MarceloPetrucio/go-scalar-api-reference"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -52,10 +75,10 @@ func runAutoMigrate(db *gorm.DB) error {
 		&studentprofile.Certificate{},
 		&jobpost.JobPost{},
 		&jobpost.JobAlert{},
+		&jobpost.JobHire{},
 		&application.Application{},
 		&bookmark.Bookmark{},
 		&notification.NotificationPreferences{},
-		&employerapplication.Message{},
 		&contact.ContactRequest{},
 	}
 
@@ -72,13 +95,79 @@ func runAutoMigrate(db *gorm.DB) error {
 	auth.InitializeCounterFromDatabase(db)
 	bookmark.InitializeCounterFromDatabase(db)
 	contact.InitializeCounterFromDatabase(db)
-	employerapplication.InitializeCounterFromDatabase(db)
 	employerprofile.InitializeCounterFromDatabase(db)
 	jobpost.InitializeCounterFromDatabase(db)
 	notification.InitializeCounterFromDatabase(db)
 	studentprofile.InitializeCounterFromDatabase(db)
 
 	return nil
+}
+
+// startWorker starts a background worker that processes jobs from the queue
+func startWorker(jobService worker.JobService, notificationService notification.NotificationService, logger *zap.Logger) {
+	go func() {
+		ticker := time.NewTicker(2 * time.Second) // Check every 2 seconds
+		defer ticker.Stop()
+
+		logger.Info("Background worker started - processing jobs every 2 seconds")
+
+		for range ticker.C {
+			// Dequeue a job
+			job, err := jobService.Dequeue()
+			if err != nil {
+				logger.Warn("Error dequeuing job", zap.Error(err))
+				continue
+			}
+
+			if job == nil {
+				continue // No jobs available
+			}
+
+			logger.Info("Processing job",
+				zap.String("job_id", job.ID),
+				zap.String("job_type", job.Type),
+			)
+
+			// Process the job based on type
+			switch job.Type {
+			case "send_email":
+				err := notification.HandleSendEmail(job.Payload, notificationService)
+				if err != nil {
+					logger.Error("Failed to process email job",
+						zap.String("job_id", job.ID),
+						zap.Error(err),
+					)
+					if failErr := jobService.Fail(job.ID, err.Error()); failErr != nil {
+						logger.Error("Failed to mark job as failed",
+							zap.String("job_id", job.ID),
+							zap.Error(failErr),
+						)
+					}
+				} else {
+					logger.Info("Successfully processed email job",
+						zap.String("job_id", job.ID),
+					)
+					if completeErr := jobService.Complete(job.ID, "Email sent successfully"); completeErr != nil {
+						logger.Error("Failed to mark job as completed",
+							zap.String("job_id", job.ID),
+							zap.Error(completeErr),
+						)
+					}
+				}
+			default:
+				logger.Warn("Unknown job type",
+					zap.String("job_id", job.ID),
+					zap.String("job_type", job.Type),
+				)
+				if failErr := jobService.Fail(job.ID, fmt.Sprintf("Unknown job type: %s", job.Type)); failErr != nil {
+					logger.Error("Failed to mark job as failed",
+						zap.String("job_id", job.ID),
+						zap.Error(failErr),
+					)
+				}
+			}
+		}
+	}()
 }
 
 func main() {
@@ -175,6 +264,17 @@ func main() {
 		log.Fatalf("AWS S3 configuration is required. Please set AWS_S3_BUCKET and AWS_REGION environment variables.")
 	}
 
+	// Set Gin mode from environment variable or config
+	ginMode := cfg.GinMode
+	if ginMode == "" {
+		ginMode = os.Getenv("GIN_MODE")
+	}
+	if ginMode == "" {
+		ginMode = gin.ReleaseMode // Default to release if not set
+	}
+	gin.SetMode(ginMode)
+	logger.Info("Gin mode set", zap.String("mode", ginMode))
+
 	// Create Gin router with production middleware
 	router := gin.Default()
 
@@ -237,24 +337,109 @@ func main() {
 		logger.Info("Firebase not configured - using local authentication only")
 	}
 
+	// Initialize notification preferences repository first (needed for auth service)
+	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
+
 	// Services and handlers
-	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo, firebaseEmail, firebaseAuth)
+	authService := auth.NewAuthService(authRepo, employerProfileRepo, studentProfileRepo, firebaseEmail, firebaseAuth, notificationPrefsRepo)
 	authHandler := auth.NewAuthHandler(authService)
 
 	employerProfileService := employerprofile.NewEmployerProfileService(employerProfileRepo)
 	employerProfileHandler := employerprofile.NewEmployerProfileHandler(employerProfileService, storageService)
 
+	// Initialize notification and worker services (needed for job post and application handlers)
+	notificationService := notification.NewNotificationService(notificationPrefsRepo)
+	notificationHandler := notification.NewNotificationHandler(notificationService)
+
+	// Initialize job service with Redis fallback to in-memory
+	var jobService worker.JobService
+	if cfg.RedisAddr != "" {
+		// Try to use Redis if configured (for AWS/production)
+		redisJobService, err := worker.NewRedisJobService(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+		if err != nil {
+			logger.Warn("Failed to initialize Redis job service, falling back to in-memory service",
+				zap.Error(err),
+				zap.String("redis_addr", cfg.RedisAddr),
+			)
+			jobService = worker.NewInMemoryJobService()
+			logger.Info("Using in-memory job service (Redis connection failed)")
+		} else {
+			jobService = redisJobService
+			logger.Info("Using Redis job service for background jobs",
+				zap.String("redis_addr", cfg.RedisAddr),
+			)
+		}
+	} else {
+		// Use in-memory service if Redis is not configured (for alpha testing/Koyeb)
+		jobService = worker.NewInMemoryJobService()
+		logger.Info("Using in-memory job service (Redis not configured - suitable for alpha testing)")
+	}
+	defer jobService.Close()
+
+	workerHandler := worker.NewWorkerHandler(jobService)
+
+	// Initialize Email Sender Service for email notifications
+	// Create an adapter to bridge JobService interface with JobEnqueuer interface
+	enqueuer := notification.JobEnqueuerFunc(func(job interface{}) error {
+		// Try to convert to BackgroundJob structure directly
+		if bgJob, ok := job.(*worker.BackgroundJob); ok {
+			return jobService.Enqueue(bgJob)
+		}
+		// Try map conversion
+		jobMap, ok := job.(map[string]interface{})
+		if ok {
+			typeStr, _ := jobMap["type"].(string)
+			payload, _ := jobMap["payload"].(map[string]interface{})
+			bgJob := &worker.BackgroundJob{
+				Type:    typeStr,
+				Payload: payload,
+			}
+			return jobService.Enqueue(bgJob)
+		}
+		// Try struct with Type and Payload fields using reflection
+		jobVal := reflect.ValueOf(job)
+		if jobVal.Kind() == reflect.Ptr {
+			jobVal = jobVal.Elem()
+		}
+		if jobVal.Kind() == reflect.Struct {
+			typeField := jobVal.FieldByName("Type")
+			payloadField := jobVal.FieldByName("Payload")
+			if typeField.IsValid() && payloadField.IsValid() {
+				// Safely convert payload with type checking
+				payloadInterface := payloadField.Interface()
+				payloadMap, ok := payloadInterface.(map[string]interface{})
+				if !ok {
+					return fmt.Errorf("invalid payload type: expected map[string]interface{}, got %T", payloadInterface)
+				}
+
+				bgJob := &worker.BackgroundJob{
+					Type:    typeField.String(),
+					Payload: payloadMap,
+				}
+				return jobService.Enqueue(bgJob)
+			}
+		}
+		return fmt.Errorf("invalid job type: %T", job)
+	})
+	emailSenderService := notification.NewEmailSenderService(notificationService, enqueuer, db)
+
 	jobPostRepo := jobpost.NewJobPostRepository(db)
 	jobPostService := jobpost.NewJobPostService(jobPostRepo, employerProfileRepo)
-	jobPostHandler := jobpost.NewJobPostHandler(jobPostService)
+	jobPostHandler := jobpost.NewJobPostHandler(jobPostService, emailSenderService, db, notificationService, storageService)
 
 	applicationRepo := application.NewApplicationRepository(db)
-	applicationService := application.NewApplicationService(applicationRepo, jobPostRepo, s3Manager)
+	applicationService := application.NewApplicationService(applicationRepo, jobPostRepo, s3Manager, emailSenderService, db, notificationService)
 	applicationHandler := application.NewApplicationHandler(applicationService)
 
 	employerAppRepo := employerapplication.NewEmployerApplicationRepository(db)
 	employerAppService := employerapplication.NewEmployerApplicationService(employerAppRepo)
-	employerAppHandler := employerapplication.NewEmployerApplicationHandler(employerAppService)
+	employerAppHandler := employerapplication.NewEmployerApplicationHandler(
+		employerAppService,
+		emailSenderService,
+		db,
+		storageService,
+		notificationService,
+	)
 
 	bookmarkRepo := bookmark.NewBookmarkRepository(db)
 	bookmarkService := bookmark.NewBookmarkService(bookmarkRepo, jobPostRepo)
@@ -266,19 +451,6 @@ func main() {
 	// File serving and storage handlers
 	fileServeHandler := storage.NewFileServeHandler(s3Manager, db)
 	storageHandler := storage.NewStorageHandler(storageService)
-
-	notificationPrefsRepo := notification.NewNotificationPreferencesRepository(db)
-	notificationService := notification.NewNotificationService(notificationPrefsRepo)
-	notificationHandler := notification.NewNotificationHandler(notificationService)
-
-	// Initialize Redis job service
-	jobService, err := worker.NewRedisJobService(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
-	if err != nil {
-		logger.Fatal("Failed to initialize Redis job service", zap.Error(err))
-	}
-	defer jobService.Close()
-
-	workerHandler := worker.NewWorkerHandler(jobService)
 
 	adminRepo := admin.NewAdminRepository(db)
 	adminService := admin.NewAdminService(adminRepo)
@@ -295,12 +467,36 @@ func main() {
 	// Swagger docs
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
+	// Scalar API documentation
+	router.GET("/docs", func(c *gin.Context) {
+		// Read the swagger.json file
+		swaggerJSON, err := os.ReadFile("docs/swagger.json")
+		if err != nil {
+			c.String(500, "Error reading swagger spec: %v", err)
+			return
+		}
+
+		htmlContent, err := scalar.ApiReferenceHTML(&scalar.Options{
+			SpecContent: string(swaggerJSON),
+			CustomOptions: scalar.CustomOptions{
+				PageTitle: "AgriJobs API Documentation",
+			},
+			DarkMode: true,
+		})
+		if err != nil {
+			c.String(500, "Error generating Scalar documentation: %v", err)
+			return
+		}
+		c.Data(200, "text/html; charset=utf-8", []byte(htmlContent))
+	})
+
 	// Public API group
 	api := router.Group("/api")
 	auth.RegisterPublicRoutes(api, authHandler)
 	jobpost.RegisterPublicRoutes(api, jobPostHandler)
 	storage.RegisterPublicRoutes(api, storageHandler, fileServeHandler)
 	contact.RegisterPublicRoutes(api, contactHandler)
+	notification.RegisterPublicRoutes(api, notificationHandler)
 
 	// Protected routes
 	authGroup := api.Group("/")
@@ -318,6 +514,10 @@ func main() {
 	notification.RegisterRoutes(authGroup, notificationHandler)
 	worker.RegisterRoutes(authGroup, workerHandler)
 	contact.RegisterAdminRoutes(authGroup, contactHandler)
+
+	// Start background worker to process jobs
+	startWorker(jobService, notificationService, logger)
+	logger.Info("Background worker initialized")
 
 	// Start server
 	port := cfg.ServerPort

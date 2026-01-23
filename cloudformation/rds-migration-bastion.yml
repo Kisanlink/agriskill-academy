@@ -1,0 +1,520 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Private RDS PostgreSQL -> Dump to S3 -> Optional Auto Restore to Neon (PostgreSQL) via temporary EC2.
+  Fixes CloudFormation !Sub escaping issues and supports safe, repeatable migrations.
+
+Parameters:
+  # ------------------------------- 
+  # Network
+  # ------------------------------- 
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID where your RDS instance is located
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet for the migration EC2. Use a subnet that has outbound internet (public subnet recommended) so EC2 can reach Neon.
+
+  # ------------------------------- 
+  # RDS Source
+  # ------------------------------- 
+  RDSSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security Group ID attached to your RDS instance (we will add an inbound rule for 5432 from the migration EC2 SG)
+
+  RDSEndpoint:
+    Type: String
+    Description: RDS endpoint hostname (e.g., mydb.xxxxxx.ap-south-1.rds.amazonaws.com)
+
+  DBName:
+    Type: String
+    Description: Database name to export (source)
+
+  DBUsername:
+    Type: String
+    Description: Database username (source)
+
+  DBPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: Database password (source). Will not be logged.
+
+  # ------------------------------- 
+  # EC2 / Access
+  # ------------------------------- 
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    AllowedValues:
+      - t3.micro
+      - t3.small
+      - t3.medium
+    Description: EC2 instance type for migration bridge
+
+  RootVolumeGiB:
+    Type: Number
+    Default: 30
+    MinValue: 8
+    MaxValue: 200
+    Description: Root EBS size for storing dump temporarily
+
+  KeyPairName:
+    Type: String
+    Default: ''
+    Description: (Optional) EC2 KeyPair for SSH. Leave empty to use SSM Session Manager.
+
+  MyIPAddress:
+    Type: String
+    Default: ''
+    Description: (Optional) Your public IP CIDR for SSH (e.g., 203.0.113.10/32). Leave empty to disable SSH.
+
+  # ------------------------------- 
+  # Neon Target (Optional Restore)
+  # ------------------------------- 
+  EnableNeonRestore:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: If true, the instance will restore the dump into Neon after upload to S3.
+
+  NeonHost:
+    Type: String
+    Default: ''
+    Description: Neon PostgreSQL host (from Neon connection details). Required if EnableNeonRestore=true.
+
+  NeonDbName:
+    Type: String
+    Default: ''
+    Description: Neon database name (create a NEW EMPTY DB). Required if EnableNeonRestore=true.
+
+  NeonUsername:
+    Type: String
+    Default: ''
+    Description: Neon username. Required if EnableNeonRestore=true.
+
+  NeonPassword:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Neon password. Required if EnableNeonRestore=true.
+
+  NeonSslMode:
+    Type: String
+    Default: require
+    AllowedValues: [require, verify-full, verify-ca]
+    Description: SSL mode for Neon (require is usually correct)
+
+  # ------------------------------- 
+  # Notifications (Optional)
+  # ------------------------------- 
+  NotificationEmail:
+    Type: String
+    Default: ''
+    Description: (Optional) Email for SNS notification on completion/failure
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Network
+        Parameters:
+          - VpcId
+          - SubnetId
+      - Label:
+          default: RDS Source
+        Parameters:
+          - RDSSecurityGroupId
+          - RDSEndpoint
+          - DBName
+          - DBUsername
+          - DBPassword
+      - Label:
+          default: EC2 / Access
+        Parameters:
+          - InstanceType
+          - RootVolumeGiB
+          - KeyPairName
+          - MyIPAddress
+      - Label:
+          default: Neon Target (Optional Restore)
+        Parameters:
+          - EnableNeonRestore
+          - NeonHost
+          - NeonDbName
+          - NeonUsername
+          - NeonPassword
+          - NeonSslMode
+      - Label:
+          default: Optional Notifications
+        Parameters:
+          - NotificationEmail
+
+Conditions:
+  HasKeyPair: !Not [!Equals [!Ref KeyPairName, '']]
+  HasMyIP: !Not [!Equals [!Ref MyIPAddress, '']]
+  HasNotificationEmail: !Not [!Equals [!Ref NotificationEmail, '']]
+  DoNeonRestore: !Equals [!Ref EnableNeonRestore, 'true' ]
+
+Resources:
+  # --------------------------------------------
+  # S3 bucket to store dump + logs
+  # --------------------------------------------
+  BackupBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub rds-migration-backups-${AWS::AccountId}-${AWS::Region}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteOldBackups
+            Status: Enabled
+            ExpirationInDays: 30
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # --------------------------------------------
+  # Optional SNS topic
+  # --------------------------------------------
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Condition: HasNotificationEmail
+    Properties:
+      DisplayName: RDS Migration Notifications
+      Subscription:
+        - Endpoint: !Ref NotificationEmail
+          Protocol: email
+
+  # --------------------------------------------
+  # IAM role for EC2: SSM + S3 write + optional SNS publish
+  # --------------------------------------------
+  MigrationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-migration-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: S3WriteBackupsAndLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !GetAtt BackupBucket.Arn
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource: !Sub ${BackupBucket.Arn}/*
+
+  SNSPublishPolicy:
+    Type: AWS::IAM::Policy
+    Condition: HasNotificationEmail
+    Properties:
+      PolicyName: !Sub ${AWS::StackName}-sns-publish
+      Roles:
+        - !Ref MigrationRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: sns:Publish
+            Resource: !Ref NotificationTopic
+
+  MigrationInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref MigrationRole
+
+  # --------------------------------------------
+  # Security group for EC2 (egress open enough to reach Neon and S3)
+  # --------------------------------------------
+  MigrationEc2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Migration EC2 SG (SSH optional, outbound to internet for Neon/S3)
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  MigrationSSHIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasMyIP
+    Properties:
+      GroupId: !Ref MigrationEc2SecurityGroup
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref MyIPAddress
+      Description: SSH from your IP (optional)
+
+  # Allow EC2 SG to reach RDS SG on 5432 (RDS remains private)
+  RDSIngressFromMigrationEc2:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref RDSSecurityGroupId
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref MigrationEc2SecurityGroup
+      Description: Allow Postgres from migration EC2 only
+
+  # --------------------------------------------
+  # EC2 instance (Amazon Linux 2023 via SSM parameter)
+  # --------------------------------------------
+  MigrationInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref MigrationInstanceProfile
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref MigrationEc2SecurityGroup
+      KeyName: !If [HasKeyPair, !Ref KeyPairName, !Ref AWS::NoValue]
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref RootVolumeGiB
+            VolumeType: gp3
+            DeleteOnTermination: true
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euo pipefail
+
+            # Log user-data output
+            exec > >(tee /var/log/user-data.log)
+            exec 2>&1
+
+            echo "========================================="
+            echo "RDS -> S3 dump -> Neon restore (optional)"
+            echo "Started: $(date)"
+            echo "========================================="
+
+            echo "Installing tools..."
+            dnf update -y
+            dnf install -y postgresql17 awscli jq nc
+
+            echo "Tool versions:"
+            pg_dump --version
+            pg_restore --version
+            aws --version
+
+            # --- CloudFormation-provided values ---
+            RDS_HOST='${RDSEndpoint}'
+            DB_NAME='${DBName}'
+            DB_USER='${DBUsername}'
+            RDS_PASSWORD='${DBPassword}'
+
+            DO_NEON_RESTORE='${EnableNeonRestore}'
+            NEON_HOST='${NeonHost}'
+            NEON_DB='${NeonDbName}'
+            NEON_USER='${NeonUsername}'
+            NEON_PASSWORD='${NeonPassword}'
+            NEON_SSLMODE='${NeonSslMode}'
+
+            S3_BUCKET='${BackupBucket}'
+            SNS_TOPIC_ARN='${SnsTopicArn}'
+
+            # --- Runtime vars (bash) ---
+            export PGPASSWORD="${!RDS_PASSWORD}"
+
+            BACKUP_FILE="${!DB_NAME}_backup_$(date +%Y%m%d_%H%M%S).dump"
+            BACKUP_PATH="/tmp/${!BACKUP_FILE}"
+
+            echo "Configuration (safe fields):"
+            echo "  RDS_HOST=${!RDS_HOST}"
+            echo "  DB_NAME=${!DB_NAME}"
+            echo "  DB_USER=${!DB_USER}"
+            echo "  S3_BUCKET=${!S3_BUCKET}"
+            echo "  BACKUP_FILE=${!BACKUP_FILE}"
+            echo "  Neon restore enabled: ${!DO_NEON_RESTORE}"
+            if [ "${!DO_NEON_RESTORE}" = "true" ]; then
+              echo "  NEON_HOST=${!NEON_HOST}"
+              echo "  NEON_DB=${!NEON_DB}"
+              echo "  NEON_USER=${!NEON_USER}"
+              echo "  NEON_SSLMODE=${!NEON_SSLMODE}"
+            fi
+
+            echo ""
+            echo "Testing RDS connectivity..."
+            if psql -h "${!RDS_HOST}" -U "${!DB_USER}" -d "${!DB_NAME}" -c "SELECT 1;" >/dev/null 2>&1; then
+              echo "✓ RDS connection OK"
+            else
+              echo "✗ RDS connection FAILED. Check: RDS endpoint, SG rule, subnet/VPC."
+              exit 1
+            fi
+
+            echo ""
+            echo "Capturing table stats (approx row counts)..."
+            psql -h "${!RDS_HOST}" -U "${!DB_USER}" -d "${!DB_NAME}" -c "
+              SELECT relname AS table, n_live_tup AS approx_rows
+              FROM pg_stat_user_tables
+              ORDER BY n_live_tup DESC;
+            " > /tmp/table_counts.txt || true
+
+            echo ""
+            echo "========================================="
+            echo "Running pg_dump (read-only export)..."
+            echo "========================================="
+            START_TIME=$(date +%s)
+
+            pg_dump \
+              -h "${!RDS_HOST}" \
+              -U "${!DB_USER}" \
+              -d "${!DB_NAME}" \
+              -F c \
+              -Z 9 \
+              --no-owner \
+              --no-acl \
+              -v \
+              -f "${!BACKUP_PATH}" 2>&1 | tee /tmp/pg_dump.log
+
+            END_TIME=$(date +%s)
+            DURATION=$((END_TIME - START_TIME))
+
+            BACKUP_SIZE=$(du -h "${!BACKUP_PATH}" | cut -f1)
+            echo "✓ Export complete in ${!DURATION}s, size=${!BACKUP_SIZE}"
+
+            echo "Verifying dump file..."
+            if pg_restore --list "${!BACKUP_PATH}" > /tmp/backup_contents.txt 2>&1; then
+              echo "✓ Dump verification OK"
+              TABLE_COUNT=$(grep -c "TABLE DATA" /tmp/backup_contents.txt || true)
+              echo "  TABLE DATA entries: ${!TABLE_COUNT}"
+            else
+              echo "✗ Dump verification FAILED"
+              cat /tmp/backup_contents.txt || true
+              exit 1
+            fi
+
+            echo ""
+            echo "Uploading dump + logs to S3..."
+            aws s3 cp "${!BACKUP_PATH}" "s3://${!S3_BUCKET}/${!BACKUP_FILE}" --region ${AWS::Region}
+            aws s3 cp /tmp/table_counts.txt "s3://${!S3_BUCKET}/migration_metadata/table_counts_${!BACKUP_FILE}.txt" --region ${AWS::Region} || true
+            aws s3 cp /tmp/pg_dump.log "s3://${!S3_BUCKET}/migration_metadata/pg_dump_${!BACKUP_FILE}.log" --region ${AWS::Region} || true
+            aws s3 cp /tmp/backup_contents.txt "s3://${!S3_BUCKET}/migration_metadata/backup_contents_${!BACKUP_FILE}.txt" --region ${AWS::Region} || true
+
+            S3_URI="s3://${!S3_BUCKET}/${!BACKUP_FILE}"
+            echo "✓ Uploaded dump to: ${!S3_URI}"
+
+            # Optional Neon restore
+            if [ "${!DO_NEON_RESTORE}" = "true" ]; then
+              echo ""
+              echo "========================================="
+              echo "Restoring to Neon (pg_restore)..."
+              echo "NOTE: Neon DB should be NEW and EMPTY."
+              echo "========================================="
+
+              if [ -z "${!NEON_HOST}" ] || [ -z "${!NEON_DB}" ] || [ -z "${!NEON_USER}" ] || [ -z "${!NEON_PASSWORD}" ]; then
+                echo "✗ Missing Neon parameters. Provide NeonHost/NeonDbName/NeonUsername/NeonPassword."
+                exit 1
+              fi
+
+              export PGPASSWORD="${!NEON_PASSWORD}"
+              export PGSSLMODE="${!NEON_SSLMODE}"
+
+              echo "Testing Neon connectivity..."
+              if psql -h "${!NEON_HOST}" -U "${!NEON_USER}" -d "${!NEON_DB}" -c "SELECT 1;" >/dev/null 2>&1; then
+                echo "✓ Neon connection OK"
+              else
+                echo "✗ Neon connection FAILED. Check host/user/db/password and SSL mode."
+                exit 1
+              fi
+
+              RESTORE_START=$(date +%s)
+
+              # Safety: no --clean here. Use a fresh empty Neon DB.
+              pg_restore \
+                -h "${!NEON_HOST}" \
+                -U "${!NEON_USER}" \
+                -d "${!NEON_DB}" \
+                --no-owner \
+                --no-acl \
+                -v \
+                "${!BACKUP_PATH}" 2>&1 | tee /tmp/pg_restore_neon.log
+
+              RESTORE_END=$(date +%s)
+              RESTORE_DURATION=$((RESTORE_END - RESTORE_START))
+              echo "✓ Neon restore complete in ${!RESTORE_DURATION}s"
+
+              aws s3 cp /tmp/pg_restore_neon.log "s3://${!S3_BUCKET}/migration_metadata/pg_restore_neon_${!BACKUP_FILE}.log" --region ${AWS::Region} || true
+            fi
+
+            # Summary JSON
+            cat > /tmp/migration_summary.json <<EOF
+            {
+              "timestamp_utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+              "rds_host": "${!RDS_HOST}",
+              "database": "${!DB_NAME}",
+              "backup_file": "${!BACKUP_FILE}",
+              "backup_size": "${!BACKUP_SIZE}",
+              "dump_duration_seconds": ${!DURATION},
+              "table_data_entries": ${!TABLE_COUNT:-0},
+              "s3_uri": "${!S3_URI}",
+              "neon_restore_enabled": "${!DO_NEON_RESTORE}"
+            }
+            EOF
+
+            aws s3 cp /tmp/migration_summary.json "s3://${!S3_BUCKET}/migration_summary_${!BACKUP_FILE}.json" --region ${AWS::Region} || true
+
+            # Optional SNS notification
+            if [ -n "${!SNS_TOPIC_ARN}" ]; then
+              echo "Sending SNS notification..."
+              MESSAGE="RDS export completed.\n\nDatabase: ${!DB_NAME}\nDump: ${!BACKUP_FILE}\nSize: ${!BACKUP_SIZE}\nDuration(s): ${!DURATION}\nS3: ${!S3_URI}\nNeon restore enabled: ${!DO_NEON_RESTORE}\n\nLogs: s3://${!S3_BUCKET}/migration_metadata/"
+              aws sns publish \
+                --topic-arn "${!SNS_TOPIC_ARN}" \
+                --subject "RDS Export Completed - ${!DB_NAME}" \
+                --message "${!MESSAGE}" \
+                --region ${AWS::Region} || true
+            fi
+
+            echo "Cleaning up local dump file..."
+            rm -f "${!BACKUP_PATH}" || true
+
+            echo "========================================="
+            echo "Done: $(date)"
+            echo "========================================="
+          - SnsTopicArn: !If [HasNotificationEmail, !Ref NotificationTopic, ""]
+
+Outputs:
+  BackupBucketName:
+    Description: S3 bucket storing dump + logs (retained on stack delete)
+    Value: !Ref BackupBucket
+
+  MigrationInstanceId:
+    Description: EC2 instance ID (connect via SSM Session Manager if no SSH)
+    Value: !Ref MigrationInstance
+
+  MigrationSecurityGroupId:
+    Description: Security group ID for migration EC2 (used as source to reach RDS)
+    Value: !Ref MigrationEc2SecurityGroup
+
+  Notes:
+    Description: Operational notes
+    Value: |
+      - RDS remains private; inbound 5432 is allowed only from the migration EC2 SG.
+      - A dump is uploaded to S3 along with logs and summary JSON.
+      - If EnableNeonRestore=true, EC2 restores into Neon using SSL mode provided.
+      - Delete the stack after verification to terminate EC2 and remove the RDS SG ingress rule.
+      - S3 bucket is retained for safety/audit (can delete manually later).

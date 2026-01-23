@@ -8,6 +8,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RegisterPublicRoutes registers public notification routes (no auth required)
+func RegisterPublicRoutes(rg *gin.RouterGroup, handler *NotificationHandler) {
+	notifications := rg.Group("/notifications")
+	{
+		// Public unsubscribe endpoint (no auth required)
+		notifications.GET("/unsubscribe/:token", handler.Unsubscribe)
+		// Public manage preferences endpoints (no auth required)
+		notifications.GET("/manage/:token", handler.ManageByToken)
+		notifications.POST("/manage/:token", handler.ManageByTokenPost)
+	}
+}
+
+// RegisterRoutes registers authenticated notification routes
 func RegisterRoutes(rg *gin.RouterGroup, handler *NotificationHandler) {
 	notifications := rg.Group("/notifications")
 	{

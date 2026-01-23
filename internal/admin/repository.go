@@ -1,9 +1,10 @@
 package admin
 
 import (
-	"github.com/Kisanlink/agriskill-academy/internal/auth"
 	"errors"
 	"time"
+
+	"github.com/Kisanlink/agriskill-academy/internal/auth"
 
 	"gorm.io/gorm"
 )
@@ -37,6 +38,15 @@ type AdminRepository interface {
 	UpdateCompany(companyID string, req *UpdateCompanyRequest) error
 	DeleteCompany(companyID string) error
 	GetCompanyAnalytics() (*CompanyAnalytics, error)
+
+	// Student/Employer Lists
+	GetStudents(req *StudentListRequest) (*StudentListResponse, error)
+	GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error)
+
+	// Job Viewing (Admin-only)
+	GetAllJobs(req *JobListRequest) (*JobListResponse, error)
+	GetJobByID(jobID string) (*JobDetailResponse, error)
+	GetJobStatistics() (*JobStatistics, error)
 }
 
 type adminRepository struct {
@@ -757,4 +767,296 @@ func (r *adminRepository) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 
 func (r *adminRepository) CreateAdmin(user *auth.User) error {
 	return r.db.Create(user).Error
+}
+
+func (r *adminRepository) GetStudents(req *StudentListRequest) (*StudentListResponse, error) {
+	var students []StudentListItem
+	var total int64
+
+	query := r.db.Table("student_profiles").
+		Select(`
+			student_profiles.id,
+			student_profiles.user_id,
+			student_profiles.name,
+			student_profiles.email,
+			student_profiles.phone_number,
+			student_profiles.location,
+			student_profiles.education,
+			student_profiles.skills,
+			student_profiles.portfolio,
+			student_profiles.linkedin,
+			student_profiles.created_at,
+			student_profiles.updated_at
+		`)
+
+	// Apply filters
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		query = query.Where("student_profiles.name ILIKE ? OR student_profiles.email ILIKE ?", searchTerm, searchTerm)
+	}
+	if req.Location != "" {
+		query = query.Where("student_profiles.location ILIKE ?", "%"+req.Location+"%")
+	}
+	if req.Education != "" {
+		query = query.Where("student_profiles.education ILIKE ?", "%"+req.Education+"%")
+	}
+
+	// Get total count
+	query.Count(&total)
+
+	// Apply sorting
+	if req.SortBy != "" {
+		order := req.SortBy
+		if req.SortOrder == "desc" {
+			order += " DESC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("student_profiles.created_at DESC")
+	}
+
+	// Apply pagination
+	offset := (req.Page - 1) * req.Limit
+	query = query.Offset(offset).Limit(req.Limit)
+
+	// Execute query
+	err := query.Find(&students).Error
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+
+	return &StudentListResponse{
+		Students: students,
+		Pagination: PaginationInfo{
+			Page:       req.Page,
+			Limit:      req.Limit,
+			Total:      int(total),
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+func (r *adminRepository) GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error) {
+	var employers []EmployerListItem
+	var total int64
+
+	query := r.db.Table("employer_profiles").
+		Select(`
+			employer_profiles.id,
+			employer_profiles.user_id,
+			employer_profiles.company_name,
+			employer_profiles.industry,
+			employer_profiles.company_size,
+			employer_profiles.city,
+			employer_profiles.state,
+			employer_profiles.phone_number,
+			employer_profiles.official_email,
+			employer_profiles.recruiter_name,
+			employer_profiles.official_email AS recruiter_email,
+			employer_profiles.company_description,
+			employer_profiles.website_url,
+			employer_profiles.created_at,
+			employer_profiles.updated_at,
+			COUNT(DISTINCT CASE WHEN job_posts.status = 'published' THEN job_posts.id END) as active_jobs_count
+		`).
+		Joins("LEFT JOIN job_posts ON job_posts.employer_id = employer_profiles.user_id").
+		Group("employer_profiles.id")
+
+	// Apply filters
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		query = query.Where("employer_profiles.company_name ILIKE ? OR employer_profiles.recruiter_name ILIKE ?", searchTerm, searchTerm)
+	}
+	if req.Industry != "" {
+		query = query.Where("employer_profiles.industry = ?", req.Industry)
+	}
+	if req.City != "" {
+		query = query.Where("employer_profiles.city ILIKE ?", "%"+req.City+"%")
+	}
+	if req.CompanySize != "" {
+		query = query.Where("employer_profiles.company_size = ?", req.CompanySize)
+	}
+
+	// Get total count (need to count before group by)
+	countQuery := r.db.Table("employer_profiles")
+	if req.Search != "" {
+		searchTerm := "%" + req.Search + "%"
+		countQuery = countQuery.Where("company_name ILIKE ? OR recruiter_name ILIKE ?", searchTerm, searchTerm)
+	}
+	if req.Industry != "" {
+		countQuery = countQuery.Where("industry = ?", req.Industry)
+	}
+	if req.City != "" {
+		countQuery = countQuery.Where("city ILIKE ?", "%"+req.City+"%")
+	}
+	if req.CompanySize != "" {
+		countQuery = countQuery.Where("company_size = ?", req.CompanySize)
+	}
+	countQuery.Count(&total)
+
+	// Apply sorting
+	if req.SortBy != "" {
+		order := req.SortBy
+		if req.SortOrder == "desc" {
+			order += " DESC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("employer_profiles.created_at DESC")
+	}
+
+	// Apply pagination
+	offset := (req.Page - 1) * req.Limit
+	query = query.Offset(offset).Limit(req.Limit)
+
+	// Execute query
+	err := query.Find(&employers).Error
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+
+	return &EmployerListResponse{
+		Employers: employers,
+		Pagination: PaginationInfo{
+			Page:       req.Page,
+			Limit:      req.Limit,
+			Total:      int(total),
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+func (r *adminRepository) GetAllJobs(req *JobListRequest) (*JobListResponse, error) {
+	var jobs []JobListItem
+	var total int64
+
+	query := r.db.Table("job_posts").
+		Select(`
+			job_posts.id,
+			job_posts.title,
+			job_posts.status,
+			job_posts.employer_id,
+			COALESCE(employer_profiles.company_name, users.name) as employer_name,
+			job_posts.location,
+			job_posts.job_type,
+			job_posts.applications_count,
+			job_posts.created_at,
+			job_posts.updated_at
+		`).
+		Joins("LEFT JOIN employer_profiles ON employer_profiles.user_id = job_posts.employer_id").
+		Joins("LEFT JOIN users ON users.id = job_posts.employer_id")
+
+	// Apply filters
+	if req.Status != "" {
+		query = query.Where("job_posts.status = ?", req.Status)
+	}
+	if req.EmployerID != "" {
+		query = query.Where("job_posts.employer_id = ?", req.EmployerID)
+	}
+
+	// Get total count
+	query.Count(&total)
+
+	// Apply sorting
+	if req.SortBy != "" {
+		order := "job_posts." + req.SortBy
+		if req.SortOrder == "desc" {
+			order += " DESC"
+		}
+		query = query.Order(order)
+	} else {
+		query = query.Order("job_posts.created_at DESC")
+	}
+
+	// Apply pagination
+	offset := (req.Page - 1) * req.Limit
+	query = query.Offset(offset).Limit(req.Limit)
+
+	// Execute query
+	err := query.Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+
+	return &JobListResponse{
+		Jobs: jobs,
+		Pagination: PaginationInfo{
+			Page:       req.Page,
+			Limit:      req.Limit,
+			Total:      int(total),
+			TotalPages: totalPages,
+		},
+	}, nil
+}
+
+func (r *adminRepository) GetJobByID(jobID string) (*JobDetailResponse, error) {
+	var job JobDetailResponse
+
+	err := r.db.Table("job_posts").
+		Select(`
+			job_posts.id,
+			job_posts.title,
+			job_posts.description,
+			job_posts.status,
+			job_posts.employer_id,
+			COALESCE(employer_profiles.company_name, users.name) as employer_name,
+			users.email as employer_email,
+			job_posts.location,
+			job_posts.job_type,
+			job_posts.salary,
+			job_posts.requirements,
+			job_posts.responsibilities,
+			job_posts.benefits,
+			job_posts.applications_count,
+			job_posts.hired_candidate_name,
+			job_posts.completed_at,
+			job_posts.created_at,
+			job_posts.updated_at
+		`).
+		Joins("LEFT JOIN employer_profiles ON employer_profiles.user_id = job_posts.employer_id").
+		Joins("LEFT JOIN users ON users.id = job_posts.employer_id").
+		Where("job_posts.id = ?", jobID).
+		First(&job).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &job, nil
+}
+
+func (r *adminRepository) GetJobStatistics() (*JobStatistics, error) {
+	var stats JobStatistics
+
+	// Get total jobs
+	var totalJobs int64
+	r.db.Model(&JobPost{}).Count(&totalJobs)
+	stats.TotalJobs = int(totalJobs)
+
+	// Get jobs by status
+	var draftJobs, publishedJobs, completedJobs int64
+	r.db.Model(&JobPost{}).Where("status = ?", "draft").Count(&draftJobs)
+	r.db.Model(&JobPost{}).Where("status = ?", "published").Count(&publishedJobs)
+	r.db.Model(&JobPost{}).Where("status = ?", "completed").Count(&completedJobs)
+	stats.DraftJobs = int(draftJobs)
+	stats.PublishedJobs = int(publishedJobs)
+	stats.CompletedJobs = int(completedJobs)
+
+	// Get total applications
+	var totalApplications int64
+	r.db.Model(&Application{}).Count(&totalApplications)
+	stats.TotalApplications = int(totalApplications)
+
+	// Get total hires from job_hires table
+	var totalHires int64
+	r.db.Table("job_hires").Count(&totalHires)
+	stats.TotalHires = int(totalHires)
+
+	return &stats, nil
 }

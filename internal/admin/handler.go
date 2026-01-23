@@ -2,6 +2,7 @@ package admin
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -501,5 +502,209 @@ func (h *AdminHandler) GetCompanyAnalytics(c *gin.Context) {
 		Success: true,
 		Message: "Company analytics retrieved successfully",
 		Data:    analytics,
+	})
+}
+
+// @Summary Get Students List
+// @Description Get paginated list of students with contact details and filters
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number (default: 1)"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param search query string false "Search by name or email"
+// @Param location query string false "Filter by location"
+// @Param education query string false "Filter by education"
+// @Param sort_by query string false "Sort field"
+// @Param sort_order query string false "Sort order (asc/desc)"
+// @Success 200 {object} StudentResponse "Students retrieved successfully"
+// @Failure 400 {object} StudentResponse "Invalid query parameters"
+// @Failure 500 {object} StudentResponse "Failed to fetch students"
+// @Router /api/admin/students [get]
+func (h *AdminHandler) GetStudents(c *gin.Context) {
+	var req StudentListRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, StudentResponse{
+			Success: false,
+			Message: "Invalid query parameters: " + err.Error(),
+		})
+		return
+	}
+
+	students, err := h.service.GetStudents(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, StudentResponse{
+			Success: false,
+			Message: "Failed to fetch students: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, StudentResponse{
+		Success: true,
+		Message: "Students retrieved successfully",
+		Data:    students,
+	})
+}
+
+// @Summary Get Employers List
+// @Description Get paginated list of employers with contact details and filters
+// @Tags Admin
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param page query int false "Page number (default: 1)"
+// @Param limit query int false "Items per page (default: 10, max: 100)"
+// @Param search query string false "Search by company name or recruiter name"
+// @Param industry query string false "Filter by industry"
+// @Param city query string false "Filter by city"
+// @Param company_size query string false "Filter by company size"
+// @Param sort_by query string false "Sort field"
+// @Param sort_order query string false "Sort order (asc/desc)"
+// @Success 200 {object} EmployerResponse "Employers retrieved successfully"
+// @Failure 400 {object} EmployerResponse "Invalid query parameters"
+// @Failure 500 {object} EmployerResponse "Failed to fetch employers"
+// @Router /api/admin/employers [get]
+func (h *AdminHandler) GetEmployers(c *gin.Context) {
+	var req EmployerListRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		c.JSON(http.StatusBadRequest, EmployerResponse{
+			Success: false,
+			Message: "Invalid query parameters: " + err.Error(),
+		})
+		return
+	}
+
+	employers, err := h.service.GetEmployers(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, EmployerResponse{
+			Success: false,
+			Message: "Failed to fetch employers: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, EmployerResponse{
+		Success: true,
+		Message: "Employers retrieved successfully",
+		Data:    employers,
+	})
+}
+
+// Job Viewing Handlers (Admin-only)
+
+// @Summary Get All Jobs (Admin)
+// @Description Retrieve all jobs in the system regardless of status (admin-only)
+// @Tags Admin Jobs
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param status query string false "Filter by status (draft, published, completed, closed)"
+// @Param employer_id query string false "Filter by employer ID"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Results per page" default(50)
+// @Param sort_by query string false "Sort by field"
+// @Param sort_order query string false "Sort order (asc, desc)"
+// @Success 200 {object} JobResponse "Jobs retrieved successfully"
+// @Failure 500 {object} JobResponse "Internal server error"
+// @Router /api/admin/jobs [get]
+// GET /admin/jobs
+func (h *AdminHandler) GetJobs(c *gin.Context) {
+	var req JobListRequest
+
+	// Parse query parameters
+	req.Status = c.Query("status")
+	req.EmployerID = c.Query("employer_id")
+	req.SortBy = c.Query("sort_by")
+	req.SortOrder = c.Query("sort_order")
+
+	// Parse pagination
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
+	if err != nil || page < 1 {
+		page = 1
+	}
+	req.Page = page
+
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if err != nil || limit < 1 {
+		limit = 50
+	}
+	req.Limit = limit
+
+	// Fetch jobs from service
+	jobs, err := h.service.GetAllJobs(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, JobResponse{
+			Success: false,
+			Message: "Failed to fetch jobs: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, JobResponse{
+		Success: true,
+		Message: "Jobs retrieved successfully",
+		Data:    jobs,
+	})
+}
+
+// @Summary Get Job By ID (Admin)
+// @Description Retrieve complete details for a specific job (admin-only)
+// @Tags Admin Jobs
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path string true "Job ID"
+// @Success 200 {object} JobResponse "Job details retrieved successfully"
+// @Failure 404 {object} JobResponse "Job not found"
+// @Failure 500 {object} JobResponse "Internal server error"
+// @Router /api/admin/jobs/{id} [get]
+// GET /admin/jobs/:id
+func (h *AdminHandler) GetJobByID(c *gin.Context) {
+	jobID := c.Param("id")
+
+	// Fetch job from service
+	job, err := h.service.GetJobByID(jobID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, JobResponse{
+			Success: false,
+			Message: "Job not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, JobResponse{
+		Success: true,
+		Message: "Job details retrieved successfully",
+		Data:    job,
+	})
+}
+
+// @Summary Get Job Statistics (Admin)
+// @Description Retrieve aggregated statistics about jobs across the platform (admin-only)
+// @Tags Admin Jobs
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} JobResponse "Job statistics retrieved successfully"
+// @Failure 500 {object} JobResponse "Internal server error"
+// @Router /api/admin/jobs/statistics [get]
+// GET /admin/jobs/statistics
+func (h *AdminHandler) GetJobStatistics(c *gin.Context) {
+	// Fetch statistics from service
+	stats, err := h.service.GetJobStatistics()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, JobResponse{
+			Success: false,
+			Message: "Failed to fetch job statistics: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, JobResponse{
+		Success: true,
+		Message: "Job statistics retrieved successfully",
+		Data:    stats,
 	})
 }

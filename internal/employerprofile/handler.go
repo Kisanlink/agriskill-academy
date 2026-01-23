@@ -4,6 +4,7 @@ import (
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"github.com/Kisanlink/agriskill-academy/internal/storage"
 	"github.com/Kisanlink/agriskill-academy/pkg/authz"
+	"github.com/Kisanlink/agriskill-academy/pkg/utils"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -198,7 +199,7 @@ func (h *EmployerProfileHandler) UpdateProfile(c *gin.Context) {
 		existingProfile.CompanyAddress = req.CompanyAddress
 	}
 	if req.City != "" {
-		existingProfile.City = req.City
+		existingProfile.City = utils.NormalizeCity(req.City)
 	}
 	if req.State != "" {
 		existingProfile.State = req.State
@@ -458,7 +459,7 @@ func (h *EmployerProfileHandler) UpdateMyProfile(c *gin.Context) {
 		middleware.DebugLog("🔍 DEBUG: Updated company address: %s\n", req.CompanyAddress)
 	}
 	if req.City != "" {
-		existingProfile.City = req.City
+		existingProfile.City = utils.NormalizeCity(req.City)
 		middleware.DebugLog("🔍 DEBUG: Updated city: %s\n", req.City)
 	}
 	if req.State != "" {

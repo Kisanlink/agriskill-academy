@@ -21,9 +21,9 @@ func NewAuthHandler(authService AuthService) *AuthHandler {
 // @Accept json
 // @Produce json
 // @Param request body SignupRequest true "User registration data"
-// @Success 201 {object} map[string]interface{} "User registered successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request data"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Success 201 {object} ProfileResponse "User registered successfully"
+// @Failure 400 {object} ProfileResponse "Invalid request data"
+// @Failure 500 {object} ProfileResponse "Internal server error"
 // @Router /api/auth/signup [post]
 // POST /auth/signup
 func (h *AuthHandler) Signup(c *gin.Context) {
@@ -51,16 +51,11 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	}
 
 	middleware.DebugLog("✅ Signup successful for user: %s", user.ID)
-	c.JSON(http.StatusCreated, gin.H{
-		"success": true,
-		"message": "User registered successfully. Firebase will send a verification email automatically.",
-		"user": gin.H{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
-			"role":  user.Role,
-		},
-		"token": token,
+	c.JSON(http.StatusCreated, ProfileResponse{
+		Success: true,
+		Message: "User registered successfully. Firebase will send a verification email automatically.",
+		User:    user,
+		Token:   token,
 	})
 }
 
@@ -70,9 +65,9 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param request body LoginRequest true "Login credentials"
-// @Success 200 {object} map[string]interface{} "Login successful"
-// @Failure 400 {object} map[string]interface{} "Invalid credentials"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Success 200 {object} ProfileResponse "Login successful"
+// @Failure 400 {object} ProfileResponse "Invalid credentials"
+// @Failure 500 {object} ProfileResponse "Internal server error"
 // @Router /api/auth/login [post]
 // POST /auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -97,16 +92,11 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	middleware.DebugLog("✅ Login successful for user: %s", user.ID)
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"message": "Login successful",
-		"user": gin.H{
-			"id":    user.ID,
-			"name":  user.Name,
-			"email": user.Email,
-			"role":  user.Role,
-		},
-		"token": token,
+	c.JSON(http.StatusOK, ProfileResponse{
+		Success: true,
+		Message: "Login successful",
+		User:    user,
+		Token:   token,
 	})
 }
 
@@ -157,8 +147,8 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} map[string]interface{} "User profile retrieved"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Success 200 {object} ProfileResponse "User profile retrieved"
+// @Failure 401 {object} ProfileResponse "Unauthorized"
 // @Router /api/auth/profile [get]
 // GET /auth/profile
 func (h *AuthHandler) GetProfile(c *gin.Context) {
@@ -188,9 +178,9 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param request body UpdateProfileRequest true "Profile update data"
-// @Success 200 {object} map[string]interface{} "Profile updated successfully"
-// @Failure 400 {object} map[string]interface{} "Invalid request"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
+// @Success 200 {object} ProfileResponse "Profile updated successfully"
+// @Failure 400 {object} ProfileResponse "Invalid request"
+// @Failure 401 {object} ProfileResponse "Unauthorized"
 // @Router /api/auth/profile [put]
 // PUT /auth/profile
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {

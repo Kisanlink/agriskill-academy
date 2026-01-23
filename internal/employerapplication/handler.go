@@ -1,20 +1,44 @@
 package employerapplication
 
 import (
-	"github.com/Kisanlink/agriskill-academy/internal/middleware"
-	"github.com/Kisanlink/agriskill-academy/pkg/authz"
+	"fmt"
+	"os"
+	"time"
+
 	"net/http"
 	"strings"
 
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/notification"
+	"github.com/Kisanlink/agriskill-academy/internal/storage"
+	"github.com/Kisanlink/agriskill-academy/pkg/authz"
+
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type EmployerApplicationHandler struct {
-	service EmployerApplicationService
+	service             EmployerApplicationService
+	emailSender         *notification.EmailSenderService
+	db                  *gorm.DB
+	storage             storage.StorageService
+	notificationService notification.NotificationService
 }
 
-func NewEmployerApplicationHandler(s EmployerApplicationService) *EmployerApplicationHandler {
-	return &EmployerApplicationHandler{s}
+func NewEmployerApplicationHandler(
+	s EmployerApplicationService,
+	emailSender *notification.EmailSenderService,
+	db *gorm.DB,
+	storageService storage.StorageService,
+	notificationService notification.NotificationService,
+) *EmployerApplicationHandler {
+	return &EmployerApplicationHandler{
+		service:             s,
+		emailSender:         emailSender,
+		db:                  db,
+		storage:             storageService,
+		notificationService: notificationService,
+	}
 }
 
 func getJWT(c *gin.Context) string {
@@ -159,6 +183,163 @@ func (h *EmployerApplicationHandler) UpdateStatus(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Status updated"})
+
+	// Send email notification to student about status update
+	go func() {
+		middleware.DebugLog("📧 Email notification goroutine started for application: %s, status: %s", applicationID, req.Status)
+
+		if h.emailSender == nil {
+			middleware.DebugLog("⚠️  emailSender is nil, cannot send email notification")
+			return
+		}
+
+		middleware.DebugLog("📧 Checking if status update email should be sent for application: %s", applicationID)
+
+		// Get application with student and job details using flat struct
+		var app struct {
+			ID             string `gorm:"column:id"`
+			StudentID      string `gorm:"column:student_id"`
+			JobID          string `gorm:"column:job_id"`
+			EmployerID     string `gorm:"column:employer_id"`
+			StudentName    string `gorm:"column:student_name"`
+			StudentEmail   string `gorm:"column:student_email"`
+			JobTitle       string `gorm:"column:job_title"`
+			CompanyName    string `gorm:"column:company_name"`
+			CompanyWebsite string `gorm:"column:company_website"`
+			CompanyLogo    string `gorm:"column:company_logo"`
+		}
+
+		err := h.db.Table("applications").
+			Select(`
+				applications.id,
+				applications.student_id,
+				applications.job_id,
+				job_posts.employer_id,
+				COALESCE(student_profiles.name, users.name) as student_name,
+				users.email as student_email,
+				job_posts.title as job_title,
+				COALESCE(employer_profiles.company_name, job_posts.employer_name, '') as company_name,
+				COALESCE(employer_profiles.website_url, '') as company_website,
+				COALESCE(employer_profiles.logo_key, '') as company_logo
+			`).
+			Joins("LEFT JOIN users ON applications.student_id = users.id").
+			Joins("LEFT JOIN student_profiles ON applications.student_id = student_profiles.user_id").
+			Joins("LEFT JOIN job_posts ON applications.job_id = job_posts.id").
+			Joins("LEFT JOIN employer_profiles ON job_posts.employer_id = employer_profiles.user_id").
+			Where("applications.id = ?", applicationID).
+			Scan(&app).Error
+
+		if err != nil {
+			middleware.DebugLog("❌ Failed to fetch application details for email: %v", err)
+			return
+		}
+
+		// Validate that we got the required data
+		if app.StudentID == "" || app.StudentEmail == "" {
+			middleware.DebugLog("❌ Missing required application data: StudentID=%s, StudentEmail=%s", app.StudentID, app.StudentEmail)
+			return
+		}
+
+		// Log fetched data for debugging
+		middleware.DebugLog("📋 Fetched application data - StudentName: %s, CompanyName: %s, EmployerID: %s, LogoKey: %s",
+			app.StudentName, app.CompanyName, app.EmployerID, app.CompanyLogo)
+
+		// Check if student has email notifications enabled using notification service
+		// This ensures preferences exist and are properly checked
+		shouldSend, err := h.notificationService.ShouldSendNotification(app.StudentID, notification.NotificationTypeApplicationUpdate)
+		if err != nil {
+			middleware.DebugLog("⚠️  Failed to check notification preferences: %v, skipping email", err)
+			return
+		}
+		if !shouldSend {
+			middleware.DebugLog("ℹ️  Student has application updates disabled, skipping email")
+			return
+		}
+
+		middleware.DebugLog("📧 Student has email notifications enabled, sending status update email")
+
+		// Status messages for each status type (matching application/service.go)
+		statusMessages := map[string]string{
+			"applied":     "Your application has been received and is under review.",
+			"viewed":      "Your application has been viewed by the employer.",
+			"reviewing":   "Your application is being reviewed by the employer.",
+			"shortlisted": "Congratulations! You've been shortlisted for this position.",
+			"interview":   "You've been invited for an interview. The employer will contact you soon.",
+			"rejected":    "Thank you for your application. Unfortunately, we've decided to move forward with other candidates.",
+			"accepted":    "Congratulations! You've been selected for this position!",
+			"hired":       "Congratulations! You've been selected for this position!",
+			"withdrawn":   "Your application has been withdrawn.",
+		}
+
+		// Get base URL - ensure it's the backend URL, not frontend
+		// For emails, we need the backend API URL where /api/files/serve/logo endpoint is hosted
+		baseURL := os.Getenv("ASA_BASE_URL")
+		if baseURL == "" {
+			baseURL = "http://localhost:8080"
+		}
+		// Ensure baseURL doesn't have trailing slash and points to backend
+		baseURL = strings.TrimSuffix(baseURL, "/")
+		// If baseURL points to frontend (like localhost:5173), we need backend URL
+		// Check if it's a frontend URL and replace with backend
+		if strings.Contains(baseURL, ":5173") || strings.Contains(baseURL, ":3000") {
+			// Extract host and use backend port
+			parts := strings.Split(baseURL, ":")
+			if len(parts) >= 2 {
+				baseURL = fmt.Sprintf("%s:8080", strings.Join(parts[:len(parts)-1], ":"))
+			} else {
+				baseURL = "http://localhost:8080"
+			}
+		}
+
+		statusMessage := statusMessages[req.Status]
+		if statusMessage == "" {
+			statusMessage = "Your application status has been updated."
+		}
+
+		// Build company logo URL if logo_key exists
+		// The logo is stored as logo_key (S3 key) in DB (e.g., "employer_logos/1766261179581447700_...jpg")
+		// Email clients cannot access API endpoints, so we need to generate presigned S3 URLs
+		// Unlike EMAIL_LOGO_URL which is a direct URL, company logos need presigned URLs from S3
+		companyLogoURL := ""
+		if app.CompanyLogo != "" {
+			// Generate presigned S3 URL (valid for 7 days)
+			// This creates a direct S3 URL that email clients can access
+			presignedURL, err := h.storage.GetPresignedURL(app.CompanyLogo, 7*24*time.Hour)
+			if err == nil {
+				companyLogoURL = presignedURL
+				middleware.DebugLog("📷 Company logo presigned URL generated - LogoKey: %s, URL: %s",
+					app.CompanyLogo, companyLogoURL)
+			} else {
+				middleware.DebugLog("⚠️  Failed to generate presigned URL for logo: %v, LogoKey: %s", err, app.CompanyLogo)
+				// Fallback: use API endpoint (may not work in email clients, but better than nothing)
+				if app.EmployerID != "" {
+					companyLogoURL = fmt.Sprintf("%s/api/files/serve/logo/%s", baseURL, app.EmployerID)
+					middleware.DebugLog("⚠️  Using API endpoint as fallback: %s", companyLogoURL)
+				}
+			}
+		} else {
+			middleware.DebugLog("⚠️  Company logo missing - LogoKey: '%s'", app.CompanyLogo)
+		}
+
+		appData := map[string]interface{}{
+			"StudentName":     app.StudentName,
+			"JobTitle":        app.JobTitle,
+			"Company":         app.CompanyName,
+			"CompanyName":     app.CompanyName,
+			"CompanyWebsite":  app.CompanyWebsite,
+			"CompanyLogo":     companyLogoURL,
+			"Status":          req.Status,
+			"StatusMessage":   statusMessage,
+			"ApplicationLink": fmt.Sprintf("%s/applications/%s", baseURL, applicationID),
+			"CurrentYear":     time.Now().Year(),
+		}
+
+		if err := h.emailSender.SendStatusUpdateEmail(app.StudentEmail, appData); err != nil {
+			middleware.DebugLog("❌ Failed to queue status update email: %v", err)
+		} else {
+			middleware.DebugLog("✅ Successfully queued status update email to: %s", app.StudentEmail)
+		}
+	}()
 }
 
 // GetApplicantProfile godoc
@@ -191,110 +372,6 @@ func (h *EmployerApplicationHandler) GetApplicantProfile(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "profile": profile})
-}
-
-// SendMessage godoc
-// @Summary Send message to applicant
-// @Description Send a message to an applicant for a specific job application
-// @Tags employer-applications
-// @Accept json
-// @Produce json
-// @Param applicationId path string true "Application ID"
-// @Param request body map[string]string true "Message request"
-// @Security BearerAuth
-// @Success 200 {object} map[string]interface{} "Message sent successfully"
-// @Failure 400 {object} map[string]interface{} "Bad request - Invalid message"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
-// @Failure 403 {object} map[string]interface{} "Forbidden - Not authorized to send message for this application"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/employer/applications/{applicationId}/messages [post]
-func (h *EmployerApplicationHandler) SendMessage(c *gin.Context) {
-	username := c.GetString("email")
-	applicationID := c.Param("applicationId")
-	jwtToken := getJWT(c)
-	allowed, err := authz.CheckLocalPermission(username, "db_asa_messages", "create", applicationID, jwtToken)
-	if err != nil || !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
-		return
-	}
-
-	senderID := c.GetString("user_id")
-	var req struct {
-		Message string `json:"message"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil || req.Message == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Invalid message"})
-		return
-	}
-
-	// Verify user is authorized to send message for this application
-	authorized, err := h.service.IsUserAuthorizedForApplication(applicationID, senderID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to verify authorization"})
-		return
-	}
-	if !authorized {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Not authorized to send message for this application"})
-		return
-	}
-
-	msg := &Message{
-		ApplicationID: applicationID,
-		SenderID:      senderID,
-		Message:       req.Message,
-	}
-
-	middleware.DebugLog("DEBUG: Creating message - database will set timestamp automatically\n")
-
-	if err := h.service.SendMessage(msg); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to send message"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "message": "Message sent"})
-}
-
-// GetMessages godoc
-// @Summary Get messages for an application
-// @Description Retrieve all messages for a specific job application
-// @Tags employer-applications
-// @Accept json
-// @Produce json
-// @Param applicationId path string true "Application ID"
-// @Security BearerAuth
-// @Success 200 {object} map[string]interface{} "Messages retrieved successfully"
-// @Failure 401 {object} map[string]interface{} "Unauthorized"
-// @Failure 403 {object} map[string]interface{} "Forbidden - Not authorized to view messages for this application"
-// @Failure 500 {object} map[string]interface{} "Internal server error"
-// @Router /api/employer/applications/{applicationId}/messages [get]
-func (h *EmployerApplicationHandler) GetMessages(c *gin.Context) {
-	username := c.GetString("email")
-	applicationID := c.Param("applicationId")
-	jwtToken := getJWT(c)
-	allowed, err := authz.CheckLocalPermission(username, "db_asa_messages", "read", applicationID, jwtToken)
-	if err != nil || !allowed {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Permission denied"})
-		return
-	}
-
-	userID := c.GetString("user_id")
-
-	// Verify user is authorized to view messages for this application
-	authorized, err := h.service.IsUserAuthorizedForApplication(applicationID, userID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to verify authorization"})
-		return
-	}
-	if !authorized {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "message": "Not authorized to view messages for this application"})
-		return
-	}
-
-	messages, err := h.service.GetMessagesWithSenderInfo(applicationID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Could not fetch messages"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "messages": messages})
 }
 
 // GetApplicationsByStudent godoc

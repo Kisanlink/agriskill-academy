@@ -185,7 +185,7 @@ func (h *FileServeHandler) ServeCertificate(c *gin.Context) {
 	middleware.DebugLog("DEBUG: Serving certificate with content type: %s\n", contentType)
 
 	c.Header("Content-Type", contentType)
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filepath.Base(normalizedKey)))
+	c.Header("Content-Disposition", fmt.Sprintf("inline; filename=%s", filepath.Base(normalizedKey)))
 	c.Status(http.StatusOK)
 	_, _ = io.Copy(c.Writer, reader)
 }

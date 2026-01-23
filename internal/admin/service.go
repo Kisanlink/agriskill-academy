@@ -24,6 +24,15 @@ type AdminService interface {
 	UpdateCompany(companyID string, req *UpdateCompanyRequest) error
 	DeleteCompany(companyID string) error
 	GetCompanyAnalytics() (*CompanyAnalytics, error)
+
+	// Student/Employer Lists
+	GetStudents(req *StudentListRequest) (*StudentListResponse, error)
+	GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error)
+
+	// Job Viewing (Admin-only)
+	GetAllJobs(req *JobListRequest) (*JobListResponse, error)
+	GetJobByID(jobID string) (*JobDetailResponse, error)
+	GetJobStatistics() (*JobStatistics, error)
 }
 
 type adminService struct {
@@ -154,4 +163,59 @@ func (s *adminService) DeleteCompany(companyID string) error {
 
 func (s *adminService) GetCompanyAnalytics() (*CompanyAnalytics, error) {
 	return s.repo.GetCompanyAnalytics()
+}
+
+// Student/Employer List Methods
+func (s *adminService) GetStudents(req *StudentListRequest) (*StudentListResponse, error) {
+	// Set default values
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 10
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
+	return s.repo.GetStudents(req)
+}
+
+func (s *adminService) GetEmployers(req *EmployerListRequest) (*EmployerListResponse, error) {
+	// Set default values
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 10
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
+	return s.repo.GetEmployers(req)
+}
+
+// Job Viewing Methods (Admin-only)
+func (s *adminService) GetAllJobs(req *JobListRequest) (*JobListResponse, error) {
+	// Set default values
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.Limit <= 0 {
+		req.Limit = 50
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+
+	return s.repo.GetAllJobs(req)
+}
+
+func (s *adminService) GetJobByID(jobID string) (*JobDetailResponse, error) {
+	return s.repo.GetJobByID(jobID)
+}
+
+func (s *adminService) GetJobStatistics() (*JobStatistics, error) {
+	return s.repo.GetJobStatistics()
 }

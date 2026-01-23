@@ -90,6 +90,7 @@ type JobPost struct {
 	City               string   `json:"city,omitempty" gorm:"-"`
 	State              string   `json:"state,omitempty" gorm:"-"`
 	Pincode            string   `json:"pincode,omitempty" gorm:"-"`
+	CompanyLogoKey     string   `json:"company_logo_key,omitempty" gorm:"-"`
 }
 
 // TableName specifies the database table name for JobPost
@@ -222,6 +223,7 @@ type AdvancedJobSearchRequest struct {
 	Limit     int    `json:"limit"`      // Default: 20, Max: 100
 }
 
+// @Description Job search response with filters and pagination
 type JobSearchResponse struct {
 	Success    bool            `json:"success"`
 	Message    string          `json:"message"`
@@ -230,6 +232,7 @@ type JobSearchResponse struct {
 	Pagination *PaginationInfo `json:"pagination,omitempty"`
 }
 
+// @Description Available search filters
 type SearchFilters struct {
 	AvailableLocations    []string      `json:"available_locations"`
 	AvailableJobTypes     []string      `json:"available_job_types"`
@@ -267,6 +270,7 @@ type JobRecommendationRequest struct {
 	MaxResults        int      `json:"max_results"` // Default: 10
 }
 
+// @Description Job recommendation response
 type JobRecommendationResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
@@ -292,6 +296,7 @@ type JobAlertRequest struct {
 	IsActive  bool   `json:"is_active"`
 }
 
+// @Description Job alert response
 type JobAlertResponse struct {
 	Success bool       `json:"success"`
 	Message string     `json:"message"`
@@ -340,6 +345,12 @@ func InitializeCounterFromDatabase(db *gorm.DB) {
 		hash.InitializeGlobalCountersFromDatabase("JALT", jobAlertIDs, hash.Medium)
 		middleware.DebugLog("Initialized JALT counter with %d existing IDs", len(jobAlertIDs))
 	}
+
+	var jobHireIDs []string
+	if err := db.Model(&JobHire{}).Pluck("id", &jobHireIDs).Error; err == nil {
+		hash.InitializeGlobalCountersFromDatabase("HIRE", jobHireIDs, hash.Medium)
+		middleware.DebugLog("Initialized HIRE counter with %d existing IDs", len(jobHireIDs))
+	}
 }
 
 // BeforeCreateGORM is called by GORM before creating a new record
@@ -358,18 +369,22 @@ func (j *JobAlert) BeforeDeleteGORM(tx *gorm.DB) error {
 }
 
 // Job Discovery Models
+
+// @Description Featured jobs response
 type FeaturedJobsResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
 	Jobs    []JobPost `json:"jobs"`
 }
 
+// @Description Recent jobs response
 type RecentJobsResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
 	Jobs    []JobPost `json:"jobs"`
 }
 
+// @Description Trending jobs response
 type TrendingJobsResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
@@ -381,8 +396,57 @@ type SimilarJobsRequest struct {
 	MaxResults int    `json:"max_results"` // Default: 5
 }
 
+// @Description Similar jobs response
 type SimilarJobsResponse struct {
 	Success bool      `json:"success"`
 	Message string    `json:"message"`
 	Jobs    []JobPost `json:"jobs"`
+}
+
+// JobHire represents a hired candidate for a job post.
+// This model supports multiple hires per job, allowing employers to hire
+// multiple candidates for the same position. Each hire is linked to a specific
+// application to ensure data integrity and prevent duplicate hires.
+//
+// Key features:
+// - Tracks all hired candidates with complete details (name, email, studentID)
+// - Maintains hire timestamp for record-keeping
+// - Unique constraint on application_id prevents duplicate hires
+// - Indexed on job_id and student_id for efficient queries
+// - Foreign key constraints ensure referential integrity
+type JobHire struct {
+	base.BaseModel
+	JobID          string    `gorm:"type:varchar(255);not null;index:idx_job_hires_job" json:"job_id"`
+	ApplicationID  string    `gorm:"type:varchar(255);not null;uniqueIndex:idx_job_hires_application" json:"application_id"`
+	CandidateName  string    `gorm:"type:varchar(255);not null" json:"candidate_name"`
+	CandidateEmail string    `gorm:"type:varchar(255);not null" json:"candidate_email"`
+	StudentID      string    `gorm:"type:varchar(255);not null;index:idx_job_hires_student" json:"student_id"`
+	HiredAt        time.Time `gorm:"not null;default:CURRENT_TIMESTAMP" json:"hired_at"`
+}
+
+// TableName specifies the database table name for JobHire
+func (JobHire) TableName() string {
+	return "job_hires"
+}
+
+// NewJobHire creates a new JobHire with proper initialization
+func NewJobHire() *JobHire {
+	return &JobHire{
+		BaseModel: *base.NewBaseModel("HIRE", hash.Medium),
+	}
+}
+
+// BeforeCreateGORM is called by GORM before creating a new record
+func (j *JobHire) BeforeCreateGORM(tx *gorm.DB) error {
+	return j.BeforeCreate()
+}
+
+// BeforeUpdateGORM is called by GORM before updating an existing record
+func (j *JobHire) BeforeUpdateGORM(tx *gorm.DB) error {
+	return j.BeforeUpdate()
+}
+
+// BeforeDeleteGORM is called by GORM before hard deleting a record
+func (j *JobHire) BeforeDeleteGORM(tx *gorm.DB) error {
+	return j.BeforeDelete()
 }

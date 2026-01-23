@@ -3,6 +3,7 @@ package auth
 import (
 	"github.com/Kisanlink/agriskill-academy/internal/employerprofile"
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/notification"
 	"github.com/Kisanlink/agriskill-academy/internal/studentprofile"
 	"context"
 	"crypto/rand"
@@ -96,15 +97,17 @@ type authService struct {
 	studentProfileRepo studentprofile.StudentProfileRepository
 	firebaseEmail      FirebaseEmailService   // Optional: for sending verification/reset emails
 	firebaseAuth       FirebaseAuthClient     // Optional: for Firebase authentication
+	notificationPrefsRepo notification.NotificationPreferencesRepository
 }
 
-func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository, firebaseEmail FirebaseEmailService, firebaseAuth FirebaseAuthClient) AuthService {
+func NewAuthService(repo UserRepository, employerRepo employerprofile.EmployerProfileRepository, studentProfileRepo studentprofile.StudentProfileRepository, firebaseEmail FirebaseEmailService, firebaseAuth FirebaseAuthClient, notificationPrefsRepo notification.NotificationPreferencesRepository) AuthService {
 	return &authService{
 		repo:               repo,
 		employerRepo:       employerRepo,
 		studentProfileRepo: studentProfileRepo,
 		firebaseEmail:      firebaseEmail,
 		firebaseAuth:       firebaseAuth,
+		notificationPrefsRepo: notificationPrefsRepo,
 	}
 }
 
@@ -448,6 +451,17 @@ func (s *authService) Signup(req *SignupRequest) (*User, string, error) {
 		middleware.DebugLog("✅ Student profile created successfully\n")
 	} else {
 		middleware.DebugLog("⚠️ Unknown role: %s, no profile created\n", req.Role)
+	}
+
+	// After creating student or employer profile, create notification preferences
+	// This ensures all users have preferences with default values (email notifications enabled)
+	middleware.DebugLog("🔍 Creating notification preferences for user: %s\n", user.ID)
+	_, err = s.notificationPrefsRepo.GetOrCreate(user.ID)
+	if err != nil {
+		middleware.DebugLog("⚠️ Failed to create notification preferences: %v\n", err)
+		// Non-critical error - continue signup, preferences can be created later
+	} else {
+		middleware.DebugLog("✅ Notification preferences created successfully\n")
 	}
 
 	// Send verification email via Firebase (if configured)

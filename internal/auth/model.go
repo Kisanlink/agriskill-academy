@@ -152,4 +152,5 @@ type ProfileResponse struct {
 	Message string      `json:"message"`
 	User    *User       `json:"user,omitempty"`
 	Profile interface{} `json:"profile,omitempty"`
+	Token   string      `json:"token,omitempty"`
 }

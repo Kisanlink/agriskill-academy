@@ -8,8 +8,10 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/Kisanlink/agriskill-academy/internal/middleware"
 	"gopkg.in/gomail.v2"
 )
 
@@ -19,6 +21,12 @@ type NotificationService interface {
 	UpdatePreferences(userID string, req *UpdateNotificationPreferencesRequest) (*NotificationPreferences, error)
 	ShouldSendNotification(userID, notificationType string) (bool, error)
 	SendNotificationIfEnabled(userID, notificationType, to, subject, body string) error
+	GenerateUnsubscribeToken(userID, notificationType string) (string, error)
+	ProcessUnsubscribe(token string) (string, error)
+	GetUnsubscribeURL(userID, notificationType string) (string, string, error)
+	GetPreferencesByToken(token string) (*NotificationPreferences, error)
+	UpdatePreferencesByToken(token string, emailNotifications, pushNotifications, jobAlerts, applicationUpdates bool) error
+	GetManagePreferencesURL(userID, notificationType, token string) (string, error)
 }
 
 type mailService struct {
@@ -147,7 +155,7 @@ func (s *mailService) UpdatePreferences(userID string, req *UpdateNotificationPr
 		return nil, err
 	}
 
-	// Update only the fields that are provided
+	// Update only provided fields
 	if req.EmailNotifications != nil {
 		preferences.EmailNotifications = *req.EmailNotifications
 	}
@@ -159,18 +167,6 @@ func (s *mailService) UpdatePreferences(userID string, req *UpdateNotificationPr
 	}
 	if req.ApplicationUpdates != nil {
 		preferences.ApplicationUpdates = *req.ApplicationUpdates
-	}
-	if req.CompanyNews != nil {
-		preferences.CompanyNews = *req.CompanyNews
-	}
-	if req.MarketingEmails != nil {
-		preferences.MarketingEmails = *req.MarketingEmails
-	}
-	if req.WeeklyDigest != nil {
-		preferences.WeeklyDigest = *req.WeeklyDigest
-	}
-	if req.DailyJobMatches != nil {
-		preferences.DailyJobMatches = *req.DailyJobMatches
 	}
 
 	err = s.prefsRepo.Update(preferences)
@@ -187,27 +183,19 @@ func (s *mailService) ShouldSendNotification(userID, notificationType string) (b
 		return false, err
 	}
 
-	// Check if email notifications are enabled
+	// Check master switch
 	if !preferences.EmailNotifications {
 		return false, nil
 	}
 
-	// Check specific notification type
+	// Check specific type
 	switch notificationType {
 	case NotificationTypeJobAlert:
 		return preferences.JobAlerts, nil
 	case NotificationTypeApplicationUpdate:
 		return preferences.ApplicationUpdates, nil
-	case NotificationTypeCompanyNews:
-		return preferences.CompanyNews, nil
-	case NotificationTypeMarketing:
-		return preferences.MarketingEmails, nil
-	case NotificationTypeWeeklyDigest:
-		return preferences.WeeklyDigest, nil
-	case NotificationTypeDailyMatches:
-		return preferences.DailyJobMatches, nil
 	default:
-		return true, nil // Default to sending if type not specified
+		return false, nil // Fail-safe: don't send unknown types
 	}
 }
 
@@ -222,4 +210,154 @@ func (s *mailService) SendNotificationIfEnabled(userID, notificationType, to, su
 	}
 
 	return nil // Notification disabled, don't send
+}
+
+// GenerateUnsubscribeToken generates and stores an unsubscribe token for a user
+func (s *mailService) GenerateUnsubscribeToken(userID, notificationType string) (string, error) {
+	// Validate notification type
+	if notificationType != NotificationTypeJobAlert && notificationType != NotificationTypeApplicationUpdate {
+		return "", fmt.Errorf("invalid notification type: %s", notificationType)
+	}
+
+	token, tokenHash, expiry, err := GenerateUnsubscribeToken()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = s.prefsRepo.GetOrCreate(userID)
+	if err != nil {
+		return "", err
+	}
+
+	// Update type-specific token
+	err = s.prefsRepo.UpdateUnsubscribeToken(userID, notificationType, tokenHash, expiry)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+// ProcessUnsubscribe processes an unsubscribe request using a token
+func (s *mailService) ProcessUnsubscribe(token string) (string, error) {
+	middleware.DebugLog("🔍 ProcessUnsubscribe - received token: %s (length: %d)", token, len(token))
+	
+	tokenHash := HashToken(token)
+
+	// Log full hash for debugging
+	middleware.DebugLog("🔍 Processing unsubscribe - full token hash: %s", tokenHash)
+	
+	// Log token processing (show first 16 chars of hash for debugging)
+	hashPreview := tokenHash
+	if len(tokenHash) > 16 {
+		hashPreview = tokenHash[:16] + "..."
+	}
+	middleware.DebugLog("🔍 Processing unsubscribe - token hash preview: %s", hashPreview)
+
+	// Get preferences and determine type
+	preferences, notificationType, err := s.prefsRepo.GetByUnsubscribeToken(tokenHash)
+	if err != nil {
+		middleware.DebugLog("❌ Token lookup failed: %v", err)
+		middleware.DebugLog("❌ Looking for hash: %s", tokenHash)
+		return "", fmt.Errorf("invalid or expired token")
+	}
+
+	middleware.DebugLog("📋 Found preferences for user: %s, notification type: %s", preferences.UserID, notificationType)
+
+	// Disable only specific type
+	err = s.prefsRepo.DisableNotification(preferences.UserID, notificationType)
+	if err != nil {
+		middleware.DebugLog("❌ Failed to update preferences: %v", err)
+		return "", err
+	}
+
+	middleware.DebugLog("✅ Preferences updated successfully - %s disabled for user: %s", notificationType, preferences.UserID)
+	return notificationType, nil
+}
+
+// GetUnsubscribeURL generates an unsubscribe URL for a user
+// Returns both the URL and the token so it can be reused for manage preferences
+func (s *mailService) GetUnsubscribeURL(userID, notificationType string) (string, string, error) {
+	// Generate type-specific token
+	token, err := s.GenerateUnsubscribeToken(userID, notificationType)
+	if err != nil {
+		return "", "", err
+	}
+
+	baseURL := os.Getenv("ASA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	baseURL = strings.TrimSuffix(baseURL, "/")
+
+	unsubscribeURL := fmt.Sprintf("%s/api/notifications/unsubscribe/%s?type=%s",
+		baseURL, token, notificationType)
+
+	return unsubscribeURL, token, nil
+}
+
+// GetPreferencesByToken retrieves preferences by token without disabling anything
+func (s *mailService) GetPreferencesByToken(token string) (*NotificationPreferences, error) {
+	tokenHash := HashToken(token)
+	
+	// Get preferences and determine type (we don't need the type, just the preferences)
+	preferences, _, err := s.prefsRepo.GetByUnsubscribeToken(tokenHash)
+	if err != nil {
+		return nil, fmt.Errorf("invalid or expired token")
+	}
+	
+	return preferences, nil
+}
+
+// UpdatePreferencesByToken updates preferences using a token
+func (s *mailService) UpdatePreferencesByToken(token string, emailNotifications, pushNotifications, jobAlerts, applicationUpdates bool) error {
+	tokenHash := HashToken(token)
+	
+	// Get preferences by token to find user ID
+	preferences, _, err := s.prefsRepo.GetByUnsubscribeToken(tokenHash)
+	if err != nil {
+		return fmt.Errorf("invalid or expired token")
+	}
+	
+	// Update all preferences
+	updates := map[string]interface{}{
+		"email_notifications": emailNotifications,
+		"push_notifications":  pushNotifications,
+		"job_alerts":          jobAlerts,
+		"application_updates": applicationUpdates,
+	}
+	
+	err = s.prefsRepo.UpdatePreferencesByUserID(preferences.UserID, updates)
+	
+	if err != nil {
+		return fmt.Errorf("failed to update preferences: %w", err)
+	}
+	
+	middleware.DebugLog("✅ Preferences updated via token for user: %s", preferences.UserID)
+	return nil
+}
+
+// GetManagePreferencesURL generates a manage preferences URL using an existing token
+// If token is empty, it will generate a new one
+func (s *mailService) GetManagePreferencesURL(userID, notificationType, token string) (string, error) {
+	var err error
+	
+	// If no token provided, generate one
+	if token == "" {
+		token, err = s.GenerateUnsubscribeToken(userID, notificationType)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	baseURL := os.Getenv("ASA_BASE_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	baseURL = strings.TrimSuffix(baseURL, "/")
+
+	manageURL := fmt.Sprintf("%s/api/notifications/manage/%s?type=%s",
+		baseURL, token, notificationType)
+
+	return manageURL, nil
 }

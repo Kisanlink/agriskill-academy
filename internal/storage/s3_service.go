@@ -21,6 +21,7 @@ type StorageService interface {
 	DeleteFile(filePath string) error
 	ListFiles(folder string) ([]FileInfo, error)
 	GetFileInfo(filePath string) (*FileInfo, error)
+	GetPresignedURL(filePath string, expiration time.Duration) (string, error)
 }
 
 // getMimeTypeFromExtension returns a best-guess MIME type for a file extension
@@ -166,6 +167,14 @@ func (s *s3StorageService) buildFileURL(filePath string) string {
 		return filePath
 	}
 	return strings.TrimSuffix(s.baseURL, "/") + "/serve/" + strings.TrimPrefix(filePath, "/")
+}
+
+// GetPresignedURL generates a presigned S3 URL for a file
+// This is useful for email clients that cannot access API endpoints
+// expiration: how long the URL should be valid (e.g., 7*24*time.Hour for 7 days)
+func (s *s3StorageService) GetPresignedURL(filePath string, expiration time.Duration) (string, error) {
+	ctx := context.Background()
+	return s.s3.GetPresignedURL(ctx, filePath, expiration)
 }
 
 // --- Begin model types and constants (from model.go) ---

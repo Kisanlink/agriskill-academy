@@ -18,6 +18,7 @@ func RegisterPublicRoutes(rg *gin.RouterGroup, handler *JobPostHandler) {
 		jobs.GET("/search-filters", handler.GetSearchFilters)
 		jobs.GET("/:id", handler.GetByID)
 		jobs.GET("/:id/similar", handler.GetSimilarJobs)
+		jobs.GET("/:id/hires", handler.GetHiredCandidates)
 		jobs.POST("/search", handler.Search)
 		jobs.POST("/advanced-search", handler.AdvancedSearch)
 		jobs.POST("/recommendations", handler.GetRecommendedJobs)
@@ -40,6 +41,8 @@ func RegisterAuthenticatedRoutes(rg *gin.RouterGroup, handler *JobPostHandler) {
 			employerJobs.PUT("/:id", handler.Update)
 			employerJobs.DELETE("/:id", handler.Delete)
 			employerJobs.POST("/:id/publish", handler.PublishDraft)
+			employerJobs.POST("/:id/close", handler.CloseJob)
+			employerJobs.POST("/:id/reopen", handler.ReopenJob)
 		}
 
 		// Job alerts endpoints (auth required for any role)
@@ -82,8 +85,11 @@ func RegisterRoutes(rg *gin.RouterGroup, handler *JobPostHandler) {
 		jobs.POST("", handler.Create)
 		jobs.GET("/:id", handler.GetByID)
 		jobs.GET("/:id/similar", handler.GetSimilarJobs)
+		jobs.GET("/:id/hires", handler.GetHiredCandidates)
 		jobs.PUT("/:id", handler.Update)
 		jobs.DELETE("/:id", handler.Delete)
 		jobs.POST("/:id/publish", handler.PublishDraft)
+		jobs.POST("/:id/close", handler.CloseJob)
+		jobs.POST("/:id/reopen", handler.ReopenJob)
 	}
 }

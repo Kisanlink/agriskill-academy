@@ -3,17 +3,21 @@
 package application
 
 import (
+	"github.com/Kisanlink/agriskill-academy/internal/auth"
 	"github.com/Kisanlink/agriskill-academy/internal/jobpost"
 	"github.com/Kisanlink/agriskill-academy/internal/middleware"
+	"github.com/Kisanlink/agriskill-academy/internal/notification"
 	"context"
 	"errors"
 	"fmt"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	db "github.com/Kisanlink/agriskill-academy/pkg/db"
+	"gorm.io/gorm"
 )
 
 type ApplicationService interface {
@@ -29,13 +33,23 @@ type ApplicationService interface {
 }
 
 type applicationService struct {
-	repo    ApplicationRepository
-	jobRepo jobpost.JobPostRepository
-	s3      *db.S3Manager
+	repo           ApplicationRepository
+	jobRepo        jobpost.JobPostRepository
+	s3             *db.S3Manager
+	emailSender    *notification.EmailSenderService
+	db             *gorm.DB
+	notificationSvc notification.NotificationService
 }
 
-func NewApplicationService(repo ApplicationRepository, jobRepo jobpost.JobPostRepository, s3 *db.S3Manager) ApplicationService {
-	return &applicationService{repo: repo, jobRepo: jobRepo, s3: s3}
+func NewApplicationService(repo ApplicationRepository, jobRepo jobpost.JobPostRepository, s3 *db.S3Manager, emailSender *notification.EmailSenderService, db *gorm.DB, notificationSvc notification.NotificationService) ApplicationService {
+	return &applicationService{
+		repo:           repo,
+		jobRepo:        jobRepo,
+		s3:             s3,
+		emailSender:    emailSender,
+		db:             db,
+		notificationSvc: notificationSvc,
+	}
 }
 
 func (s *applicationService) Apply(app *Application) error {
@@ -169,24 +183,103 @@ func (s *applicationService) UpdateStatusByEmployer(appID, jobID, employerID, st
 		return err
 	}
 
-	// If the application is accepted, update the job post with the hired candidate
+	// If the application is accepted, track the hire in job_hires table
+	// Note: Job does NOT auto-close after hiring, allowing multiple hires per job
 	if status == StatusAccepted {
-		// Get the candidate name
-		candidateName, err := s.repo.GetCandidateName(appID)
+		// Get the candidate details (name, email, studentID)
+		candidateName, candidateEmail, studentID, err := s.repo.GetCandidateDetails(appID)
 		if err != nil {
-			middleware.DebugLog("DEBUG: Error getting candidate name: %v\n", err)
-			return fmt.Errorf("failed to get candidate name: %w", err)
+			middleware.DebugLog("DEBUG: Error getting candidate details: %v\n", err)
+			return fmt.Errorf("failed to get candidate details: %w", err)
 		}
 
-		// Update the job post with the hired candidate
+		// Add to job_hires table for tracking multiple hires
+		// This creates a new record for each hired candidate, supporting multiple hires per job
+		err = s.jobRepo.AddHiredCandidate(jobID, appID, candidateName, candidateEmail, studentID)
+		if err != nil {
+			middleware.DebugLog("DEBUG: Error adding hired candidate to job_hires: %v\n", err)
+			return fmt.Errorf("failed to add hired candidate: %w", err)
+		}
+
+		// Update the job post with hired candidate name for backward compatibility
+		// This maintains the hired_candidate_name field which is still populated
 		err = s.jobRepo.UpdateHiredCandidate(jobID, candidateName)
 		if err != nil {
 			middleware.DebugLog("DEBUG: Error updating job with hired candidate: %v\n", err)
 			return fmt.Errorf("failed to update job with hired candidate: %w", err)
 		}
 
-		middleware.DebugLog("DEBUG: Successfully updated job %s with hired candidate: %s\n", jobID, candidateName)
+		middleware.DebugLog("DEBUG: Successfully tracked hire for job %s: %s (%s)\n", jobID, candidateName, candidateEmail)
 	}
+
+	// Send email notification to student if they have email notifications enabled
+	go func() {
+		if s.emailSender != nil {
+			middleware.DebugLog("📧 Checking if status update email should be sent for application: %s", appID)
+
+			// Get application with student details
+			app, err := s.repo.GetByID(context.Background(), appID, &Application{})
+			if err != nil {
+				middleware.DebugLog("❌ Failed to get application: %v", err)
+				return
+			}
+
+			// Get student details
+			var student auth.User
+			if err := s.db.Where("id = ?", app.StudentID).First(&student).Error; err != nil {
+				middleware.DebugLog("❌ Failed to get student: %v", err)
+				return
+			}
+
+			// Check if student has email notifications enabled
+			var pref notification.NotificationPreferences
+			if err := s.db.Where("user_id = ?", app.StudentID).First(&pref).Error; err == nil {
+				if !pref.ApplicationUpdates {
+					middleware.DebugLog("ℹ️  Student has application updates disabled, skipping email")
+					return
+				}
+			}
+
+			middleware.DebugLog("📧 Student has email notifications enabled, sending status update email")
+
+			// Get job details
+			var job jobpost.JobPost
+			if err := s.db.Where("id = ?", app.JobID).First(&job).Error; err != nil {
+				middleware.DebugLog("❌ Failed to get job: %v", err)
+				return
+			}
+
+			// Prepare status message based on new status
+			statusMessages := map[string]string{
+				StatusReviewing:   "Your application is being reviewed by the employer.",
+				StatusShortlisted:  "Congratulations! You've been shortlisted for this position.",
+				StatusInterview:    "You've been invited for an interview. The employer will contact you soon.",
+				StatusRejected:     "Thank you for your application. Unfortunately, we've decided to move forward with other candidates.",
+				StatusAccepted:     "Congratulations! You've been selected for this position!",
+			}
+
+			// Get base URL from environment
+			baseURL := os.Getenv("ASA_BASE_URL")
+			if baseURL == "" {
+				baseURL = "http://localhost:8080"
+			}
+
+			appData := map[string]interface{}{
+				"StudentName":     student.Name,
+				"JobTitle":        job.Title,
+				"Company":         job.EmployerName,
+				"Status":          status,
+				"StatusMessage":   statusMessages[status],
+				"ApplicationLink": fmt.Sprintf("%s/applications/%s", baseURL, app.ID),
+			}
+
+			if err := s.emailSender.SendStatusUpdateEmail(student.Email, appData); err != nil {
+				middleware.DebugLog("❌ Failed to queue status update email: %v", err)
+			} else {
+				middleware.DebugLog("✅ Successfully queued status update email to: %s", student.Email)
+			}
+		}
+	}()
 
 	return nil
 }
